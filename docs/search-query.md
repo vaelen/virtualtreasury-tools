@@ -114,8 +114,8 @@ and resets the operand to `--all`. An **operand flag** sets the operand for the
 current clause. Bare words are keywords appended to the current clause. So:
 
 ```
-vtextract --title --all memorial houston --transcription --any castle watchmaker \
-          --place --exact Dublin --out ./archive
+vtextract search --title --all memorial houston --transcription --any castle watchmaker \
+                 --place --exact Dublin --out ./archive
 ```
 
 produces three clauses:

@@ -8,6 +8,18 @@ import pytest
 import httpx
 
 from vtextract import cli
+from vtextract.config import load_config, write_config
+
+
+def _write_config(tmp_path, token="x", delay=0, max_retries=3):
+    """A config file with credentials and zero delay for fast offline tests."""
+    path = tmp_path / "vt.toml"
+    write_config(
+        path,
+        {"extract": {"auth": {"token": token},
+                     "http": {"delay": delay, "max_retries": max_retries}}},
+    )
+    return path
 
 
 # --- argument validation -------------------------------------------------
@@ -85,11 +97,52 @@ def test_walker_rejects_unknown_option():
         _split(["--bogus", "x"])
 
 
-# --- run() wiring --------------------------------------------------------
+# --- dispatch ------------------------------------------------------------
 
-def test_run_errors_when_no_criteria(tmp_path):
+def test_no_subcommand_prints_help_and_exits_nonzero(capsys):
+    code = cli.run([])
+    assert code != 0
+    assert "search" in capsys.readouterr().err
+
+
+def test_unknown_subcommand_exits_nonzero(capsys):
+    code = cli.run(["bogus"])
+    assert code != 0
+
+
+# --- auth command --------------------------------------------------------
+
+def test_auth_stores_token_verbatim(tmp_path, monkeypatch):
+    path = tmp_path / "vt.toml"
+    monkeypatch.setattr(cli.getpass, "getpass", lambda prompt="": "cGFzdGVk")
+    code = cli.run(["auth", "--config", str(path)])
+    assert code == 0
+    assert load_config(path).auth_header == "Basic cGFzdGVk"
+
+
+def test_auth_with_username_stores_computed_digest(tmp_path, monkeypatch):
+    import base64
+    path = tmp_path / "vt.toml"
+    monkeypatch.setattr(cli.getpass, "getpass", lambda prompt="": "secret")
+    code = cli.run(["auth", "user", "--config", str(path)])
+    assert code == 0
+    expected = base64.b64encode(b"user:secret").decode()
+    assert load_config(path).auth_header == f"Basic {expected}"
+
+
+# --- search command: run() wiring ----------------------------------------
+
+def test_search_errors_when_no_criteria(tmp_path):
+    config = _write_config(tmp_path)
     with pytest.raises(SystemExit):
-        cli.run(["--out", str(tmp_path)], env={"VT_AUTH": "x", "VT_DELAY": "0"})
+        cli.run(["search", "--out", str(tmp_path), "--config", str(config)])
+
+
+def test_search_without_credentials_reports_guidance(tmp_path, capsys):
+    config = tmp_path / "vt.toml"  # no file written -> no token
+    code = cli.run(["search", "houston", "--out", str(tmp_path), "--config", str(config)])
+    assert code != 0
+    assert "vtextract auth" in capsys.readouterr().err
 
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "docs" / "examples"
@@ -113,6 +166,7 @@ def _item_handler(request, search_response, posted=None):
 
 
 def test_run_archives_results_from_criteria_flags(tmp_path, monkeypatch):
+    config = _write_config(tmp_path)
     search_response = {
         "generalInfo": {"totalDocs": 1, "docNumberPerPage": 100, "currentPage": 1},
         "resultInfoList": [
@@ -127,8 +181,8 @@ def test_run_archives_results_from_criteria_flags(tmp_path, monkeypatch):
     )
 
     exit_code = cli.run(
-        ["--title", "--all", "houston", "--out", str(tmp_path), "--context-pages", "0"],
-        env={"VT_AUTH": "x", "VT_DELAY": "0"},
+        ["search", "--title", "--all", "houston", "--out", str(tmp_path),
+         "--context-pages", "0", "--config", str(config)],
     )
     assert exit_code == 0
     # The criteria flags reached the POST body as parallel arrays + scaffolding.
@@ -143,7 +197,32 @@ def test_run_archives_results_from_criteria_flags(tmp_path, monkeypatch):
     assert (tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg").exists()
 
 
+def test_search_defaults_archive_to_config_when_out_omitted(tmp_path, monkeypatch):
+    archive = tmp_path / "archive"
+    path = tmp_path / "vt.toml"
+    write_config(
+        path,
+        {"archive": str(archive),
+         "extract": {"auth": {"token": "x"}, "http": {"delay": 0}}},
+    )
+    search_response = {
+        "generalInfo": {"totalDocs": 1, "docNumberPerPage": 100, "currentPage": 1},
+        "resultInfoList": [
+            {"isadgID": 474234, "displayReferenceCode": "X", "displayTitle": "Y"}
+        ],
+    }
+    monkeypatch.setattr(
+        cli, "_make_transport",
+        lambda: httpx.MockTransport(lambda r: _item_handler(r, search_response)),
+    )
+
+    exit_code = cli.run(["search", "houston", "--context-pages", "0", "--config", str(path)])
+    assert exit_code == 0
+    assert (archive / "items" / "474234" / "metadata.json").exists()
+
+
 def test_run_returns_nonzero_when_a_resource_fails(tmp_path, monkeypatch):
+    config = _write_config(tmp_path, max_retries=0)
     search_response = {
         "generalInfo": {"totalDocs": 1, "docNumberPerPage": 100, "currentPage": 1},
         "resultInfoList": [
@@ -159,13 +238,14 @@ def test_run_returns_nonzero_when_a_resource_fails(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "_make_transport", lambda: httpx.MockTransport(handler))
 
     exit_code = cli.run(
-        ["houston", "--out", str(tmp_path), "--context-pages", "0"],
-        env={"VT_AUTH": "x", "VT_DELAY": "0", "VT_MAX_RETRIES": "0"},
+        ["search", "houston", "--out", str(tmp_path),
+         "--context-pages", "0", "--config", str(config)],
     )
     assert exit_code == 1
 
 
 def test_run_twice_skips_completed_resource(tmp_path, monkeypatch):
+    config = _write_config(tmp_path)
     search_response = {
         "generalInfo": {"totalDocs": 1, "docNumberPerPage": 100, "currentPage": 1},
         "resultInfoList": [
@@ -192,15 +272,15 @@ def test_run_twice_skips_completed_resource(tmp_path, monkeypatch):
 
     monkeypatch.setattr(cli, "_make_transport", lambda: httpx.MockTransport(handler))
 
-    argv = ["houston", "--out", str(tmp_path), "--context-pages", "0"]
-    env = {"VT_AUTH": "x", "VT_DELAY": "0"}
+    argv = ["search", "houston", "--out", str(tmp_path),
+            "--context-pages", "0", "--config", str(config)]
 
-    assert cli.run(argv, env=env) == 0
+    assert cli.run(argv) == 0
     assert counts["item"] == 1
     assert counts["loris"] == 1
 
     counts["item"] = 0
     counts["loris"] = 0
-    assert cli.run(argv, env=env) == 0
+    assert cli.run(argv) == 0
     assert counts["item"] == 0
     assert counts["loris"] == 0

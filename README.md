@@ -43,7 +43,7 @@ uv tool update-shell
 Verify from a directory outside the repo:
 
 ```bash
-vtextract --help
+vtextract
 ```
 
 To remove it later:
@@ -52,27 +52,42 @@ To remove it later:
 uv tool uninstall vtextract
 ```
 
+## Configuration
+
+Settings live in a TOML file at `~/.vt/vt.toml`. The shared `archive` location
+is at the top level; vtextract's own settings are namespaced under `extract`:
+
+```toml
+archive = "~/.vt/archive"          # default; where downloads are stored
+
+[extract.auth]
+token = "<base64 user:pass token>"
+
+[extract.http]                     # all optional, shown with their defaults
+base_url      = "https://by2022-prod.adaptcentre.ie"
+delay         = 0.5                # seconds between requests
+max_retries   = 3
+```
+
 ## Credentials
 
 The backend requires an HTTP Basic credential (the same one the public site's
-JavaScript sends). Provide it via the environment — it is never stored in the
-repo:
+JavaScript sends). Store it with the `auth` command, which writes it to the
+config file (mode `0600`); it is never stored in the repo:
 
 ```bash
-export VT_AUTH="<base64 user:pass token>"
+vtextract auth <username>     # prompts for a password, stores the digest
 # or
-export VT_USERNAME="..." VT_PASSWORD="..."
+vtextract auth                # prompts for the base64 token directly
 ```
-
-Optional: `VT_BASE_URL`, `VT_DELAY` (seconds between requests, default 0.5),
-`VT_MAX_RETRIES`.
 
 ## Usage
 
-Searches are built from explicit flags. A simple keyword search:
+Searches are built from explicit flags under the `search` subcommand. A simple
+keyword search (downloads to the configured `archive` unless `--out` overrides):
 
 ```bash
-uv run vtextract houston --out ./archive --context-pages 1
+uv run vtextract search houston --context-pages 1
 ```
 
 Each **field flag** starts a search clause; the **operand flag** (default
@@ -80,7 +95,7 @@ Each **field flag** starts a search clause; the **operand flag** (default
 combine, and `--start`/`--end` filter by content date (`yyyy-mm-dd`):
 
 ```bash
-uv run vtextract \
+uv run vtextract search \
   --title --all memorial houston \
   --transcription --any castle watchmaker \
   --place --exact Dublin \
@@ -95,7 +110,8 @@ uv run vtextract \
 
 `--person`/`--place` rank results by knowledge-graph entity (the last one wins).
 See [docs/search-query.md](docs/search-query.md) for exactly how the flags map
-onto the backend request. Run `uv run vtextract --help` for the full list.
+onto the backend request. Run `uv run vtextract search --help` for the full
+list.
 
 If you installed the `vtextract` command (see [Install](#install-the-vtextract-command)),
 drop the `uv run` prefix and call `vtextract …` directly from anywhere.

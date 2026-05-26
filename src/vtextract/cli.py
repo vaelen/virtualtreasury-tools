@@ -4,14 +4,16 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import sys
+from pathlib import Path
 
 import httpx
 
 from vtextract.archive import Archive
 from vtextract.client import Client
-from vtextract.config import load_config
+from vtextract.config import default_config_path, load_config, make_token, set_token
 from vtextract.fetcher import fetch_resource
 from vtextract.models import BOOST_FOR_FIELD, FIELD_MAP, OPERANDS, Filter, SearchCriteria
 from vtextract.search import criteria_to_params, iter_results
@@ -37,7 +39,7 @@ def _nonneg_int(value: str) -> int:
 
 
 # Global options that consume the following token as their value.
-_VALUE_OPTS = {"--out", "--start", "--end", "--context-pages", "--page-size"}
+_VALUE_OPTS = {"--out", "--config", "--start", "--end", "--context-pages", "--page-size"}
 # Zero-arg global flags handled by argparse (result ordering).
 _SORT_FLAGS = {"--relevance", "--newest", "--oldest"}
 # Field flags: "--title" -> "title" key into FIELD_MAP.
@@ -65,12 +67,18 @@ example:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="vtextract",
+        prog="vtextract search",
         description="Download resources matching a virtualtreasury.ie search.",
         epilog=_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--out", required=True, help="Output archive directory.")
+    parser.add_argument(
+        "--out",
+        help="Output archive directory (defaults to the config file's archive).",
+    )
+    parser.add_argument(
+        "--config", help="Config file path (default ~/.vt/vt.toml)."
+    )
     parser.add_argument("--start", help="Start of content date range (yyyy-mm-dd).")
     parser.add_argument("--end", help="End of content date range (yyyy-mm-dd).")
     sort = parser.add_mutually_exclusive_group()
@@ -151,7 +159,58 @@ def split_and_group(
     return global_tokens, SearchCriteria(filters=filters, boost=boost)
 
 
-def run(argv: list[str], *, env: dict[str, str] | None = None) -> int:
+_USAGE = """\
+usage: vtextract <command> [options]
+
+commands:
+  search   download resources matching a search (vtextract search --help)
+  auth     store credentials in the config file (vtextract auth [username])
+"""
+
+
+def run(argv: list[str]) -> int:
+    """Dispatch to a subcommand. No command (or unknown) prints help."""
+    if not argv or argv[0] in ("-h", "--help"):
+        out = sys.stdout if argv else sys.stderr
+        print(_USAGE, end="", file=out)
+        return 0 if argv else 2
+    command, rest = argv[0], argv[1:]
+    if command == "search":
+        return _run_search(rest)
+    if command == "auth":
+        return _run_auth(rest)
+    print(f"unknown command: {command}\n", file=sys.stderr)
+    print(_USAGE, end="", file=sys.stderr)
+    return 2
+
+
+def _run_auth(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="vtextract auth",
+        description="Store the basic-auth credential in the config file.",
+    )
+    parser.add_argument(
+        "username",
+        nargs="?",
+        help="If given, prompt for a password and store the computed digest. "
+        "Otherwise prompt for the base64 token directly.",
+    )
+    parser.add_argument("--config", help="Config file path (default ~/.vt/vt.toml).")
+    args = parser.parse_args(argv)
+    path = Path(args.config) if args.config else default_config_path()
+
+    if args.username:
+        password = getpass.getpass("Password: ")
+        token = make_token(args.username, password)
+    else:
+        token = getpass.getpass("Basic auth token (base64): ").strip()
+
+    set_token(path, token)
+    print(f"Saved credentials to {path}")
+    return 0
+
+
+def _run_search(argv: list[str]) -> int:
     parser = build_parser()
     global_tokens, criteria = split_and_group(argv, parser)
     args = parser.parse_args(global_tokens)
@@ -161,7 +220,10 @@ def run(argv: list[str], *, env: dict[str, str] | None = None) -> int:
     if not criteria.filters:
         parser.error("no search criteria: pass at least one keyword")
 
-    config = load_config(env)
+    config = load_config(Path(args.config) if args.config else None)
+    if config.auth_header is None:
+        print("No credentials configured. Run `vtextract auth`.", file=sys.stderr)
+        return 2
 
     client = Client(
         base_url=config.base_url,
@@ -171,7 +233,7 @@ def run(argv: list[str], *, env: dict[str, str] | None = None) -> int:
         delay=config.delay,
         max_retries=config.max_retries,
     )
-    archive = Archive(args.out)
+    archive = Archive(args.out if args.out else config.archive)
     params = criteria_to_params(criteria)
     search_id = json.dumps(params, sort_keys=True)  # stable id; dedupes re-runs
     root_manifest_cache: dict = {}

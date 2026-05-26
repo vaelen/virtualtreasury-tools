@@ -4,8 +4,9 @@
 from __future__ import annotations
 
 import base64
-import os
-from dataclasses import dataclass
+import tomllib
+from dataclasses import dataclass, field
+from pathlib import Path
 
 DEFAULT_BASE_URL = "https://by2022-prod.adaptcentre.ie"
 DEFAULT_USER_AGENT = (
@@ -13,11 +14,18 @@ DEFAULT_USER_AGENT = (
     "Gecko/20100101 Firefox/151.0"
 )
 DEFAULT_INDEX_DB_NAME = "beyond_2022"
+DEFAULT_ARCHIVE = "~/.vt/archive"
+
+
+def default_config_path() -> Path:
+    """The config file location, ``~/.vt/vt.toml`` with ``~`` expanded."""
+    return Path("~/.vt/vt.toml").expanduser()
 
 
 @dataclass
 class Config:
-    auth_header: str
+    auth_header: str | None = None
+    archive: Path = field(default_factory=lambda: Path(DEFAULT_ARCHIVE).expanduser())
     base_url: str = DEFAULT_BASE_URL
     user_agent: str = DEFAULT_USER_AGENT
     index_db_name: str = DEFAULT_INDEX_DB_NAME
@@ -25,32 +33,93 @@ class Config:
     max_retries: int = 3
 
 
-def load_config(env: dict[str, str] | None = None) -> Config:
-    """Build a Config from environment variables.
+def make_token(username: str, password: str) -> str:
+    """Return the base64 ``user:pass`` token for HTTP Basic auth."""
+    return base64.b64encode(f"{username}:{password}".encode()).decode()
 
-    Credentials: set VT_AUTH to the base64 'user:pass' token, OR set both
-    VT_USERNAME and VT_PASSWORD. Optional: VT_BASE_URL, VT_USER_AGENT,
-    VT_INDEX_DB_NAME, VT_DELAY, VT_MAX_RETRIES.
+
+def _read_raw(path: Path) -> dict:
+    """Parse the TOML config file, returning ``{}`` if it does not exist."""
+    try:
+        with path.open("rb") as fh:
+            return tomllib.load(fh)
+    except FileNotFoundError:
+        return {}
+
+
+def load_config(path: Path | None = None) -> Config:
+    """Build a Config from the TOML file at ``path`` (default ``~/.vt/vt.toml``).
+
+    The shared archive location lives at the top level; vtextract's own
+    settings are namespaced under ``[extract.auth]`` and ``[extract.http]``.
+    A missing file yields all defaults with ``auth_header`` unset.
     """
-    env = os.environ if env is None else env
+    path = default_config_path() if path is None else path
+    data = _read_raw(path)
+    extract = data.get("extract", {})
+    auth = extract.get("auth", {})
+    http = extract.get("http", {})
 
-    token = env.get("VT_AUTH")
-    if not token:
-        username = env.get("VT_USERNAME")
-        password = env.get("VT_PASSWORD")
-        if username and password:
-            token = base64.b64encode(f"{username}:{password}".encode()).decode()
-    if not token:
-        raise ValueError(
-            "Missing credentials: set VT_AUTH (base64 user:pass token) "
-            "or VT_USERNAME and VT_PASSWORD."
-        )
+    token = auth.get("token")
+    archive = data.get("archive", DEFAULT_ARCHIVE)
 
     return Config(
-        auth_header=f"Basic {token}",
-        base_url=env.get("VT_BASE_URL", DEFAULT_BASE_URL),
-        user_agent=env.get("VT_USER_AGENT", DEFAULT_USER_AGENT),
-        index_db_name=env.get("VT_INDEX_DB_NAME", DEFAULT_INDEX_DB_NAME),
-        delay=float(env.get("VT_DELAY", "0.5")),
-        max_retries=int(env.get("VT_MAX_RETRIES", "3")),
+        auth_header=f"Basic {token}" if token else None,
+        archive=Path(archive).expanduser(),
+        base_url=http.get("base_url", DEFAULT_BASE_URL),
+        user_agent=http.get("user_agent", DEFAULT_USER_AGENT),
+        index_db_name=http.get("index_db_name", DEFAULT_INDEX_DB_NAME),
+        delay=float(http.get("delay", 0.5)),
+        max_retries=int(http.get("max_retries", 3)),
     )
+
+
+def _toml_value(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return repr(value)
+    text = str(value).replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{text}"'
+
+
+def _toml_table(header: str | None, table: dict) -> list[str]:
+    lines: list[str] = []
+    if header is not None:
+        lines.append(f"[{header}]")
+    for key, value in table.items():
+        lines.append(f"{key} = {_toml_value(value)}")
+    return lines
+
+
+def write_config(path: Path, data: dict) -> None:
+    """Write ``data`` to ``path`` as TOML, creating ``~/.vt`` mode 0700.
+
+    Emits top-level scalar keys first, then the ``[extract.auth]`` and
+    ``[extract.http]`` tables. The file is written mode 0600 since it holds a
+    credential.
+    """
+    top = {k: v for k, v in data.items() if not isinstance(v, dict)}
+    blocks: list[list[str]] = []
+    if top:
+        blocks.append(_toml_table(None, top))
+    extract = data.get("extract", {})
+    for name in ("auth", "http"):
+        sub = extract.get(name)
+        if sub:
+            blocks.append(_toml_table(f"extract.{name}", sub))
+
+    text = "\n\n".join("\n".join(block) for block in blocks)
+    if text:
+        text += "\n"
+
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path.write_text(text)
+    path.chmod(0o600)
+
+
+def set_token(path: Path, token: str) -> None:
+    """Store ``token`` in ``[extract.auth].token``, preserving other settings."""
+    data = _read_raw(path)
+    data.setdefault("extract", {}).setdefault("auth", {})["token"] = token
+    write_config(path, data)

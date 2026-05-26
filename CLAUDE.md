@@ -31,10 +31,13 @@ each invocation, so prefer it over activating the venv manually.
 - **Tests:** `uv run pytest` — they run entirely against the committed fixtures
   in `docs/examples/`; they never hit the live site or use a real credential.
   Keep it that way.
-- **CLI:** `uv run vtextract --title --all <keywords> --out ./archive --context-pages 1`
-  (searches are built from flags, not a URL; see `docs/search-query.md`)
-- **Credentials** come only from the environment (`VT_AUTH`, or
-  `VT_USERNAME`/`VT_PASSWORD`). Never hardcode the credential in source or tests.
+- **CLI:** `uv run vtextract search --title --all <keywords> --out ./archive --context-pages 1`
+  (subcommands: `search` and `auth`; searches are built from flags, not a URL;
+  see `docs/search-query.md`)
+- **Credentials** come only from the config file `~/.vt/vt.toml`
+  (`[extract.auth].token`), written by `vtextract auth`. There are no `VT_*`
+  env vars. Never hardcode the credential in source or tests; tests pass a
+  `--config` path to a `tmp_path` file.
 
 `src/` layout; `pyproject.toml` sets `pythonpath = ["src", "."]` so tests import
 `vtextract` (from `src/`) and the `tests.conftest` helpers (from the repo root)
@@ -43,7 +46,8 @@ under `uv run pytest`. `archive/`, `.venv/`, and `*.egg-info/` are gitignored;
 
 ## Architecture (one responsibility per module, under `src/vtextract/`)
 
-- `config.py` — `load_config(env)` → `Config` (auth header, base URL, delay…).
+- `config.py` — `load_config(path)` → `Config` (auth header, archive, base URL,
+  delay…) from `~/.vt/vt.toml`; plus `set_token`/`make_token` for `auth`.
 - `client.py` — the **single HTTP choke point**. Nothing else makes raw HTTP
   calls. Owns auth header, rate-limit delay, retry/backoff; raises on all error
   statuses, retries only `{429,500,502,503,504}`.
