@@ -81,6 +81,11 @@ fixtures in `docs/examples/`:
    file's `(mtime, size)` against a stored fingerprint table. It does not read
    the extractor's `_state.json` (avoids coupling to the extractor's state
    format and catches out-of-band edits).
+6. **Progress: the shared `Reporter`.** Build shows a live progress bar through
+   the same `rich`-based abstraction the extractor uses (`progress.py`). That
+   module is generalized so a neutral single-bar reporter is reusable by build,
+   with the extractor's fetch-specific two-bar behavior layered on top (see
+   Progress reporting).
 
 ## Architecture
 
@@ -96,8 +101,33 @@ discipline (a single DB choke point, pure readers, an orchestrator, a CLI):
 | `index/cli.py` | argparse wiring for the subcommands; resolves the archive path; renders human/JSON output; sets exit codes. | `cli.py` |
 | `index/models.py` | Small dataclasses: `SearchQuery`, `SearchResult`, `VolumeInfo`. | `models.py` |
 
-A `vtindex` console-script entry point in `pyproject.toml` →
-`vtextract.index.cli:main`.
+The build reuses the existing `vtextract.progress` module for its progress bar
+(no new progress code in the subpackage). A `vtindex` console-script entry point
+in `pyproject.toml` → `vtextract.index.cli:main`.
+
+## Progress reporting
+
+Build displays a live progress bar via the same `rich`-based `Reporter`
+abstraction the extractor uses, so both CLIs share one progress dependency and
+one module (`src/vtextract/progress.py`).
+
+`progress.py` is generalized so its generic, single-bar behavior is reusable
+without the fetch-specific vocabulary:
+
+- A reusable reporter exposes neutral operations — size the bar to a total
+  (e.g. "Indexing 1240 files"), advance per processed source file, emit status
+  lines, and a `finish` summary — with `console`/`enabled` injectable for
+  testing and the bar auto-disabled off a TTY (so piped output stays clean),
+  exactly as today.
+- The extractor's existing two-bar fetch behavior (resources × pages, with
+  "fetching/archived/skipping" wording) is preserved by layering it on top of
+  the generic reporter; `fetcher.py`/`cli.py` behavior is unchanged.
+- `builder.py` drives the generic reporter: set the total to the number of
+  candidate source files, advance once per file, and print a `finish` summary
+  line mirroring `added/updated/removed/unchanged` (and skipped-malformed).
+
+This is a small, contained refactor of `progress.py`; no behavior change to the
+extractor's output.
 
 ## Index schema (SQLite + FTS5)
 
@@ -142,6 +172,10 @@ FTS5 virtual tables:
    (item and its joins/FTS, or page and its joins/FTS), delete fingerprint.
 4. Update `meta` counts/timestamp. Print a one-line summary
    (`added/updated/removed/unchanged`).
+
+A live progress bar (the shared `Reporter`) tracks the candidate source files as
+they are processed; it is disabled automatically off a TTY. The final summary
+line is emitted through the same reporter.
 
 Cost scales with what changed, not archive size — stat is cheap and only changed
 files are opened. This is the normal post-download refresh path.
@@ -228,12 +262,17 @@ shared page and one item referencing two volumes). Tests cover:
   volume filter, filter-only search, AND-combination, `--limit`.
 - `cli`: exit codes (0 / 1 / 2), JSON shape, `volumes` / `stats`, staleness
   warning, missing-index and (simulated) FTS5-unavailable paths.
+- `progress`: the generalized reporter advances/finishes correctly with
+  `enabled=False` (no TTY); existing extractor `Reporter` tests still pass
+  unchanged.
 
 No network and no real credential are involved at any point.
 
 ## Module/packaging summary
 
 - New: `src/vtextract/index/{__init__,db,reader,builder,query,cli,models}.py`.
+- Modified: `src/vtextract/progress.py` — generalized so its single-bar reporter
+  is reusable by build; extractor's two-bar fetch behavior preserved on top.
 - `pyproject.toml`: add `vtindex = "vtextract.index.cli:main"` to console
-  scripts.
+  scripts. (`rich` is already a dependency.)
 - Docs: README usage section for `vtindex`; this spec linked from CLAUDE.md.
