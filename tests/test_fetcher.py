@@ -91,3 +91,55 @@ def test_fetch_resource_skips_already_stored_page(tmp_path):
     fetch_resource(client(), archive, search_hit, search_id="s1", context_pages=0)
     fetch_resource(client(), archive, dict(search_hit, isadgID=474234), search_id="s2", context_pages=0)
     assert calls["loris"] == 1
+
+
+def test_fetch_resource_pulls_context_pages_and_writes_volume_info(tmp_path):
+    from vtextract.archive import Archive
+
+    # Root manifest with three pages; the item's page is the middle one (p235288).
+    root_manifest = {
+        "label": "Registry of Deeds... abstracts of wills, volume 1: 1708-45",
+        "metadata": [{"label": "ReferenceCode", "value": "IMC 1954/RoD/1"}],
+        "sequences": [{"canvases": [
+            {"@id": "https://by2022-prod.adaptcentre.ie/iiif/v1/208925/canvas/before",
+             "label": "before", "width": 1, "height": 1,
+             "images": [{"resource": {"@id": "https://by2022-prod.adaptcentre.ie/loris/before.jpg/full/full/0/default.jpg"}}],
+             "otherContent": []},
+            {"@id": "https://by2022-prod.adaptcentre.ie/iiif/v1/208925/canvas/p235288",
+             "label": "IMC 1954/RoD/1/1737/550", "width": 826, "height": 1368,
+             "images": [{"resource": {"@id": "https://by2022-prod.adaptcentre.ie/loris/IMC_1954_RoD_1_Page_253.jpg/full/full/0/default.jpg"}}],
+             "otherContent": [{"@id": "https://by2022-prod.adaptcentre.ie/iiif/v1/208925/list/197350"}]},
+            {"@id": "https://by2022-prod.adaptcentre.ie/iiif/v1/208925/canvas/after",
+             "label": "after", "width": 1, "height": 1,
+             "images": [{"resource": {"@id": "https://by2022-prod.adaptcentre.ie/loris/after.jpg/full/full/0/default.jpg"}}],
+             "otherContent": []},
+        ]}],
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/iiif/v1/208925/manifest":
+            return httpx.Response(200, json=root_manifest)
+        if path.startswith("/loris/"):
+            return httpx.Response(200, content=b"\xff\xd8img")
+        return _handler(request)
+
+    client = Client(
+        base_url="https://by2022-prod.adaptcentre.ie", auth_header="Basic x",
+        user_agent="UA", transport=httpx.MockTransport(handler),
+        delay=0.0, sleep_func=lambda _s: None,
+    )
+    archive = Archive(tmp_path)
+    search_hit = {"isadgID": 474234, "displayReferenceCode": "X", "displayTitle": "Y"}
+
+    record = fetch_resource(client, archive, search_hit, search_id="s", context_pages=1)
+
+    roles = {r.page_key: r.role for r in record.pages}
+    assert roles["IMC_1954_RoD_1_Page_253.jpg"] == "primary"
+    assert roles["before.jpg"] == "context"
+    assert roles["after.jpg"] == "context"
+    assert (tmp_path / "pages" / "208925" / "before.jpg").exists()
+    assert (tmp_path / "pages" / "208925" / "after.jpg").exists()
+    import json as _json
+    vol = _json.loads((tmp_path / "pages" / "208925" / "volume.json").read_text())
+    assert vol["reference_code"] == "IMC 1954/RoD/1"

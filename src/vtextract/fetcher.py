@@ -37,7 +37,7 @@ def fetch_resource(
         page_refs: list[PageRef] = []
         for page in primary_pages:
             _ensure_page(client, archive, page, role="primary", refs=page_refs)
-            for ctx in _context_for(client, cache, page, context_pages):
+            for ctx in _context_for(client, cache, archive, page, context_pages):
                 _ensure_page(client, archive, ctx, role="context", refs=page_refs)
 
         record = normalize_record(search_hit, detail)
@@ -52,12 +52,13 @@ def fetch_resource(
         raise
 
 
-def _context_for(client: Client, cache: dict, page: Page, context_pages: int) -> list[Page]:
+def _context_for(client: Client, cache: dict, archive: Archive, page: Page, context_pages: int) -> list[Page]:
     if context_pages <= 0:
         return []
     if page.root_id not in cache:
         root_manifest = client.get_json(f"/iiif/v1/{page.root_id}/manifest")
         cache[page.root_id] = root_manifest
+        archive.write_volume_info(page.root_id, volume_info(root_manifest))
     return neighbor_canvases(cache[page.root_id], page.canvas_id, context_pages)
 
 
