@@ -34,10 +34,12 @@ annotation list is keyed to the canvas (physical page) and contains the OCR for
 the whole page — every record on it, undivided. There is no reliable way to
 split a page's transcription per resource.
 
-Therefore the archive stores **pages once in a shared store** (keyed by Loris
-identifier, deduplicated by identifier + checksum) and represents resources as
-lightweight records that reference the pages they span. This avoids duplicating
-images and transcriptions across resources that share a page.
+Therefore the archive stores **pages once in a shared store**, grouped into a
+folder per **volume** (the manifest-root item, identified by the `rootID`
+embedded in each canvas `@id`) and keyed within it by Loris identifier,
+deduplicated by identifier + checksum. Resources are represented as lightweight
+records that reference the pages they span. This avoids duplicating images and
+transcriptions across resources that share a page.
 
 ## How the site actually works (reverse-engineered)
 
@@ -168,11 +170,12 @@ isolation:
    from the cached root manifest) ensure the page exists in the store. Returns
    the resource's ordered page list (primary/context tags) to `archive`.
 5. **`archive`** — owns the shared page store and the resource records.
-   Deduplicates pages globally by Loris identifier (+ checksum); writes page
-   image/transcription files once; writes per-resource `metadata.json` +
-   `manifest.json` with an ordered `pages[]` reference list; maintains
-   `_state.json` (per-resource and per-page status, checksums, originating
-   searches) for resume/dedup across runs and searches.
+   Stores pages under `pages/{rootID}/`, one folder per volume; deduplicates
+   pages by Loris identifier (+ checksum); writes page image/transcription
+   files once and a `volume.json` per volume when available; writes per-resource
+   `metadata.json` + `manifest.json` with an ordered `pages[]` reference list;
+   maintains `_state.json` (per-resource and per-page status, checksums,
+   originating searches) for resume/dedup across runs and searches.
 6. **`cli`** — argument parsing (including `--context-pages N`, default 1);
    wires the pipeline together; progress output.
 
@@ -181,10 +184,12 @@ isolation:
 ```
 archive/
   _state.json                          # resume index: resources + pages, status, checksums, source searches
-  pages/                               # shared page store, keyed by Loris page identifier — each page stored once
-    IMC_1954_RoD_1_Page_253.jpg        # full-resolution image
-    IMC_1954_RoD_1_Page_253.jpg.txt    # reconstructed page transcription (all records on the page)
-    IMC_1954_RoD_1_Page_253.jpg.json   # raw annotation fragments with coordinates
+  pages/                               # shared page store, one folder per volume (manifest-root id)
+    208925/                            # volume: "Registry of Deeds... abstracts of wills, vol 1: 1708-45"
+      volume.json                      # volume label + reference code (when the root manifest is available)
+      IMC_1954_RoD_1_Page_253.jpg      # full-resolution image, keyed by Loris identifier
+      IMC_1954_RoD_1_Page_253.jpg.txt  # reconstructed page transcription (all records on the page)
+      IMC_1954_RoD_1_Page_253.jpg.json # raw annotation fragments with coordinates
   items/                               # one directory per resource (isadgID)
     474234/                            # Will of MITCHELL, CALEB
       metadata.json                    # normalized fields + raw search hit + raw detail record + ordered pages[]
@@ -195,8 +200,10 @@ archive/
 ```
 
 Each `metadata.json` `pages[]` entry records: page key (Loris filename),
-role (`primary`/`context`), relative path into `pages/`, canvas label, and
-dimensions.
+volume id (`rootID`), role (`primary`/`context`), relative path into
+`pages/{rootID}/`, canvas label, and dimensions. `volume.json` is written when
+the volume's root manifest has been fetched (always the case when context-page
+fetching is enabled).
 
 ### Data flow
 
