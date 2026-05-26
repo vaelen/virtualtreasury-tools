@@ -1,6 +1,8 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
 # All rights reserved
 
+import time
+
 import httpx
 import pytest
 
@@ -110,11 +112,16 @@ def test_throttle_sleeps_between_consecutive_requests():
 
     client = Client(
         base_url="https://api.test", auth_header="Basic x", user_agent="UA",
-        transport=httpx.MockTransport(handler), delay=0.05, sleep_func=slept.append,
+        transport=httpx.MockTransport(handler), delay=1e9, sleep_func=slept.append,
     )
-    client.get_json("/a")  # first request: no wait (no prior request)
-    client.get_json("/b")  # second request: must wait out the delay
-    assert any(s > 0 for s in slept)
+    # Seed the throttle as if a request just happened, so the next request's
+    # elapsed time is ~0 — far below the (huge) delay — guaranteeing exactly one
+    # sleep regardless of machine load or uptime. sleep_func only records, so
+    # nothing actually waits.
+    client._last_request = time.monotonic()
+    client.get_json("/a")
+    assert len(slept) == 1
+    assert slept[0] > 0
 
 
 def test_backoff_grows_per_retry():
