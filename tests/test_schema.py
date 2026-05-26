@@ -22,6 +22,11 @@ def test_loris_filename_from_image_url():
     assert loris_filename(url) == "IMC_1954_RoD_1_Page_253.jpg"
 
 
+def test_loris_filename_rejects_non_loris_url():
+    with pytest.raises(ValueError, match="loris"):
+        loris_filename("https://example.test/full/full/0/default.jpg")
+
+
 def test_parse_manifest_from_real_sample():
     manifest = load_example_json("item", "manifest")
     pages = parse_manifest(manifest)

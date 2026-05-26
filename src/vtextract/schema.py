@@ -21,8 +21,10 @@ def extract_root_id(iiif_url: str) -> str:
 
 def loris_filename(image_url: str) -> str:
     """Pull the Loris page identifier out of a full image URL."""
-    after = image_url.split("/loris/", 1)[1]
-    return unquote(after.split("/", 1)[0])
+    parts = image_url.split("/loris/", 1)
+    if len(parts) != 2:
+        raise ValueError(f"Image URL is not a Loris URL (no '/loris/'): {image_url}")
+    return unquote(parts[1].split("/", 1)[0])
 
 
 def parse_manifest(manifest: dict) -> list[Page]:
