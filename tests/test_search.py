@@ -1,3 +1,6 @@
+# Copyright 2026, Andrew C. Young <andrew@vaelen.org>
+# All rights reserved
+
 from vtextract.search import parse_search_url, build_body, iter_results
 
 

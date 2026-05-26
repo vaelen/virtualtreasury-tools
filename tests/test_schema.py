@@ -1,3 +1,6 @@
+# Copyright 2026, Andrew C. Young <andrew@vaelen.org>
+# All rights reserved
+
 import pytest
 
 from vtextract.schema import extract_root_id, loris_filename, parse_manifest, reconstruct_text

@@ -1,3 +1,6 @@
+# Copyright 2026, Andrew C. Young <andrew@vaelen.org>
+# All rights reserved
+
 from __future__ import annotations
 
 from collections.abc import Iterator
