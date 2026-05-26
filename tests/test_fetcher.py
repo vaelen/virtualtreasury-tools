@@ -146,3 +146,35 @@ def test_fetch_resource_pulls_context_pages_and_writes_volume_info(tmp_path):
     import json as _json
     vol = _json.loads((tmp_path / "pages" / "208925" / "volume.json").read_text())
     assert vol["reference_code"] == "IMC 1954/RoD/1"
+
+
+def test_fetch_resource_empty_manifest_completes_with_no_pages(tmp_path):
+    from vtextract.archive import Archive
+
+    empty_manifest = {"sequences": [{"canvases": []}]}
+    calls = {"loris": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/rest/isadg-identity-statements/474234":
+            return httpx.Response(200, content=_item_json("isadg-identity-statements"))
+        if path == "/iiif/v1/474234/manifest":
+            return httpx.Response(200, json=empty_manifest)
+        if "/loris/" in path:
+            calls["loris"] += 1
+            return httpx.Response(200, content=b"\xff\xd8img")
+        return httpx.Response(404, text=path)
+
+    client = Client(
+        base_url="https://by2022-prod.adaptcentre.ie", auth_header="Basic x",
+        user_agent="UA", transport=httpx.MockTransport(handler),
+        delay=0.0, sleep_func=lambda _s: None,
+    )
+    archive = Archive(tmp_path)
+    search_hit = {"isadgID": 474234, "displayReferenceCode": "X", "displayTitle": "Y"}
+
+    record = fetch_resource(client, archive, search_hit, search_id="s", context_pages=1)
+
+    assert record.pages == []
+    assert calls["loris"] == 0
+    assert archive.is_resource_complete(474234) is True
