@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from urllib.parse import parse_qs, urlparse
 
 # Pagination params are owned by the tool's pager, not taken from the user's URL.
@@ -34,3 +35,34 @@ def build_body(
         "pageNumberInt": page_number,
         "totalElementsInt": page_size,
     }
+
+
+SEARCH_PATH = "/IR_REST_V2/webapi/doc_search"
+
+
+def iter_results(
+    client,
+    params: dict[str, str],
+    *,
+    index_db_name: str,
+    page_size: int = 100,
+) -> Iterator[dict]:
+    """Yield every resource record across all pages of a doc_search query."""
+    page_number = 0
+    seen = 0
+    while True:
+        body = build_body(
+            params,
+            page_number=page_number,
+            page_size=page_size,
+            index_db_name=index_db_name,
+        )
+        response = client.post_json(SEARCH_PATH, body)
+        records = response.get("resultInfoList", [])
+        total = response.get("generalInfo", {}).get("totalDocs", 0)
+        for record in records:
+            yield record
+        seen += len(records)
+        if not records or seen >= total:
+            break
+        page_number += 1

@@ -1,4 +1,40 @@
-from vtextract.search import parse_search_url, build_body
+from vtextract.search import parse_search_url, build_body, iter_results
+
+
+class FakeSearchClient:
+    """Stub Client.post_json that serves two pages of fake results."""
+
+    def __init__(self):
+        self.posted = []
+
+    def post_json(self, url, body):
+        self.posted.append(body)
+        page = body["pageNumberInt"]
+        if page == 0:
+            return {
+                "generalInfo": {"totalDocs": 3, "docNumberPerPage": 2, "currentPage": 1},
+                "resultInfoList": [{"isadgID": 1}, {"isadgID": 2}],
+            }
+        return {
+            "generalInfo": {"totalDocs": 3, "docNumberPerPage": 2, "currentPage": 2},
+            "resultInfoList": [{"isadgID": 3}],
+        }
+
+
+def test_iter_results_yields_all_records_across_pages():
+    client = FakeSearchClient()
+    records = list(
+        iter_results(
+            client,
+            {"kwList": "houston"},
+            index_db_name="beyond_2022",
+            page_size=2,
+        )
+    )
+    assert [r["isadgID"] for r in records] == [1, 2, 3]
+    assert client.posted[0]["pageNumberInt"] == 0
+    assert client.posted[1]["pageNumberInt"] == 1
+    assert len(client.posted) == 2  # stops once totalDocs reached
 
 
 def test_parse_search_url_extracts_query_params():
