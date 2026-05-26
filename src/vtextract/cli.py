@@ -20,6 +20,20 @@ def _make_transport() -> httpx.BaseTransport | None:
     return None
 
 
+def _positive_int(value: str) -> int:
+    n = int(value)
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"must be >= 1, got {n}")
+    return n
+
+
+def _nonneg_int(value: str) -> int:
+    n = int(value)
+    if n < 0:
+        raise argparse.ArgumentTypeError(f"must be >= 0, got {n}")
+    return n
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vtextract",
@@ -28,11 +42,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("search_url", help="A /search-results URL to archive.")
     parser.add_argument("--out", required=True, help="Output archive directory.")
     parser.add_argument(
-        "--context-pages", type=int, default=1,
+        "--context-pages", type=_nonneg_int, default=1,
         help="Neighbouring physical pages to also fetch per page (default 1).",
     )
     parser.add_argument(
-        "--page-size", type=int, default=100,
+        "--page-size", type=_positive_int, default=100,
         help="doc_search page size (default 100).",
     )
     return parser

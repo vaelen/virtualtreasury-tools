@@ -1,9 +1,26 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
 # All rights reserved
 
+import pytest
 import httpx
 
 from vtextract import cli
+
+
+def test_page_size_rejects_zero():
+    with pytest.raises(SystemExit):
+        cli.build_parser().parse_args(
+            ["https://virtualtreasury.ie/search-results?kwList=x",
+             "--out", "out", "--page-size", "0"]
+        )
+
+
+def test_context_pages_rejects_negative():
+    with pytest.raises(SystemExit):
+        cli.build_parser().parse_args(
+            ["https://virtualtreasury.ie/search-results?kwList=x",
+             "--out", "out", "--context-pages", "-1"]
+        )
 
 
 def test_run_archives_results_end_to_end(tmp_path, monkeypatch):
