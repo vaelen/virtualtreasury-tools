@@ -4,39 +4,58 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from urllib.parse import parse_qs, urlparse
 
-# Pagination params are owned by the tool's pager, not taken from the user's URL.
-_PAGINATION_KEYS = {"pageNumberInt", "totalElementsInt"}
+from vtextract.models import SearchCriteria
 
 
-def parse_search_url(url: str) -> dict[str, str]:
-    """Extract doc_search query parameters from a /search-results URL.
+def criteria_to_params(criteria: SearchCriteria) -> dict[str, str | list[str]]:
+    """Flatten a SearchCriteria into doc_search query params.
 
-    Multi-valued params collapse to their first value (the site uses single
-    values for these keys).
+    The three keyword keys become parallel arrays (one entry per filter);
+    the rest are scalars. Keys are omitted when they carry no information so
+    we send only what the browser would. resultSorting always has a value.
     """
-    query = parse_qs(urlparse(url).query, keep_blank_values=True)
-    return {
-        key: values[0]
-        for key, values in query.items()
-        if key not in _PAGINATION_KEYS and values
-    }
+    params: dict[str, str | list[str]] = {}
+    if criteria.filters:
+        params["kwList"] = [" ".join(f.keywords) for f in criteria.filters]
+        params["kwOperList"] = [f.operand for f in criteria.filters]
+        params["kwSearchFieldList"] = [f.field for f in criteria.filters]
+    if criteria.start:
+        params["searchContentDate_begin"] = criteria.start
+    if criteria.end:
+        params["searchContentDate_end"] = criteria.end
+    if criteria.boost:
+        params["boostItemsWithKGEntityType"] = criteria.boost
+    params["resultSorting"] = criteria.sorting
+    return params
 
 
 def build_body(
-    params: dict[str, str],
+    params: dict[str, str | list[str]],
     *,
     page_number: int,
     page_size: int,
     index_db_name: str,
 ) -> dict:
-    """Construct the JSON body for POST /IR_REST_V2/webapi/doc_search."""
+    """Construct the JSON body for POST /IR_REST_V2/webapi/doc_search.
+
+    Reproduces the full body the site's JS sends, including the empty-array
+    filter scaffolding (searchDocumentRepositoryNameList has no CLI option but
+    is always present) and a default resultSorting. Caller params override.
+    """
     return {
         "indexDBName": index_db_name,
-        **params,
-        "pageNumberInt": page_number,
         "totalElementsInt": page_size,
+        "pageNumberInt": page_number,
+        "neOperList": [],
+        "neComboSetList": [],
+        "searchDocumentRepositoryNameList": [],
+        "searchLinkTypeList": [],
+        "searchThematicCollectionList": [],
+        "searchSourceFormatList": [],
+        "searchSourceGradeList": [],
+        "resultSorting": "relevance",
+        **params,
     }
 
 
@@ -45,7 +64,7 @@ SEARCH_PATH = "/IR_REST_V2/webapi/doc_search"
 
 def iter_results(
     client,
-    params: dict[str, str],
+    params: dict[str, str | list[str]],
     *,
     index_db_name: str,
     page_size: int = 100,

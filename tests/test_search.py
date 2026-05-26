@@ -1,7 +1,8 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
 # All rights reserved
 
-from vtextract.search import parse_search_url, build_body, iter_results
+from vtextract.models import Filter, SearchCriteria
+from vtextract.search import build_body, criteria_to_params, iter_results
 
 
 class FakeSearchClient:
@@ -40,28 +41,64 @@ def test_iter_results_yields_all_records_across_pages():
     assert len(client.posted) == 2  # stops once totalDocs reached
 
 
-def test_parse_search_url_extracts_query_params():
-    url = (
-        "https://virtualtreasury.ie/search-results?totalElementsInt=100&pageNumberInt=0"
-        "&kwList=houston&kwOperList=ALL&searchContentDate_begin=1650-01-01"
-        "&searchContentDate_end=1760-12-31&kwSearchFieldList=kwTranscription"
-        "&resultSorting=relevance"
+def test_criteria_to_params_builds_parallel_lists():
+    criteria = SearchCriteria(
+        filters=[
+            Filter("title", "ALL", ["memorial", "houston"]),
+            Filter("kwTranscription", "ANY", ["castle", "watchmaker"]),
+            Filter("kg_label", "EXACT", ["Dublin"]),
+        ]
     )
-    params = parse_search_url(url)
-    assert params["kwList"] == "houston"
-    assert params["kwOperList"] == "ALL"
-    assert params["searchContentDate_begin"] == "1650-01-01"
+    params = criteria_to_params(criteria)
+    assert params["kwList"] == ["memorial houston", "castle watchmaker", "Dublin"]
+    assert params["kwOperList"] == ["ALL", "ANY", "EXACT"]
+    assert params["kwSearchFieldList"] == ["title", "kwTranscription", "kg_label"]
+
+
+def test_criteria_to_params_includes_dates_boost_and_sorting():
+    criteria = SearchCriteria(
+        filters=[Filter("kg_label", "ALL", ["Dublin"])],
+        start="1200-01-01",
+        end="1870-12-31",
+        boost="Place",
+        sorting="descending",
+    )
+    params = criteria_to_params(criteria)
+    assert params["searchContentDate_begin"] == "1200-01-01"
+    assert params["searchContentDate_end"] == "1870-12-31"
+    assert params["boostItemsWithKGEntityType"] == "Place"
+    assert params["resultSorting"] == "descending"
+
+
+def test_criteria_to_params_omits_unset_scalars_and_empty_filters():
+    params = criteria_to_params(SearchCriteria())
+    assert "kwList" not in params
+    assert "kwOperList" not in params
+    assert "kwSearchFieldList" not in params
+    assert "searchContentDate_begin" not in params
+    assert "boostItemsWithKGEntityType" not in params
+    # sorting always has a default and is always sent
     assert params["resultSorting"] == "relevance"
-    # pagination params are managed by the tool, not carried from the URL
-    assert "pageNumberInt" not in params
-    assert "totalElementsInt" not in params
 
 
-def test_build_body_merges_index_name_and_pagination():
-    params = {"kwList": "houston", "kwOperList": "ALL"}
+def test_build_body_includes_scaffolding_and_list_values():
+    params = {"kwList": ["houston"], "kwOperList": ["ALL"]}
     body = build_body(params, page_number=2, page_size=100, index_db_name="beyond_2022")
     assert body["indexDBName"] == "beyond_2022"
-    assert body["kwList"] == "houston"
-    assert body["kwOperList"] == "ALL"
+    assert body["kwList"] == ["houston"]
+    assert body["kwOperList"] == ["ALL"]
     assert body["pageNumberInt"] == 2
     assert body["totalElementsInt"] == 100
+    # the fixed scaffolding the browser always sends
+    assert body["neOperList"] == []
+    assert body["searchDocumentRepositoryNameList"] == []
+    assert body["searchSourceGradeList"] == []
+    assert body["resultSorting"] == "relevance"
+
+
+def test_build_body_params_override_scaffolding_defaults():
+    body = build_body(
+        {"resultSorting": "ascending"},
+        page_number=0, page_size=100, index_db_name="beyond_2022",
+    )
+    assert body["resultSorting"] == "ascending"
