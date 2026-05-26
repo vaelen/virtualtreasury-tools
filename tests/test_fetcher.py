@@ -70,6 +70,40 @@ def test_fetch_resource_downloads_page_metadata_and_transcription(tmp_path):
     assert record.isadg_id == 474234
 
 
+def test_fetch_resource_by_reference_code_uses_query_not_id_lookup(tmp_path):
+    from vtextract.archive import Archive
+
+    calls = {"refcode": [], "by_id": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/rest/isadg-identity-statements/" and request.url.params.get("isadgReferenceCode"):
+            calls["refcode"].append(request.url.params["isadgReferenceCode"])
+            return httpx.Response(200, content=_item_json("isadg-identity-statements"))
+        if path == "/rest/isadg-identity-statements/474234":
+            calls["by_id"] += 1  # must NOT happen on the reference-code path
+        return _handler(request)
+
+    client = Client(
+        base_url="https://by2022-prod.adaptcentre.ie", auth_header="Basic x",
+        user_agent="UA", transport=httpx.MockTransport(handler),
+        delay=0.0, sleep_func=lambda _s: None,
+    )
+    archive = Archive(tmp_path)
+    # The hit carries only the reference code (spaces/slashes normalised on fetch).
+    record = fetch_resource(
+        client, archive, {"displayReferenceCode": "IMC 1954/RoD/1/1737/550"},
+        search_id="get", context_pages=0,
+    )
+
+    assert calls["refcode"] == ["IMC-1954-RoD-1-1737-550"]  # one detail fetch, by ref code
+    assert calls["by_id"] == 0  # the redundant by-id GET is gone
+    assert record.isadg_id == 474234  # canonical id comes from the detail object
+    metadata = json.loads((tmp_path / "items" / "474234" / "metadata.json").read_text())
+    assert metadata["referenceCode"] == "IMC 1954/RoD/1/1737/550"
+    assert "searchHit" not in metadata  # output is built only from the detail object
+
+
 def test_fetch_resource_skips_already_stored_page(tmp_path):
     from vtextract.archive import Archive
 

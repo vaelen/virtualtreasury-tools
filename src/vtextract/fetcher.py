@@ -3,16 +3,39 @@
 
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from vtextract.archive import Archive
 from vtextract.client import Client
 from vtextract.models import Page, PageRef, Record
 from vtextract.schema import (
     neighbor_canvases,
     normalize_record,
+    normalize_reference_code,
     parse_manifest,
     reconstruct_text,
     volume_info,
 )
+
+IDENTITY_STATEMENT_PATH = "/rest/isadg-identity-statements/"
+
+
+def _fetch_detail(client: Client, search_hit: dict) -> dict:
+    """Fetch the identity-statement detail a hit points at.
+
+    A numeric `isadgID` is looked up by id; otherwise the hit's
+    `displayReferenceCode` is normalised and resolved by reference code. Either
+    way the response is the same detail object, and it is the only thing the
+    archive output is built from.
+    """
+    raw_id = search_hit.get("isadgID")
+    if raw_id is not None and str(raw_id).isdigit():
+        return client.get_json(f"{IDENTITY_STATEMENT_PATH}{int(raw_id)}")
+    code = search_hit.get("displayReferenceCode")
+    if code:
+        norm = normalize_reference_code(code)
+        return client.get_json(f"{IDENTITY_STATEMENT_PATH}?isadgReferenceCode={quote(norm)}")
+    raise ValueError(f"hit has neither a numeric isadgID nor a displayReferenceCode: {search_hit!r}")
 
 
 def fetch_resource(
@@ -29,11 +52,13 @@ def fetch_resource(
     Stores each physical page once in the shared per-volume page store and
     writes the resource record referencing its primary and context pages.
     """
-    isadg_id = int(search_hit["isadgID"])
     cache = _root_manifest_cache if _root_manifest_cache is not None else {}
+    # The hit only tells us which detail object to fetch; everything else is
+    # derived from that detail, whose `id` is the canonical isadgID.
+    detail = _fetch_detail(client, search_hit)
+    isadg_id = int(detail["id"])
 
     try:
-        detail = client.get_json(f"/rest/isadg-identity-statements/{isadg_id}")
         manifest = client.get_json(f"/iiif/v1/{isadg_id}/manifest")
         primary_pages = parse_manifest(manifest)
 
@@ -43,7 +68,7 @@ def fetch_resource(
             for ctx in _context_for(client, cache, archive, page, context_pages):
                 _ensure_page(client, archive, ctx, role="context", refs=page_refs)
 
-        record = normalize_record(search_hit, detail)
+        record = normalize_record(detail)
         record.pages = page_refs
         archive.write_resource(record, manifest=manifest)
         archive.mark_resource_complete(isadg_id, pages=[r.page_key for r in page_refs], search_id=search_id)

@@ -14,7 +14,7 @@ from vtextract.models import (
 
 
 def test_record_defaults_to_empty_pages():
-    rec = Record(isadg_id=474234, reference_code="IMC 1954/RoD/1/1737/550", title="Will", search_hit={})
+    rec = Record(isadg_id=474234, reference_code="IMC 1954/RoD/1/1737/550", title="Will")
     assert rec.pages == []
     assert rec.detail is None
 

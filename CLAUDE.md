@@ -53,15 +53,17 @@ under `uv run pytest`. `archive/`, `.venv/`, and `*.egg-info/` are gitignored;
   calls. Owns auth header, rate-limit delay, retry/backoff; raises on all error
   statuses, retries only `{429,500,502,503,504}`.
 - `models.py` — `Page`, `PageRef`, `Record` dataclasses.
-- `search.py` — produces the search-hit dicts that drive a run:
-  `criteria_to_params` (SearchCriteria → query params), `build_body`,
-  `iter_results` (pagination) for `search`; `resolve_identifier`/`iter_get`
-  (reference code or id → hit) for `get`.
+- `search.py` — `criteria_to_params` (SearchCriteria → query params),
+  `build_body`, `iter_results` (doc_search pagination) for the `search` command.
 - `schema.py` — **pure functions, no I/O**: parse manifests → `Page`s, extract
   the volume root id from canvas `@id`s, reconstruct transcription text, select
-  context canvases, normalize records.
+  context canvases, `normalize_reference_code` (` `/`/` → `-`), and
+  `normalize_record(detail)` (Record built solely from the detail object).
 - `archive.py` — owns the on-disk store and `_state.json` resume state.
-- `fetcher.py` — orchestrates per-resource retrieval using the above.
+- `fetcher.py` — orchestrates per-resource retrieval using the above. A "hit"
+  carries only a lookup key; `_fetch_detail` resolves it to the detail object
+  (numeric `isadgID` → by id, else `displayReferenceCode` → by reference-code
+  query), and the detail's `id` is the canonical isadgID.
 - `cli.py` — argparse wiring; `_make_transport()` is a test seam (returns
   `None` in prod; tests monkeypatch it to inject an `httpx.MockTransport`).
 
@@ -80,8 +82,10 @@ under `uv run pytest`. `archive/`, `.venv/`, and `*.egg-info/` are gitignored;
 - The **IIIF manifest is the source of truth** for which images/transcriptions
   exist — do NOT trust the `hasImages` / `hasTranscriptions` flags (a sample had
   `hasTranscription: false` yet a populated annotation list).
-- Per-item retrieval is three calls keyed by `isadgID`:
-  `GET /rest/isadg-identity-statements/{id}` (metadata),
+- Per-item retrieval starts from the identity-statement detail, fetched either
+  `GET /rest/isadg-identity-statements/{id}` (by id) or
+  `GET /rest/isadg-identity-statements/?isadgReferenceCode={code}` (by reference
+  code — same detail shape, its `id` is the isadgID). Then keyed by that id:
   `GET /iiif/v1/{id}/manifest` (images + annotation-list URLs), then each
   annotation list. Context pages come from the **volume** manifest
   `GET /iiif/v1/{rootID}/manifest`, where `rootID` is parsed from a canvas `@id`.

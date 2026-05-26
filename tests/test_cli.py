@@ -304,8 +304,8 @@ def test_get_reference_code_resolves_then_archives(tmp_path, monkeypatch):
          "--context-pages", "0", "--config", str(config)]
     )
     assert exit_code == 0
-    assert refcode_calls == ["IMC-1954-RoD-1-1737-550"]  # resolution GET happened
-    assert item_calls == ["/rest/isadg-identity-statements/474234"]  # then by-id fetch
+    assert refcode_calls == ["IMC-1954-RoD-1-1737-550"]  # the single detail fetch
+    assert item_calls == []  # no redundant by-id GET
     assert (tmp_path / "items" / "474234" / "metadata.json").exists()
 
 

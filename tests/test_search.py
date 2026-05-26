@@ -1,13 +1,8 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
 # All rights reserved
 
-import json
-from pathlib import Path
-
 from vtextract.models import Filter, SearchCriteria
-from vtextract.search import build_body, criteria_to_params, iter_get, iter_results, resolve_identifier
-
-EXAMPLES = Path(__file__).resolve().parent.parent / "docs" / "examples"
+from vtextract.search import build_body, criteria_to_params, iter_results
 
 
 class FakeSearchClient:
@@ -44,46 +39,6 @@ def test_iter_results_yields_all_records_across_pages():
     assert client.posted[0]["pageNumberInt"] == 0
     assert client.posted[1]["pageNumberInt"] == 1
     assert len(client.posted) == 2  # stops once totalDocs reached
-
-
-class FakeGetClient:
-    """Stub Client.get_json that serves the isadg-identity-statements fixture."""
-
-    def __init__(self):
-        self.gets = []
-
-    def get_json(self, url):
-        self.gets.append(url)
-        return json.loads(
-            (EXAMPLES / "item" / "isadg-identity-statements" / "response.json").read_bytes()
-        )
-
-
-def test_resolve_identifier_passes_through_numeric_id_without_http():
-    client = FakeGetClient()
-    assert resolve_identifier(client, "474234") == {"isadgID": 474234}
-    assert client.gets == []  # no lookup needed for a bare id
-
-
-def test_resolve_identifier_looks_up_reference_code():
-    client = FakeGetClient()
-    hit = resolve_identifier(client, "IMC 1954/RoD/1/1737/550")
-    assert client.gets == [
-        "/rest/isadg-identity-statements/?isadgReferenceCode=IMC-1954-RoD-1-1737-550"
-    ]
-    assert hit["isadgID"] == 474234
-    assert hit["displayReferenceCode"] == "IMC 1954/RoD/1/1737/550"
-    assert hit["displayTitle"].startswith("Will of MITCHELL, CALEB")
-
-
-def test_iter_get_yields_mixed_identifiers_in_order():
-    client = FakeGetClient()
-    hits = list(iter_get(client, ["474234", "TNA SO 1/14"]))
-    assert hits[0] == {"isadgID": 474234}
-    assert hits[1]["isadgID"] == 474234  # fixture always returns the same item
-    assert client.gets == [
-        "/rest/isadg-identity-statements/?isadgReferenceCode=TNA-SO-1-14"
-    ]
 
 
 def test_criteria_to_params_builds_parallel_lists():

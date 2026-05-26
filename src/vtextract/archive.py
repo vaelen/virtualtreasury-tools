@@ -100,7 +100,6 @@ class Archive:
             "referenceCode": record.reference_code,
             "title": record.title,
             "pages": [asdict(ref) for ref in record.pages],
-            "searchHit": record.search_hit,
             "detail": record.detail,
         }
         (item_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))

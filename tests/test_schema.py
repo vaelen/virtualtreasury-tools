@@ -116,32 +116,19 @@ def test_normalize_reference_code_replaces_spaces_and_slashes(raw, expected):
     assert normalize_reference_code(raw) == expected
 
 
-def test_normalize_record_uses_search_hit_fields():
-    hit = {
-        "isadgID": 474234,
-        "displayReferenceCode": "IMC 1954/RoD/1/1737/550",
-        "displayTitle": "Will of MITCHELL, CALEB",
-    }
-    detail = {"id": 474234, "extentAndMedium": "1 will"}
-    record = normalize_record(hit, detail)
+def test_normalize_record_builds_everything_from_detail():
+    detail = load_example_json("item", "isadg-identity-statements")
+    record = normalize_record(detail)
     assert record.isadg_id == 474234
     assert record.reference_code == "IMC 1954/RoD/1/1737/550"
-    assert record.title == "Will of MITCHELL, CALEB"
-    assert record.search_hit is hit
+    assert record.title == "Will of MITCHELL, CALEB, Dublin, carpenter, created 18 January 1724"
     assert record.detail is detail
     assert record.pages == []
 
 
-def test_normalize_record_falls_back_to_detail_when_hit_lacks_display_fields():
-    hit = {"isadgID": 474234}  # the bare hit produced by `get <numeric id>`
-    detail = load_example_json("item", "isadg-identity-statements")
-    record = normalize_record(hit, detail)
-    assert record.reference_code == "IMC 1954/RoD/1/1737/550"
-    assert record.title == "Will of MITCHELL, CALEB, Dublin, carpenter, created 18 January 1724"
-
-
-def test_normalize_record_empty_when_no_hit_fields_and_no_detail():
-    record = normalize_record({"isadgID": 474234}, None)
+def test_normalize_record_empty_strings_when_detail_lacks_preferred_fields():
+    record = normalize_record({"id": 474234})
+    assert record.isadg_id == 474234
     assert record.reference_code == ""
     assert record.title == ""
 

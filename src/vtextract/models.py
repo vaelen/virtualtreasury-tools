@@ -50,12 +50,11 @@ class PageRef:
 
 @dataclass
 class Record:
-    """A catalogued resource (isadgID)."""
+    """A catalogued resource (isadgID). All fields derive from the detail object."""
 
     isadg_id: int
     reference_code: str
     title: str
-    search_hit: dict
     detail: dict | None = None
     pages: list[PageRef] = field(default_factory=list)
 

@@ -93,30 +93,18 @@ def normalize_reference_code(code: str) -> str:
     return code.replace(" ", "-").replace("/", "-")
 
 
-def normalize_record(search_hit: dict, detail: dict | None) -> Record:
-    """Build a Record from a search hit and (optional) detail record.
+def normalize_record(detail: dict) -> Record:
+    """Build a Record purely from an isadg-identity-statements detail object.
 
-    Search hits carry `displayReferenceCode`/`displayTitle`; a bare hit from
-    `get <numeric id>` does not, so fall back to the detail record's preferred
-    reference code and title.
+    The detail object is the single source of truth: id, preferred reference
+    code, and preferred title all come from it (a search hit, if any, is only
+    used upstream to choose which detail object to fetch).
     """
-    detail = detail or {}
-    reference_code = (
-        search_hit.get("displayReferenceCode")
-        or detail.get("preferredReferenceCode", {}).get("referenceCode")
-        or ""
-    )
-    title = (
-        search_hit.get("displayTitle")
-        or detail.get("preferredTitle", {}).get("title")
-        or ""
-    )
     return Record(
-        isadg_id=int(search_hit["isadgID"]),
-        reference_code=reference_code,
-        title=title,
-        search_hit=search_hit,
-        detail=detail or None,
+        isadg_id=int(detail["id"]),
+        reference_code=(detail.get("preferredReferenceCode") or {}).get("referenceCode") or "",
+        title=(detail.get("preferredTitle") or {}).get("title") or "",
+        detail=detail,
     )
 
 

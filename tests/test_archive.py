@@ -78,7 +78,6 @@ def test_write_resource_writes_metadata_and_manifest(tmp_path):
         isadg_id=474234,
         reference_code="IMC 1954/RoD/1/1737/550",
         title="Will of MITCHELL, CALEB",
-        search_hit={"isadgID": 474234},
         detail={"id": 474234},
         pages=[PageRef(page_key="p1.jpg", root_id="208925", role="primary",
                        path="pages/208925/p1.jpg", canvas_label="lbl", width=826, height=1368)],
@@ -89,7 +88,7 @@ def test_write_resource_writes_metadata_and_manifest(tmp_path):
     metadata = _json.loads((item_dir / "metadata.json").read_text())
     assert metadata["isadgID"] == 474234
     assert metadata["referenceCode"] == "IMC 1954/RoD/1/1737/550"
-    assert metadata["searchHit"] == {"isadgID": 474234}
+    assert "searchHit" not in metadata
     assert metadata["detail"] == {"id": 474234}
     assert metadata["pages"][0]["page_key"] == "p1.jpg"
     assert metadata["pages"][0]["role"] == "primary"

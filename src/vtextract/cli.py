@@ -16,7 +16,7 @@ from vtextract.client import Client
 from vtextract.config import default_config_path, load_config, make_token, set_token
 from vtextract.fetcher import fetch_resource
 from vtextract.models import BOOST_FOR_FIELD, FIELD_MAP, OPERANDS, Filter, SearchCriteria
-from vtextract.search import criteria_to_params, iter_results, resolve_identifier
+from vtextract.search import criteria_to_params, iter_results
 
 
 def _make_transport() -> httpx.BaseTransport | None:
@@ -260,22 +260,26 @@ def _extract(client, archive, hits, *, search_id: str, context_pages: int) -> tu
     failed = 0
     try:
         for hit in hits:
-            isadg_id = int(hit["isadgID"])
-            if archive.is_resource_complete(isadg_id):
+            # A numeric isadgID lets us dedupe before any request; a reference-code
+            # hit only learns its id once fetch_resource fetches the detail.
+            raw_id = hit.get("isadgID")
+            isadg_id = int(raw_id) if raw_id is not None and str(raw_id).isdigit() else None
+            if isadg_id is not None and archive.is_resource_complete(isadg_id):
                 print(f"skip {isadg_id} (already complete)")
                 continue
+            label = isadg_id if isadg_id is not None else hit.get("displayReferenceCode", "?")
             try:
-                fetch_resource(
+                record = fetch_resource(
                     client, archive, hit,
                     search_id=search_id,
                     context_pages=context_pages,
                     _root_manifest_cache=root_manifest_cache,
                 )
                 completed += 1
-                print(f"done {isadg_id}")
+                print(f"done {record.isadg_id}")
             except Exception as exc:  # noqa: BLE001 - one bad item must not stop the run
                 failed += 1
-                print(f"FAILED {isadg_id}: {exc!r}", file=sys.stderr)
+                print(f"FAILED {label}: {exc!r}", file=sys.stderr)
     finally:
         client.close()
 
@@ -318,21 +322,17 @@ def _run_get(argv: list[str]) -> int:
     )
     archive = Archive(args.out if args.out else config.archive)
 
-    # Resolve identifiers up front so a bad reference code is logged and skipped
-    # rather than aborting the shared fetch loop. The list is small (CLI args).
-    hits: list[dict] = []
-    resolution_failures = 0
-    for token in args.identifiers:
-        try:
-            hits.append(resolve_identifier(client, token))
-        except Exception as exc:  # noqa: BLE001 - one bad identifier must not stop the run
-            resolution_failures += 1
-            print(f"FAILED {token}: {exc!r}", file=sys.stderr)
-
+    # Each identifier becomes a thin hit carrying only the lookup key: a numeric
+    # argument is an isadgID, anything else is a reference code. _extract fetches
+    # the detail (by id or by reference code) and builds all output from it.
+    hits = [
+        {"isadgID": int(token)} if token.isdigit() else {"displayReferenceCode": token}
+        for token in args.identifiers
+    ]
     completed, failed = _extract(
         client, archive, hits, search_id="get", context_pages=args.context_pages
     )
-    return 1 if (failed + resolution_failures) else 0
+    return 1 if failed else 0
 
 
 def main() -> None:

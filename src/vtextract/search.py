@@ -4,10 +4,8 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from urllib.parse import quote
 
 from vtextract.models import SearchCriteria
-from vtextract.schema import normalize_reference_code
 
 
 def criteria_to_params(criteria: SearchCriteria) -> dict[str, str | list[str]]:
@@ -90,36 +88,3 @@ def iter_results(
         if not records or seen >= total:
             break
         page_number += 1
-
-
-IDENTITY_STATEMENT_PATH = "/rest/isadg-identity-statements/"
-
-
-def resolve_identifier(client, token: str) -> dict:
-    """Turn one `get` identifier into a search-hit-shaped dict.
-
-    A numeric token is an isadgID and needs no lookup. A reference code is
-    canonicalised and resolved via the isadgReferenceCode query, whose response
-    carries the id plus the preferred reference code and title. `fetch_resource`
-    re-fetches the detail by id afterwards, keeping the flow identical to
-    `search` at the cost of one cheap extra GET on the reference-code path.
-    """
-    if token.isdigit():
-        return {"isadgID": int(token)}
-    code = normalize_reference_code(token)
-    detail = client.get_json(f"{IDENTITY_STATEMENT_PATH}?isadgReferenceCode={quote(code)}")
-    return {
-        "isadgID": detail["id"],
-        "displayReferenceCode": detail["preferredReferenceCode"]["referenceCode"],
-        "displayTitle": detail["preferredTitle"]["title"],
-    }
-
-
-def iter_get(client, identifiers: list[str]) -> Iterator[dict]:
-    """Yield a search-hit-shaped dict for each `get` identifier, in order.
-
-    Per-identifier error handling lives in the caller so one bad code does not
-    abort the whole run.
-    """
-    for token in identifiers:
-        yield resolve_identifier(client, token)

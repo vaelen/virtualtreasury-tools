@@ -137,15 +137,18 @@ Sometimes you already know which resources you want. The `get` subcommand skips
 vtextract get "TNA SO 1/14" 474234 --out ./archive --context-pages 1
 ```
 
-Each argument is resolved to an isadgID, then handed to the *same* per-resource
-fetch pipeline `search` uses (detail, IIIF manifest, page store, context pages,
-dedupe, resume):
+Each argument names the identity-statement detail to fetch, and that detail
+feeds the *same* per-resource pipeline `search` uses (IIIF manifest, page store,
+context pages, dedupe, resume). All archived output is built from the detail
+object — the argument is only the lookup key:
 
-- A purely numeric argument is taken as an **isadgID** and used as-is.
+- A purely numeric argument is an **isadgID**, fetched with
+  `GET /rest/isadg-identity-statements/{id}`.
 - Anything else is a **reference code**. Spaces and slashes are normalised to
-  dashes (`TNA SO 1/14` → `TNA-SO-1-14`), then resolved with
-  `GET /rest/isadg-identity-statements/?isadgReferenceCode=<code>`, whose
-  response carries the `id`.
+  dashes (`TNA SO 1/14` → `TNA-SO-1-14`) and fetched with
+  `GET /rest/isadg-identity-statements/?isadgReferenceCode=<code>`. The response
+  is the same detail object (no separate id-lookup round-trip), and its `id` is
+  the canonical isadgID.
 
-A reference code that resolves to nothing is reported and skipped without
-aborting the rest of the run.
+A reference code that matches nothing is reported and skipped without aborting
+the rest of the run.
