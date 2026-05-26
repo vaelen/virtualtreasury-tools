@@ -36,12 +36,33 @@ Optional: `VT_BASE_URL`, `VT_DELAY` (seconds between requests, default 0.5),
 
 ## Usage
 
+Searches are built from explicit flags. A simple keyword search:
+
 ```bash
-uv run vtextract "https://virtualtreasury.ie/search-results?kwList=houston&kwOperList=ALL&\
-searchContentDate_begin=1650-01-01&searchContentDate_end=1760-12-31&\
-kwSearchFieldList=kwTranscription&resultSorting=relevance" \
+uv run vtextract houston --out ./archive --context-pages 1
+```
+
+Each **field flag** starts a search clause; the **operand flag** (default
+`--all`) sets how its keywords combine; bare words are the keywords. Clauses
+combine, and `--start`/`--end` filter by content date (`yyyy-mm-dd`):
+
+```bash
+uv run vtextract \
+  --title --all memorial houston \
+  --transcription --any castle watchmaker \
+  --place --exact Dublin \
+  --start 1650-01-01 --end 1760-12-31 --newest \
   --out ./archive --context-pages 1
 ```
+
+- Field flags: `--keyword` (default), `--title`, `--transcription`,
+  `--creator`, `--ref`, `--person`, `--place`.
+- Operand flags: `--all` (default), `--any`, `--none`, `--exact`.
+- Result order: `--relevance` (default), `--newest`, `--oldest`.
+
+`--person`/`--place` rank results by knowledge-graph entity (the last one wins).
+See [docs/search-query.md](docs/search-query.md) for exactly how the flags map
+onto the backend request. Run `uv run vtextract --help` for the full list.
 
 Re-running the same (or an overlapping) search resumes: completed resources and
 already-downloaded pages are skipped.

@@ -31,7 +31,8 @@ each invocation, so prefer it over activating the venv manually.
 - **Tests:** `uv run pytest` — they run entirely against the committed fixtures
   in `docs/examples/`; they never hit the live site or use a real credential.
   Keep it that way.
-- **CLI:** `uv run vtextract "<search-results URL>" --out ./archive --context-pages 1`
+- **CLI:** `uv run vtextract --title --all <keywords> --out ./archive --context-pages 1`
+  (searches are built from flags, not a URL; see `docs/search-query.md`)
 - **Credentials** come only from the environment (`VT_AUTH`, or
   `VT_USERNAME`/`VT_PASSWORD`). Never hardcode the credential in source or tests.
 
@@ -47,7 +48,8 @@ under `uv run pytest`. `archive/`, `.venv/`, and `*.egg-info/` are gitignored;
   calls. Owns auth header, rate-limit delay, retry/backoff; raises on all error
   statuses, retries only `{429,500,502,503,504}`.
 - `models.py` — `Page`, `PageRef`, `Record` dataclasses.
-- `search.py` — `parse_search_url`, `build_body`, `iter_results` (pagination).
+- `search.py` — `criteria_to_params` (SearchCriteria → query params),
+  `build_body`, `iter_results` (pagination).
 - `schema.py` — **pure functions, no I/O**: parse manifests → `Page`s, extract
   the volume root id from canvas `@id`s, reconstruct transcription text, select
   context canvases, normalize records.

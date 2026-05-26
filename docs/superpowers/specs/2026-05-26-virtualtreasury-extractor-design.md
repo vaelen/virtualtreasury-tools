@@ -75,10 +75,14 @@ change.
 ### Search request
 
 - Method: `POST`, `Content-Type: application/json`.
-- Body: `{ "indexDBName": "beyond_2022", ...query }` where `query` is the set of
-  parameters visible in the `/search-results` URL (`kwList`, `kwOperList`,
-  `searchContentDate_begin`/`_end`, `kwSearchFieldList`, `resultSorting`,
-  `pageNumberInt`, `totalElementsInt`, etc.).
+- Body: `{ "indexDBName": "beyond_2022", ...query }`. The tool builds `query`
+  from explicit CLI flags (not by scraping the `/search-results` URL). The
+  per-clause keys `kwList`, `kwOperList`, `kwSearchFieldList` are **parallel
+  arrays** (one entry per clause); `searchContentDate_begin`/`_end`,
+  `boostItemsWithKGEntityType`, and `resultSorting` are scalars; a fixed set of
+  filter lists (`searchDocumentRepositoryNameList`, `searchLinkTypeList`, …) is
+  always sent empty. See [`docs/search-query.md`](../../search-query.md) for the
+  full body shape and the flag → field mapping.
 - Pagination: request with `pageNumberInt` (0-based) and `totalElementsInt`
   (page size). Response reports `generalInfo.totalDocs`,
   `generalInfo.docNumberPerPage`, and `generalInfo.currentPage`; iterate pages
