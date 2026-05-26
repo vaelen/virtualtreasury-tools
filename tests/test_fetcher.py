@@ -70,6 +70,25 @@ def test_fetch_resource_downloads_page_metadata_and_transcription(tmp_path):
     assert record.isadg_id == 474234
 
 
+def test_fetch_resource_reports_page_progress(tmp_path):
+    from vtextract.archive import Archive
+
+    archive = Archive(tmp_path)
+    search_hit = {"isadgID": 474234}
+    started: list[int] = []
+    pages = {"n": 0}
+
+    fetch_resource(
+        _client(), archive, search_hit,
+        search_id="houston", context_pages=0,
+        on_item_start=started.append,
+        on_page=lambda: pages.__setitem__("n", pages["n"] + 1),
+    )
+
+    assert started == [1]  # one primary page, no context
+    assert pages["n"] == 1  # on_page fired once per page processed
+
+
 def test_fetch_resource_by_reference_code_uses_query_not_id_lookup(tmp_path):
     from vtextract.archive import Archive
 

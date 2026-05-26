@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from urllib.parse import quote
 
 from vtextract.archive import Archive
@@ -45,12 +46,18 @@ def fetch_resource(
     *,
     search_id: str,
     context_pages: int = 1,
+    on_item_start: Callable[[int], None] | None = None,
+    on_page: Callable[[], None] | None = None,
     _root_manifest_cache: dict | None = None,
 ) -> Record:
     """Fetch one resource: detail metadata, manifest, images, transcriptions.
 
     Stores each physical page once in the shared per-volume page store and
     writes the resource record referencing its primary and context pages.
+
+    For progress reporting, ``on_item_start`` is called once with the total
+    number of pages to process (primary + context), then ``on_page`` is called
+    after each page.
     """
     cache = _root_manifest_cache if _root_manifest_cache is not None else {}
     # The hit only tells us which detail object to fetch; everything else is
@@ -60,13 +67,21 @@ def fetch_resource(
 
     try:
         manifest = client.get_json(f"/iiif/v1/{isadg_id}/manifest")
-        primary_pages = parse_manifest(manifest)
+        # Plan the full set of pages first (this fetches the cached root
+        # manifest for context) so the page count is known before downloading.
+        work: list[tuple[Page, str]] = []
+        for page in parse_manifest(manifest):
+            work.append((page, "primary"))
+            for ctx in _context_for(client, cache, archive, page, context_pages):
+                work.append((ctx, "context"))
+        if on_item_start is not None:
+            on_item_start(len(work))
 
         page_refs: list[PageRef] = []
-        for page in primary_pages:
-            _ensure_page(client, archive, page, role="primary", refs=page_refs)
-            for ctx in _context_for(client, cache, archive, page, context_pages):
-                _ensure_page(client, archive, ctx, role="context", refs=page_refs)
+        for page, role in work:
+            _ensure_page(client, archive, page, role=role, refs=page_refs)
+            if on_page is not None:
+                on_page()
 
         record = normalize_record(detail)
         record.pages = page_refs
