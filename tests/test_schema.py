@@ -50,3 +50,44 @@ def test_reconstruct_text_from_real_sample_starts_expected():
     text = reconstruct_text(sample)
     assert "REGISTRY OF DEEDS, DUBLIN" in text
     assert text.splitlines()[0] == "25"
+
+
+from vtextract.schema import neighbor_canvases
+
+
+def _root_manifest():
+    """Synthetic 4-page volume manifest for deterministic neighbour tests."""
+    def canvas(n: int) -> dict:
+        return {
+            "@id": f"https://api/iiif/v1/208925/canvas/p{n}",
+            "label": f"page {n}",
+            "width": 10,
+            "height": 20,
+            "images": [
+                {"resource": {"@id": f"https://api/loris/page_{n}.jpg/full/full/0/default.jpg"}}
+            ],
+            "otherContent": [{"@id": f"https://api/iiif/v1/208925/list/{n}"}],
+        }
+
+    return {"sequences": [{"canvases": [canvas(1), canvas(2), canvas(3), canvas(4)]}]}
+
+
+def test_neighbor_canvases_returns_prev_and_next():
+    pages = neighbor_canvases(_root_manifest(), "https://api/iiif/v1/208925/canvas/p2", n=1)
+    keys = [p.page_key for p in pages]
+    assert keys == ["page_1.jpg", "page_3.jpg"]
+
+
+def test_neighbor_canvases_clips_at_start_edge():
+    pages = neighbor_canvases(_root_manifest(), "https://api/iiif/v1/208925/canvas/p1", n=1)
+    assert [p.page_key for p in pages] == ["page_2.jpg"]
+
+
+def test_neighbor_canvases_clips_at_end_edge():
+    pages = neighbor_canvases(_root_manifest(), "https://api/iiif/v1/208925/canvas/p4", n=2)
+    assert [p.page_key for p in pages] == ["page_2.jpg", "page_3.jpg"]
+
+
+def test_neighbor_canvases_unknown_canvas_returns_empty():
+    pages = neighbor_canvases(_root_manifest(), "https://api/iiif/v1/208925/canvas/nope", n=1)
+    assert pages == []

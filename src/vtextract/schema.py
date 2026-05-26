@@ -60,3 +60,20 @@ def reconstruct_text(annotation_list: dict) -> str:
         if text is not None:
             chars.append(text)
     return "\n".join(chars)
+
+
+def neighbor_canvases(root_manifest: dict, canvas_id: str, n: int) -> list[Page]:
+    """Return the n canvases before and after `canvas_id` in the volume sequence.
+
+    The target canvas itself is excluded. Out-of-range neighbours are clipped.
+    Returns [] if the canvas is not found or n <= 0.
+    """
+    if n <= 0:
+        return []
+    pages = parse_manifest(root_manifest)
+    index = next((i for i, p in enumerate(pages) if p.canvas_id == canvas_id), None)
+    if index is None:
+        return []
+    start = max(0, index - n)
+    end = min(len(pages), index + n + 1)
+    return [p for i, p in enumerate(pages[start:end], start=start) if i != index]
