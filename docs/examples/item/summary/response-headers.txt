@@ -1,0 +1,15 @@
+HTTP/2 200 
+date: Tue, 26 May 2026 04:51:52 GMT
+server: Apache/2.4.67 (Debian)
+access-control-allow-origin: *
+access-control-allow-headers: Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control
+access-control-allow-methods: PUT, POST, GET, DELETE, OPTIONS
+x-in-memoriam: In memory of Professor Séamus (Shay) Lawless
+x-content-type-options: nosniff
+x-xss-protection: 1; mode=block
+cache-control: no-cache, no-store, max-age=0, must-revalidate
+pragma: no-cache
+expires: 0
+x-frame-options: DENY
+content-type: application/json;charset=UTF-8
+X-Firefox-Spdy: h2

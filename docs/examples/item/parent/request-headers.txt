@@ -1,0 +1,15 @@
+GET /rest/isadg-identity-statements/474234/parent HTTP/2
+Host: by2022-prod.adaptcentre.ie
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:151.0) Gecko/20100101 Firefox/151.0
+Accept: application/json, text/plain, */*
+Accept-Language: en-US,en;q=0.9
+Accept-Encoding: gzip, deflate, br, zstd
+Content-Type: application/json
+Authorization: Basic Z2xhdWNvOk1DSGY5UXVw
+Origin: https://virtualtreasury.ie
+Connection: keep-alive
+Referer: https://virtualtreasury.ie/
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: cross-site
+TE: trailers

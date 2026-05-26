@@ -1,0 +1,17 @@
+GET /item/IMC-1954-RoD-1-1737-550 HTTP/2
+Host: virtualtreasury.ie
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:151.0) Gecko/20100101 Firefox/151.0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Language: en-US,en;q=0.9
+Accept-Encoding: gzip, deflate, br, zstd
+Referer: https://virtualtreasury.ie/search-results?totalElementsInt=100&pageNumberInt=0&kwList=houston&kwOperList=ALL&searchContentDate_begin=1650-01-01&searchContentDate_end=1760-12-31&kwSearchFieldList=kwTranscription&resultSorting=relevance
+Connection: keep-alive
+Cookie: visid_incap_3026076=ZUfPvTwZQguqYooP3SGdJVEIEGoAAAAAQUIPAAAAAADiQhmHO51lrHcgPLAZfdbh; incap_ses_576_3026076=nHuUVGKgnwDXhxweJl3+B9UmFWoAAAAA8xZnzIjsFz47qu/RFETgAQ==; incap_ses_698_3026076=MLoWdMCqmwhaXlJTVMuvCT2MEmoAAAAA+GbQaEidmUWXwLDZK4Yzrg==; CookieConsent={stamp:%27YHjUfxiS3tz5ywxztZrE7ACfIHHVbGlRGKiNv4n/oGbZ1vSACdLJVw==%27%2Cnecessary:true%2Cpreferences:true%2Cstatistics:true%2Cmarketing:true%2Cmethod:%27explicit%27%2Cver:1%2Cutc:1779435605432%2Cregion:%27jp%27}; _ga=GA1.1.1183341612.1779435605; _ga_PX678PF72Z=GS2.1.s1779771084$o11$g1$t1779771095$j49$l0$h0; _ga_9XS7C9QXP9=GS2.1.s1779595478$o1$g1$t1779595689$j16$l0$h0
+Upgrade-Insecure-Requests: 1
+Sec-Fetch-Dest: document
+Sec-Fetch-Mode: navigate
+Sec-Fetch-Site: same-origin
+If-Modified-Since: Tue, 12 May 2026 11:43:02 GMT
+If-None-Match: W/"1cbf-19e1bff6549"
+Priority: u=0, i
+TE: trailers

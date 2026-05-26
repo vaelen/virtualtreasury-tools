@@ -1,0 +1,9 @@
+HTTP/2 200 
+date: Tue, 26 May 2026 04:51:54 GMT
+server: Apache/2.4.67 (Debian)
+access-control-allow-origin: *
+access-control-allow-headers: Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control
+access-control-allow-methods: PUT, POST, GET, DELETE, OPTIONS
+content-type: application/json
+content-length: 2545
+X-Firefox-Spdy: h2

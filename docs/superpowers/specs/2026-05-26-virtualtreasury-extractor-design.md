@@ -11,22 +11,29 @@ of Ireland / "Beyond 2022" project) and downloads every matching resource —
 full-resolution images, structured metadata, and transcription text — into an
 organized, resumable local archive.
 
-The public site is an Angular single-page app; its `/search-results` URL is a
-client-side route that renders nothing useful to `curl`. All data is loaded by
-JavaScript from a separate backend. This tool replicates the requests the
-browser makes.
+The public site is an Angular single-page app; both its `/search-results` and
+`/item/<reference-code>` URLs are client-side routes that render an empty shell
+to `curl`. All data is loaded by JavaScript from a separate backend. This tool
+replicates the requests the browser makes.
 
 ## How the site actually works (reverse-engineered)
 
 Backend host (from the app's `main.js` bundle): `https://by2022-prod.adaptcentre.ie`
-(referred to below as `DCI`).
+(referred to below as `DCI`). All response samples that informed this spec are
+committed under `docs/examples/` (`search/` for `doc_search`, `item/` for the
+full per-item fan-out including subfolders for each API call).
 
 | Purpose | Endpoint |
 |---|---|
 | **Search** | `POST {DCI}/IR_REST_V2/webapi/doc_search` |
-| Item / metadata (DSpace REST) | `GET {DCI}/rest/<path>` |
-| IIIF image delivery | `{DCI}/iiif/v1/...` |
-| ARK identifier map (static JSON, on WordPress) | `{WORDPRESS}/cms/wp-content/uploads/json/ark-endpoints-reduced.json` |
+| **Item metadata** (DSpace-style REST) | `GET {DCI}/rest/isadg-identity-statements/{isadgID}` |
+| **IIIF manifest** (image + transcription enumeration) | `GET {DCI}/iiif/v1/{isadgID}/manifest` |
+| **IIIF annotation list** (transcription) | `GET {DCI}/iiif/v1/{parentId}/list/{n}` (URL taken from the manifest) |
+| **Image bytes** (Loris IIIF Image API, level 2) | `GET {DCI}/loris/{filename}/full/full/0/default.jpg` (URL taken from the manifest) |
+
+The viewer also calls `parent`, `children`, `internal-links/summary`,
+`kglinks/searchByIsadgId`, and `document-repository`. These drive UI
+breadcrumbs and the knowledge graph and are **not needed** for the archive.
 
 ### Authentication
 
@@ -65,39 +72,44 @@ change.
 }
 ```
 
-Each record in `resultInfoList` already contains rich ISAD(G) metadata. Fields
-the tool relies on:
+Each record carries rich ISAD(G) metadata. Fields the tool uses:
 
-- **`isadgID`** (integer) — the stable per-item identifier; the archive keys
-  off this. (There is no ARK or manifest URL in the search response.)
-- `hasImages` (bool), `hasTranscriptions` (bool) — whether to attempt image /
-  transcription fetches for this record.
-- `thumbnailImage` (string filename, may be `null`) — a hint at the IIIF
-  identifier, not a full page list.
-- Descriptive fields saved verbatim: `displayTitle`, `title[]`,
-  `displayReferenceCode`, `referenceCode[]`, `documentRepository`,
-  `documentRepositoryName`, `creator[]`, `creatorName[]`, `contentDate`,
-  `createdDate`, `contentYears[]`, `scopeAndContent[]`, `archivalHistory[]`,
-  `archivistsNote[]`, `thematicCollection[]`, `sourceFormat[]`,
-  `sourceGrade[]`, `linkType[]`, plus the rest of the record.
-- `highLightFragments` — search-match snippets only; **not** the full
-  transcription.
+- **`isadgID`** (integer) — the stable per-item identifier and the key for
+  every subsequent call and for the on-disk layout.
+- `displayReferenceCode` / `referenceCode[]`, `displayTitle`, `title[]`,
+  dates, `documentRepository`, `creatorName[]`, `scopeAndContent[]`,
+  `thematicCollection[]`, etc. — saved as the search-side metadata.
+- `hasImages`, `hasTranscriptions` — **hints only.** The IIIF manifest is the
+  source of truth for what images and transcriptions actually exist (a sample
+  item had `hasTranscription: false` in its detail record yet a populated
+  transcription annotation list in its manifest).
+- `highLightFragments` — search-match snippets only; not the transcription.
 
-### Open discovery item (Phase 0)
+### Per-item retrieval (confirmed from `docs/examples/item`)
 
-The search response does **not** tell us how to enumerate an item's image pages
-or fetch its full transcription. Both require the per-item detail request(s)
-the frontend fires when a single result is opened — most likely
-`GET {DCI}/rest/...` keyed by `isadgID`, and/or a IIIF manifest. Phase 0 of
-implementation captures one such request/response from browser DevTools and
-locks down:
+Given an `isadgID` from a search hit, the tool makes three calls:
 
-1. the exact URL/shape to resolve `isadgID` → full image list (IIIF image
-   identifiers or manifest), and
-2. where the full transcription text comes from.
+1. **Detail metadata** — `GET {DCI}/rest/isadg-identity-statements/{isadgID}`.
+   Returns the full nested ISAD(G) record: `preferredTitle`,
+   `preferredReferenceCode`, `isadgDates`, `isadgContexts` (creators, archival
+   history), `documentRepository`, `extentAndMedium`, language, substitute
+   source grades/formats, `thumbnail`, `numChildren`, `hasImageSequence`, etc.
 
-The architecture isolates this in the `schema` and `fetcher` modules so the
-rest of the tool is unaffected by what we find.
+2. **IIIF manifest** — `GET {DCI}/iiif/v1/{isadgID}/manifest`. A IIIF
+   Presentation API 2 manifest. `sequences[].canvases[]` enumerates pages; for
+   each canvas:
+   - `images[].resource.@id` is the full-resolution image URL
+     (`{DCI}/loris/{filename}/full/full/0/default.jpg`). The tool downloads
+     this URL verbatim — it does not construct image URLs.
+   - `otherContent[].@id` (when present) is a transcription annotation list.
+
+3. **Transcription** — for each annotation-list URL in the manifest,
+   `GET` it; `resources[]` are ordered `cnt:ContentAsText` fragments
+   (`resource.chars`) each anchored to canvas coordinates (`on: …#xywh=…`).
+   Concatenating `chars` in document order reconstructs the page text.
+
+If the manifest has no canvases, the item has no images (handled gracefully);
+if a canvas has no `otherContent`, it has no transcription.
 
 ## Architecture
 
@@ -111,16 +123,18 @@ isolation:
 2. **`search`** — builds the `doc_search` POST body from either a pasted
    `search-results` URL or explicit flags; handles pagination; yields raw
    result records.
-3. **`schema`** — pure functions mapping raw `doc_search` records (and the
-   Phase 0 detail/manifest responses) into our internal `Record` type
-   (`isadgID`, title, reference code, dates, repository, image identifiers,
-   transcription, raw blob). The one module finalized after Phase 0. No I/O.
-4. **`fetcher`** — given a `Record`, downloads full-resolution images (IIIF
-   `full/max`), writes `metadata.json` and `transcription.txt`. Skips image /
-   transcription work when `hasImages` / `hasTranscriptions` is false.
+3. **`schema`** — pure functions, no I/O. Maps a raw search record + detail
+   record into a normalized `Record` (isadgID, reference code, title, dates,
+   repository, raw blobs), and parses a manifest into a list of
+   `(image_url, annotation_list_urls)` per canvas. Parses annotation lists into
+   ordered text.
+4. **`fetcher`** — orchestrates per-item retrieval using `client`: fetch detail
+   metadata, fetch manifest, download each canvas image, fetch + reconstruct
+   transcriptions; hands results to `archive` for writing.
 5. **`archive`** — on-disk layout + `_state.json` run-state: dedup by
    `isadgID`, skip already-completed items, record per-item status and image
-   checksums, enabling resume across runs and across different searches.
+   checksums, record which search(es) produced each item, enabling resume
+   across runs and across different searches.
 6. **`cli`** — argument parsing; wires the pipeline together; progress output.
 
 ### On-disk layout
@@ -129,10 +143,12 @@ isolation:
 archive/
   _state.json                      # resume index: isadgID -> status, checksums, source searches
   474234/                          # one directory per item, keyed by isadgID
-    metadata.json                  # normalized record + raw search hit (+ detail record)
-    transcription.txt              # when hasTranscriptions
+    metadata.json                  # normalized fields + raw search hit + raw detail record
+    manifest.json                  # raw IIIF manifest (re-download source of truth)
+    transcription.txt              # reconstructed text (concatenated chars), when present
+    transcription.json             # raw annotation fragments with coordinates, when present
     images/
-      0001.jpg
+      0001.jpg                     # one file per canvas, in manifest order
       0002.jpg
       ...
 ```
@@ -141,10 +157,11 @@ archive/
 
 1. `cli` parses the search (URL or flags) and output dir.
 2. `search` pages through `doc_search`, yielding records.
-3. For each record: `schema` normalizes it → `archive` checks `_state.json`
-   (skip if already `complete`) → `fetcher` resolves images/transcription
-   (Phase 0 detail call as needed) and writes files → `archive` marks the item
-   `complete` with checksums and notes which search(es) produced it.
+3. For each record: `archive` checks `_state.json` (skip if already
+   `complete`) → `fetcher` fetches detail metadata + manifest, downloads canvas
+   images, fetches and reconstructs transcriptions → `schema` normalizes →
+   `archive` writes files and marks the item `complete` with image checksums
+   and the originating search.
 4. Interruptible at any point; re-running any search resumes and never
    re-downloads completed items.
 
@@ -153,38 +170,46 @@ archive/
 - Per-item failures are caught, logged, and recorded in `_state.json` as
   `failed` with a reason; the run continues. A later run retries only `failed`
   / incomplete items.
+- A missing manifest or empty canvas list is normal (not all items have
+  images) — recorded as `complete` with zero images, not as a failure.
 - Transport errors get bounded retries with exponential backoff inside
   `client`.
+- Image integrity verified by checksum recorded in `_state.json`; a partial
+  image (size/checksum mismatch on resume) is re-fetched.
 - Rate-limiting is on by default.
 
 ### Testing
 
-- `schema`: unit tests against captured sample responses (the search sample
-  already in hand, plus the Phase 0 detail sample) — no network.
-- `search`: body construction and pagination, using recorded HTTP fixtures.
-- `archive`: resume / dedup / state-transition logic on a temp directory.
+- Fixtures are the committed samples in `docs/examples/` (search response and
+  the full item fan-out). No test hits the live site or uses the real
+  credential.
+- `schema`: search+detail normalization, manifest → image/annotation parsing,
+  annotation-list → text reconstruction, against the fixtures.
+- `search`: body construction and pagination.
+- `archive`: resume / dedup / state-transition / checksum logic on a temp dir.
 - `client`: retry/backoff and rate-limit behavior against a stub server.
-- No test requires the live site or the real credential.
 
 ## Build sequence
 
-0. **Discovery (Phase 0):** capture one item-detail network exchange from
-   DevTools; finalize `schema` + the `fetcher` image/transcription resolution.
 1. `client` (auth from config, rate limit, retry).
 2. `search` (URL parsing, body, pagination).
-3. `fetcher` (IIIF image download, transcription, metadata write).
-4. `archive` (state file, resume, dedup).
-5. `cli` (wire-up, progress, config).
+3. `schema` (normalization + manifest/annotation parsing) — fully specified by
+   the committed fixtures.
+4. `fetcher` (detail + manifest + image download + transcription).
+5. `archive` (state file, resume, dedup, checksums).
+6. `cli` (wire-up, progress, config).
 
 ## Tech stack
 
 Python. HTTP via `httpx` (timeouts, retries, optional concurrency); CLI via
-`argparse` or `click`; standard `json`/`pathlib` for I/O. Dependencies kept
-minimal.
+`argparse` or `click`; standard `json`/`pathlib`/`hashlib` for I/O. Dependencies
+kept minimal.
 
 ## Out of scope (YAGNI)
 
 - Full-collection crawl independent of searches.
+- The viewer's `parent` / `children` / `summary` / knowledge-graph / repository
+  calls (UI extras).
 - Re-OCR or image processing/derivatives.
 - A GUI or web interface.
-- Resolving the knowledge-graph (`kg_uri`) or external `findingAids` links.
+- Resolving knowledge-graph (`kg_uri`) or external `findingAids` links.
