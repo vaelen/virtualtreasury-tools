@@ -93,7 +93,7 @@ def run(argv: list[str], *, env: dict[str, str] | None = None) -> int:
         client.close()
 
     print(f"finished: {completed} archived, {failed} failed")
-    return 0
+    return 1 if failed else 0
 
 
 def main() -> None:

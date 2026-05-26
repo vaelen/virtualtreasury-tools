@@ -60,3 +60,28 @@ def test_run_archives_results_end_to_end(tmp_path, monkeypatch):
     assert exit_code == 0
     assert (tmp_path / "items" / "474234" / "metadata.json").exists()
     assert (tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg").exists()
+
+
+def test_run_returns_nonzero_when_a_resource_fails(tmp_path, monkeypatch):
+    search_response = {
+        "generalInfo": {"totalDocs": 1, "docNumberPerPage": 100, "currentPage": 1},
+        "resultInfoList": [
+            {"isadgID": 474234, "displayReferenceCode": "X", "displayTitle": "Y"}
+        ],
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/IR_REST_V2/webapi/doc_search":
+            return httpx.Response(200, json=search_response)
+        # Detail call 404s -> fetch_resource raises -> run records a failure.
+        return httpx.Response(404, text=path)
+
+    monkeypatch.setattr(cli, "_make_transport", lambda: httpx.MockTransport(handler))
+
+    exit_code = cli.run(
+        ["https://virtualtreasury.ie/search-results?kwList=houston",
+         "--out", str(tmp_path), "--context-pages", "0"],
+        env={"VT_AUTH": "x", "VT_DELAY": "0", "VT_MAX_RETRIES": "0"},
+    )
+    assert exit_code == 1
