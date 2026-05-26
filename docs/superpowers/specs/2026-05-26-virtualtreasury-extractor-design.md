@@ -16,19 +16,43 @@ The public site is an Angular single-page app; both its `/search-results` and
 to `curl`. All data is loaded by JavaScript from a separate backend. This tool
 replicates the requests the browser makes.
 
+## Core data model: resources vs physical pages
+
+Two distinct things, in a many-to-many relationship:
+
+- **Resource** — a catalogued intellectual entity, identified by `isadgID`.
+  Searches return resources (e.g. *Will of MITCHELL, CALEB*, item 550,
+  `isadgID 474234`).
+- **Physical page** — an actual scanned image, identified by its Loris image
+  identifier (a filename, e.g. `IMC_1954_RoD_1_Page_253.jpg`).
+
+One physical page often carries several resources (item 550 *and* item 551,
+*Will of HOUSTON, JOHN*, are both abstracted onto the same book page), and one
+resource can span several pages. Crucially, **both the image bytes and the
+transcription are page-level, not resource-level**: the transcription
+annotation list is keyed to the canvas (physical page) and contains the OCR for
+the whole page — every record on it, undivided. There is no reliable way to
+split a page's transcription per resource.
+
+Therefore the archive stores **pages once in a shared store** (keyed by Loris
+identifier, deduplicated by identifier + checksum) and represents resources as
+lightweight records that reference the pages they span. This avoids duplicating
+images and transcriptions across resources that share a page.
+
 ## How the site actually works (reverse-engineered)
 
 Backend host (from the app's `main.js` bundle): `https://by2022-prod.adaptcentre.ie`
 (referred to below as `DCI`). All response samples that informed this spec are
-committed under `docs/examples/` (`search/` for `doc_search`, `item/` for the
-full per-item fan-out including subfolders for each API call).
+committed under `docs/examples/` (`doc-search/` for the search response,
+`item/` for the full per-item fan-out, with a subfolder for each API call).
 
 | Purpose | Endpoint |
 |---|---|
 | **Search** | `POST {DCI}/IR_REST_V2/webapi/doc_search` |
 | **Item metadata** (DSpace-style REST) | `GET {DCI}/rest/isadg-identity-statements/{isadgID}` |
-| **IIIF manifest** (image + transcription enumeration) | `GET {DCI}/iiif/v1/{isadgID}/manifest` |
-| **IIIF annotation list** (transcription) | `GET {DCI}/iiif/v1/{parentId}/list/{n}` (URL taken from the manifest) |
+| **Item IIIF manifest** (the resource's own pages) | `GET {DCI}/iiif/v1/{isadgID}/manifest` |
+| **Volume IIIF manifest** (full page sequence, for context pages) | `GET {DCI}/iiif/v1/{rootID}/manifest` |
+| **IIIF annotation list** (page transcription) | `GET {DCI}/iiif/v1/{rootID}/list/{n}` (URL taken from the manifest) |
 | **Image bytes** (Loris IIIF Image API, level 2) | `GET {DCI}/loris/{filename}/full/full/0/default.jpg` (URL taken from the manifest) |
 
 The viewer also calls `parent`, `children`, `internal-links/summary`,
@@ -74,8 +98,8 @@ change.
 
 Each record carries rich ISAD(G) metadata. Fields the tool uses:
 
-- **`isadgID`** (integer) — the stable per-item identifier and the key for
-  every subsequent call and for the on-disk layout.
+- **`isadgID`** (integer) — the resource identifier and the key for every
+  subsequent call and for the on-disk `items/` layout.
 - `displayReferenceCode` / `referenceCode[]`, `displayTitle`, `title[]`,
   dates, `documentRepository`, `creatorName[]`, `scopeAndContent[]`,
   `thematicCollection[]`, etc. — saved as the search-side metadata.
@@ -87,29 +111,41 @@ Each record carries rich ISAD(G) metadata. Fields the tool uses:
 
 ### Per-item retrieval (confirmed from `docs/examples/item`)
 
-Given an `isadgID` from a search hit, the tool makes three calls:
+Given an `isadgID` from a search hit:
 
 1. **Detail metadata** — `GET {DCI}/rest/isadg-identity-statements/{isadgID}`.
-   Returns the full nested ISAD(G) record: `preferredTitle`,
-   `preferredReferenceCode`, `isadgDates`, `isadgContexts` (creators, archival
-   history), `documentRepository`, `extentAndMedium`, language, substitute
-   source grades/formats, `thumbnail`, `numChildren`, `hasImageSequence`, etc.
+   Full nested ISAD(G) record: `preferredTitle`, `preferredReferenceCode`,
+   `isadgDates`, `isadgContexts` (creators, archival history),
+   `documentRepository`, `extentAndMedium`, language, substitute source
+   grades/formats, `thumbnail`, `numChildren`, `hasImageSequence`, etc.
 
-2. **IIIF manifest** — `GET {DCI}/iiif/v1/{isadgID}/manifest`. A IIIF
-   Presentation API 2 manifest. `sequences[].canvases[]` enumerates pages; for
-   each canvas:
+2. **Item manifest** — `GET {DCI}/iiif/v1/{isadgID}/manifest` (IIIF
+   Presentation API 2). `sequences[].canvases[]` enumerates the resource's own
+   pages; for each canvas:
    - `images[].resource.@id` is the full-resolution image URL
-     (`{DCI}/loris/{filename}/full/full/0/default.jpg`). The tool downloads
-     this URL verbatim — it does not construct image URLs.
-   - `otherContent[].@id` (when present) is a transcription annotation list.
+     (`{DCI}/loris/{filename}/full/full/0/default.jpg`). The Loris `{filename}`
+     is the page identifier and the page-store key. The tool downloads the URL
+     verbatim — it does not construct image URLs.
+   - `otherContent[].@id` (when present) is the page's transcription annotation
+     list.
+   - the canvas `@id` embeds the **volume manifest-root id**
+     (`…/iiif/v1/{rootID}/canvas/…`), used for context pages.
 
-3. **Transcription** — for each annotation-list URL in the manifest,
-   `GET` it; `resources[]` are ordered `cnt:ContentAsText` fragments
-   (`resource.chars`) each anchored to canvas coordinates (`on: …#xywh=…`).
-   Concatenating `chars` in document order reconstructs the page text.
+3. **Transcription** — for each annotation-list URL, `GET` it; `resources[]`
+   are ordered `cnt:ContentAsText` fragments (`resource.chars`) anchored to
+   canvas coordinates (`on: …#xywh=…`). Concatenating `chars` in order
+   reconstructs the page text. (This text covers the whole physical page, i.e.
+   all resources on it.)
 
-If the manifest has no canvases, the item has no images (handled gracefully);
-if a canvas has no `otherContent`, it has no transcription.
+4. **Context pages** (default ±1, configurable) — extract `rootID` from a
+   canvas `@id`, `GET {DCI}/iiif/v1/{rootID}/manifest` (cached per `rootID` per
+   run, since many hits share a volume), locate the resource's canvas in the
+   root sequence, and pull the N preceding and N following canvases' images and
+   annotation lists into the shared page store. This catches records that spill
+   across a page boundary. Volume edges simply yield fewer pages.
+
+If the item manifest has no canvases, the resource has no images (handled
+gracefully). If a canvas has no `otherContent`, that page has no transcription.
 
 ## Architecture
 
@@ -123,81 +159,96 @@ isolation:
 2. **`search`** — builds the `doc_search` POST body from either a pasted
    `search-results` URL or explicit flags; handles pagination; yields raw
    result records.
-3. **`schema`** — pure functions, no I/O. Maps a raw search record + detail
-   record into a normalized `Record` (isadgID, reference code, title, dates,
-   repository, raw blobs), and parses a manifest into a list of
-   `(image_url, annotation_list_urls)` per canvas. Parses annotation lists into
-   ordered text.
-4. **`fetcher`** — orchestrates per-item retrieval using `client`: fetch detail
-   metadata, fetch manifest, download each canvas image, fetch + reconstruct
-   transcriptions; hands results to `archive` for writing.
-5. **`archive`** — on-disk layout + `_state.json` run-state: dedup by
-   `isadgID`, skip already-completed items, record per-item status and image
-   checksums, record which search(es) produced each item, enabling resume
-   across runs and across different searches.
-6. **`cli`** — argument parsing; wires the pipeline together; progress output.
+3. **`schema`** — pure functions, no I/O. Normalizes a search record + detail
+   record into a `Record`; parses a manifest into per-canvas `Page` descriptors
+   (page key/Loris filename, image URL, annotation-list URLs, `rootID`, canvas
+   id, dimensions); reconstructs annotation-list JSON into ordered page text.
+4. **`fetcher`** — orchestrates per-resource retrieval via `client`: detail
+   metadata, item manifest, then for each page (primary, plus ±N context pages
+   from the cached root manifest) ensure the page exists in the store. Returns
+   the resource's ordered page list (primary/context tags) to `archive`.
+5. **`archive`** — owns the shared page store and the resource records.
+   Deduplicates pages globally by Loris identifier (+ checksum); writes page
+   image/transcription files once; writes per-resource `metadata.json` +
+   `manifest.json` with an ordered `pages[]` reference list; maintains
+   `_state.json` (per-resource and per-page status, checksums, originating
+   searches) for resume/dedup across runs and searches.
+6. **`cli`** — argument parsing (including `--context-pages N`, default 1);
+   wires the pipeline together; progress output.
 
 ### On-disk layout
 
 ```
 archive/
-  _state.json                      # resume index: isadgID -> status, checksums, source searches
-  474234/                          # one directory per item, keyed by isadgID
-    metadata.json                  # normalized fields + raw search hit + raw detail record
-    manifest.json                  # raw IIIF manifest (re-download source of truth)
-    transcription.txt              # reconstructed text (concatenated chars), when present
-    transcription.json             # raw annotation fragments with coordinates, when present
-    images/
-      0001.jpg                     # one file per canvas, in manifest order
-      0002.jpg
-      ...
+  _state.json                          # resume index: resources + pages, status, checksums, source searches
+  pages/                               # shared page store, keyed by Loris page identifier — each page stored once
+    IMC_1954_RoD_1_Page_253.jpg        # full-resolution image
+    IMC_1954_RoD_1_Page_253.jpg.txt    # reconstructed page transcription (all records on the page)
+    IMC_1954_RoD_1_Page_253.jpg.json   # raw annotation fragments with coordinates
+  items/                               # one directory per resource (isadgID)
+    474234/                            # Will of MITCHELL, CALEB
+      metadata.json                    # normalized fields + raw search hit + raw detail record + ordered pages[]
+      manifest.json                    # raw item IIIF manifest
+    474235/                            # Will of HOUSTON, JOHN — references the same page, no re-download
+      metadata.json
+      manifest.json
 ```
+
+Each `metadata.json` `pages[]` entry records: page key (Loris filename),
+role (`primary`/`context`), relative path into `pages/`, canvas label, and
+dimensions.
 
 ### Data flow
 
-1. `cli` parses the search (URL or flags) and output dir.
-2. `search` pages through `doc_search`, yielding records.
-3. For each record: `archive` checks `_state.json` (skip if already
-   `complete`) → `fetcher` fetches detail metadata + manifest, downloads canvas
-   images, fetches and reconstructs transcriptions → `schema` normalizes →
-   `archive` writes files and marks the item `complete` with image checksums
-   and the originating search.
-4. Interruptible at any point; re-running any search resumes and never
-   re-downloads completed items.
+1. `cli` parses the search(es) (URL or flags), output dir, and context depth.
+2. `search` pages through `doc_search`, yielding resource records.
+3. For each record: `archive` checks `_state.json` (skip if `complete`) →
+   `fetcher` fetches detail + item manifest, determines primary pages, and via
+   the cached root manifest determines ±N context pages → for each page not
+   already in the store, downloads image + annotation list → `schema`
+   normalizes record and reconstructs page text → `archive` writes any new
+   page files, writes the resource's `metadata.json`/`manifest.json`, and marks
+   the resource `complete` with its page list and originating search.
+4. Interruptible at any point; re-running any search resumes and re-downloads
+   neither completed resources nor already-stored pages.
 
 ### Error handling
 
-- Per-item failures are caught, logged, and recorded in `_state.json` as
+- Per-resource failures are caught, logged, and recorded in `_state.json` as
   `failed` with a reason; the run continues. A later run retries only `failed`
-  / incomplete items.
-- A missing manifest or empty canvas list is normal (not all items have
-  images) — recorded as `complete` with zero images, not as a failure.
+  / incomplete resources.
+- A missing item manifest or empty canvas list is normal (not all resources
+  have images) — recorded as `complete` with zero pages, not a failure.
+- Volume edges (no prev/next canvas) yield fewer context pages, not an error.
 - Transport errors get bounded retries with exponential backoff inside
   `client`.
-- Image integrity verified by checksum recorded in `_state.json`; a partial
-  image (size/checksum mismatch on resume) is re-fetched.
+- Page integrity verified by checksum in `_state.json`; a partial/mismatched
+  page on resume is re-fetched.
 - Rate-limiting is on by default.
 
 ### Testing
 
-- Fixtures are the committed samples in `docs/examples/` (search response and
-  the full item fan-out). No test hits the live site or uses the real
-  credential.
-- `schema`: search+detail normalization, manifest → image/annotation parsing,
-  annotation-list → text reconstruction, against the fixtures.
+- Fixtures are the committed samples in `docs/examples/`. No test hits the live
+  site or uses the real credential.
+- `schema`: search+detail normalization; manifest → page descriptors incl.
+  `rootID` extraction from canvas `@id`; annotation-list → ordered text.
 - `search`: body construction and pagination.
-- `archive`: resume / dedup / state-transition / checksum logic on a temp dir.
+- `archive`: global page dedup (two resources sharing a page store one copy);
+  resume / state transitions / checksum logic on a temp dir.
+- `fetcher`: context-page selection from a root-manifest sequence (including
+  volume edges) with a stubbed `client`.
 - `client`: retry/backoff and rate-limit behavior against a stub server.
 
 ## Build sequence
 
 1. `client` (auth from config, rate limit, retry).
 2. `search` (URL parsing, body, pagination).
-3. `schema` (normalization + manifest/annotation parsing) — fully specified by
-   the committed fixtures.
-4. `fetcher` (detail + manifest + image download + transcription).
-5. `archive` (state file, resume, dedup, checksums).
-6. `cli` (wire-up, progress, config).
+3. `schema` (normalization + manifest/annotation/`rootID` parsing) — fully
+   specified by the committed fixtures.
+4. `archive` (shared page store, dedup, resource records, `_state.json`).
+5. `fetcher` (detail + item manifest + primary pages + ±N context pages via
+   cached root manifest).
+6. `cli` (wire-up, `--context-pages`, progress, config).
 
 ## Tech stack
 
@@ -210,6 +261,7 @@ kept minimal.
 - Full-collection crawl independent of searches.
 - The viewer's `parent` / `children` / `summary` / knowledge-graph / repository
   calls (UI extras).
+- Splitting a page's transcription per resource (the data does not support it).
 - Re-OCR or image processing/derivatives.
 - A GUI or web interface.
 - Resolving knowledge-graph (`kg_uri`) or external `findingAids` links.
