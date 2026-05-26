@@ -135,6 +135,28 @@ normalised to a dash (`TNA-SO-1-14`) before lookup. A purely numeric argument is
 treated as an isadgID. A reference code that resolves to nothing is reported and
 skipped without aborting the rest of the run.
 
+### Progress output
+
+Both commands report progress on **stderr**. `search` first prints how many
+matches it found (`get` how many resources you asked for), then a line before
+and after each resource, and `skipping …` for anything already in the archive:
+
+```
+Found 42 matches.
+fetching 474234...
+done 474234
+skipping 474235, already archived
+fetching 474236...
+done 474236
+finished: 2 archived, 0 failed
+```
+
+In an interactive terminal these lines scroll above two live progress bars — an
+overall bar across all resources and a per-resource bar that advances as each
+page is downloaded. When output is piped or redirected the bars are suppressed
+automatically and only the plain lines above are written, so logs stay clean.
+Status output is on stderr, leaving stdout free.
+
 ## Archive layout
 
 ```
