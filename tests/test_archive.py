@@ -62,3 +62,34 @@ def test_write_volume_info(tmp_path):
     import json as _json
     data = _json.loads((tmp_path / "pages" / "208925" / "volume.json").read_text())
     assert data["label"] == "Vol 1"
+
+
+import json as _json
+
+from vtextract.models import PageRef, Record
+
+
+def test_write_resource_writes_metadata_and_manifest(tmp_path):
+    archive = Archive(tmp_path)
+    record = Record(
+        isadg_id=474234,
+        reference_code="IMC 1954/RoD/1/1737/550",
+        title="Will of MITCHELL, CALEB",
+        search_hit={"isadgID": 474234},
+        detail={"id": 474234},
+        pages=[PageRef(page_key="p1.jpg", root_id="208925", role="primary",
+                       path="pages/208925/p1.jpg", canvas_label="lbl", width=826, height=1368)],
+    )
+    archive.write_resource(record, manifest={"@type": "sc:Manifest"})
+
+    item_dir = tmp_path / "items" / "474234"
+    metadata = _json.loads((item_dir / "metadata.json").read_text())
+    assert metadata["isadgID"] == 474234
+    assert metadata["referenceCode"] == "IMC 1954/RoD/1/1737/550"
+    assert metadata["searchHit"] == {"isadgID": 474234}
+    assert metadata["detail"] == {"id": 474234}
+    assert metadata["pages"][0]["page_key"] == "p1.jpg"
+    assert metadata["pages"][0]["role"] == "primary"
+
+    manifest = _json.loads((item_dir / "manifest.json").read_text())
+    assert manifest["@type"] == "sc:Manifest"

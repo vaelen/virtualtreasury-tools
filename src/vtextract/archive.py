@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from dataclasses import asdict
 import hashlib
 import json
 from pathlib import Path
+
+from vtextract.models import Record
 
 
 class Archive:
@@ -77,3 +80,20 @@ class Archive:
 
     def write_volume_info(self, root_id: str, info: dict) -> None:
         (self._page_dir(root_id) / "volume.json").write_text(json.dumps(info, indent=2))
+
+    # --- resource records ---
+
+    def write_resource(self, record: Record, *, manifest: dict | None) -> None:
+        item_dir = self.root / "items" / str(record.isadg_id)
+        item_dir.mkdir(parents=True, exist_ok=True)
+        metadata = {
+            "isadgID": record.isadg_id,
+            "referenceCode": record.reference_code,
+            "title": record.title,
+            "pages": [asdict(ref) for ref in record.pages],
+            "searchHit": record.search_hit,
+            "detail": record.detail,
+        }
+        (item_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
+        if manifest is not None:
+            (item_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
