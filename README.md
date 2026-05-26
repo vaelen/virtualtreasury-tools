@@ -1,5 +1,9 @@
 # vtextract
 
+> **Proprietary and confidential.** Copyright 2026, Andrew C. Young
+> <andrew@vaelen.org>. All rights reserved. This is not open-source software;
+> see [LICENSE](LICENSE).
+
 Download resources from [virtualtreasury.ie](https://virtualtreasury.ie) — full
 -resolution images, metadata, and transcriptions — into a resumable local
 archive. See the design spec in
@@ -55,3 +59,9 @@ python -m pytest
 
 Tests run entirely against committed sample responses in `docs/examples/`; they
 never contact the live site or use the real credential.
+
+## License
+
+Proprietary. Copyright 2026, Andrew C. Young <andrew@vaelen.org>. All rights
+reserved. No use, copying, modification, or distribution is permitted without
+the prior written permission of the copyright holder. See [LICENSE](LICENSE).
