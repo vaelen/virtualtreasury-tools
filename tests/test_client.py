@@ -75,3 +75,25 @@ def test_raises_after_exhausting_retries():
     client = make_client(handler, max_retries=2)
     with pytest.raises(httpx.HTTPStatusError):
         client.get_json("/x")
+
+
+def test_raises_immediately_on_404_without_retry():
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(404, text="nope")
+
+    client = make_client(handler, max_retries=3)
+    with pytest.raises(httpx.HTTPStatusError):
+        client.get_json("/missing")
+    assert calls["n"] == 1  # 404 must not be retried
+
+
+def test_raises_on_401():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, json={"error": "unauthorized"})
+
+    client = make_client(handler, max_retries=2)
+    with pytest.raises(httpx.HTTPStatusError):
+        client.get_json("/secure")

@@ -45,22 +45,21 @@ class Client:
         self._last_request = time.monotonic()
 
     def _request(self, method: str, url: str, **kwargs) -> httpx.Response:
-        last_exc: Exception | None = None
         for attempt in range(self._max_retries + 1):
             self._throttle()
             try:
                 response = self._http.request(method, url, **kwargs)
-                if response.status_code in RETRY_STATUS:
-                    response.raise_for_status()
-                return response
-            except (httpx.HTTPStatusError, httpx.TransportError) as exc:
-                last_exc = exc
+            except httpx.TransportError:
                 if attempt < self._max_retries:
                     self._sleep(2.0**attempt)
                     continue
                 raise
-        assert last_exc is not None  # unreachable
-        raise last_exc
+            if response.status_code in RETRY_STATUS and attempt < self._max_retries:
+                self._sleep(2.0**attempt)
+                continue
+            response.raise_for_status()
+            return response
+        raise RuntimeError("unreachable")  # pragma: no cover
 
     def get_json(self, url: str) -> dict:
         return self._request("GET", url).json()
