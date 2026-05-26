@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 import httpx
@@ -12,7 +13,8 @@ from vtextract.archive import Archive
 from vtextract.client import Client
 from vtextract.config import load_config
 from vtextract.fetcher import fetch_resource
-from vtextract.search import iter_results, parse_search_url
+from vtextract.models import BOOST_FOR_FIELD, FIELD_MAP, OPERANDS, Filter, SearchCriteria
+from vtextract.search import criteria_to_params, iter_results
 
 
 def _make_transport() -> httpx.BaseTransport | None:
@@ -34,13 +36,56 @@ def _nonneg_int(value: str) -> int:
     return n
 
 
+# Global options that consume the following token as their value.
+_VALUE_OPTS = {"--out", "--start", "--end", "--context-pages", "--page-size"}
+# Zero-arg global flags handled by argparse (result ordering).
+_SORT_FLAGS = {"--relevance", "--newest", "--oldest"}
+# Field flags: "--title" -> "title" key into FIELD_MAP.
+_FIELD_FLAGS = {f"--{name}": name for name in FIELD_MAP}
+# Operand flags: "--all" -> "all" key into OPERANDS.
+_OPERAND_FLAGS = {f"--{name}": name for name in OPERANDS}
+
+_EPILOG = """\
+search criteria (parsed positionally, in order):
+  field flags     --keyword (default), --title, --transcription, --creator,
+                  --ref, --person, --place
+  operand flags   --all (default), --any, --none, --exact
+  keywords        positional words; those after a field/operand flag form one
+                  search clause, e.g. `--title --all memorial houston`
+  Multiple clauses combine: each field flag starts a new clause and resets the
+  operand to --all. --person/--place rank by knowledge-graph entity (the last
+  one wins). The backend also has a searchDocumentRepositoryNameList filter,
+  but its valid values are unknown, so there is no flag for it.
+
+example:
+  vtextract --title --all memorial houston --transcription --any castle \\
+            --place --exact Dublin --start 1700-01-01 --newest --out ./archive
+"""
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vtextract",
         description="Download resources matching a virtualtreasury.ie search.",
+        epilog=_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("search_url", help="A /search-results URL to archive.")
     parser.add_argument("--out", required=True, help="Output archive directory.")
+    parser.add_argument("--start", help="Start of content date range (yyyy-mm-dd).")
+    parser.add_argument("--end", help="End of content date range (yyyy-mm-dd).")
+    sort = parser.add_mutually_exclusive_group()
+    sort.add_argument(
+        "--relevance", dest="sorting", action="store_const", const="relevance",
+        default="relevance", help="Order results by relevance (default).",
+    )
+    sort.add_argument(
+        "--newest", dest="sorting", action="store_const", const="descending",
+        help="Order results newest content date first.",
+    )
+    sort.add_argument(
+        "--oldest", dest="sorting", action="store_const", const="ascending",
+        help="Order results oldest content date first.",
+    )
     parser.add_argument(
         "--context-pages", type=_nonneg_int, default=1,
         help="Neighbouring physical pages to also fetch per page (default 1).",
@@ -52,8 +97,70 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def split_and_group(
+    argv: list[str], parser: argparse.ArgumentParser
+) -> tuple[list[str], SearchCriteria]:
+    """Split argv into argparse global tokens and a SearchCriteria.
+
+    A single left-to-right pass, so interleaved keyword position is preserved:
+    global options are routed to argparse; field/operand flags and keywords are
+    grouped into filters. start/end/sorting come back from argparse and are
+    filled in by run().
+    """
+    global_tokens: list[str] = []
+    filters: list[Filter] = []
+    cur_field: str | None = None
+    cur_operand = "ALL"
+    cur_keywords: list[str] = []
+    boost: str | None = None
+
+    def flush() -> None:
+        nonlocal cur_keywords
+        if cur_keywords:
+            filters.append(Filter(cur_field or "all", cur_operand, cur_keywords))
+        cur_keywords = []
+
+    i = 0
+    while i < len(argv):
+        tok = argv[i]
+        if tok in ("--help", "-h") or tok in _SORT_FLAGS:
+            global_tokens.append(tok)
+            i += 1
+        elif tok in _VALUE_OPTS:
+            if i + 1 >= len(argv):
+                parser.error(f"argument {tok}: expected one argument")
+            global_tokens += [tok, argv[i + 1]]
+            i += 2
+        elif tok in _FIELD_FLAGS:
+            flush()
+            name = _FIELD_FLAGS[tok]
+            cur_field = FIELD_MAP[name]
+            cur_operand = "ALL"
+            if name in BOOST_FOR_FIELD:
+                boost = BOOST_FOR_FIELD[name]
+            i += 1
+        elif tok in _OPERAND_FLAGS:
+            cur_operand = OPERANDS[_OPERAND_FLAGS[tok]]
+            i += 1
+        elif tok.startswith("-"):
+            parser.error(f"unrecognized arguments: {tok}")
+        else:
+            cur_keywords.append(tok)
+            i += 1
+    flush()
+    return global_tokens, SearchCriteria(filters=filters, boost=boost)
+
+
 def run(argv: list[str], *, env: dict[str, str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    global_tokens, criteria = split_and_group(argv, parser)
+    args = parser.parse_args(global_tokens)
+    criteria.start = args.start
+    criteria.end = args.end
+    criteria.sorting = args.sorting
+    if not criteria.filters:
+        parser.error("no search criteria: pass at least one keyword")
+
     config = load_config(env)
 
     client = Client(
@@ -65,8 +172,8 @@ def run(argv: list[str], *, env: dict[str, str] | None = None) -> int:
         max_retries=config.max_retries,
     )
     archive = Archive(args.out)
-    params = parse_search_url(args.search_url)
-    search_id = args.search_url
+    params = criteria_to_params(criteria)
+    search_id = json.dumps(params, sort_keys=True)  # stable id; dedupes re-runs
     root_manifest_cache: dict = {}
 
     completed = 0
