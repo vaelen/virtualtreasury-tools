@@ -2,6 +2,8 @@
 name = "vtextract"
 version = "0.1.0"
 description = "Download resources from virtualtreasury.ie"
+authors = [{ name = "Andrew C. Young", email = "andrew@vaelen.org" }]
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
 dependencies = ["httpx>=0.27"]
 
