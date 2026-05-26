@@ -91,3 +91,29 @@ def test_neighbor_canvases_clips_at_end_edge():
 def test_neighbor_canvases_unknown_canvas_returns_empty():
     pages = neighbor_canvases(_root_manifest(), "https://api/iiif/v1/208925/canvas/nope", n=1)
     assert pages == []
+
+
+from vtextract.schema import normalize_record, volume_info
+
+
+def test_normalize_record_uses_search_hit_fields():
+    hit = {
+        "isadgID": 474234,
+        "displayReferenceCode": "IMC 1954/RoD/1/1737/550",
+        "displayTitle": "Will of MITCHELL, CALEB",
+    }
+    detail = {"id": 474234, "extentAndMedium": "1 will"}
+    record = normalize_record(hit, detail)
+    assert record.isadg_id == 474234
+    assert record.reference_code == "IMC 1954/RoD/1/1737/550"
+    assert record.title == "Will of MITCHELL, CALEB"
+    assert record.search_hit is hit
+    assert record.detail is detail
+    assert record.pages == []
+
+
+def test_volume_info_from_real_manifest():
+    manifest = load_example_json("item", "manifest")
+    info = volume_info(manifest)
+    assert info["label"] == "Will of MITCHELL, CALEB, Dublin, carpenter, created 18 January 1724"
+    assert info["reference_code"] == "IMC 1954/RoD/1/1737/550"

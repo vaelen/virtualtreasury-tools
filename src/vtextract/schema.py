@@ -77,3 +77,23 @@ def neighbor_canvases(root_manifest: dict, canvas_id: str, n: int) -> list[Page]
     start = max(0, index - n)
     end = min(len(pages), index + n + 1)
     return [p for i, p in enumerate(pages[start:end], start=start) if i != index]
+
+
+def normalize_record(search_hit: dict, detail: dict | None) -> Record:
+    """Build a Record from a search hit and (optional) detail record."""
+    return Record(
+        isadg_id=int(search_hit["isadgID"]),
+        reference_code=search_hit.get("displayReferenceCode", ""),
+        title=search_hit.get("displayTitle", ""),
+        search_hit=search_hit,
+        detail=detail,
+    )
+
+
+def volume_info(manifest: dict) -> dict:
+    """Extract a human-readable label and reference code from a IIIF manifest."""
+    info = {"label": manifest.get("label"), "reference_code": None}
+    for entry in manifest.get("metadata", []):
+        if entry.get("label") == "ReferenceCode":
+            info["reference_code"] = entry.get("value")
+    return info
