@@ -100,3 +100,39 @@ def test_raises_on_401():
     client = make_client(handler, max_retries=2)
     with pytest.raises(httpx.HTTPStatusError):
         client.get_json("/secure")
+
+
+def test_throttle_sleeps_between_consecutive_requests():
+    slept: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"ok": True})
+
+    client = Client(
+        base_url="https://api.test", auth_header="Basic x", user_agent="UA",
+        transport=httpx.MockTransport(handler), delay=0.05, sleep_func=slept.append,
+    )
+    client.get_json("/a")  # first request: no wait (no prior request)
+    client.get_json("/b")  # second request: must wait out the delay
+    assert any(s > 0 for s in slept)
+
+
+def test_backoff_grows_per_retry():
+    slept: list[float] = []
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] < 3:
+            return httpx.Response(500)
+        return httpx.Response(200, json={"ok": True})
+
+    client = Client(
+        base_url="https://api.test", auth_header="Basic x", user_agent="UA",
+        transport=httpx.MockTransport(handler), delay=0.0, max_retries=3,
+        sleep_func=slept.append,
+    )
+    assert client.get_json("/x") == {"ok": True}
+    # delay=0.0 means _throttle never sleeps, so these are pure backoff waits:
+    # 2**0 after the first 500, 2**1 after the second.
+    assert slept == [1.0, 2.0]
