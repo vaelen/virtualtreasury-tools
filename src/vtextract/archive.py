@@ -42,7 +42,13 @@ class Archive:
         entry["reason"] = reason
 
     def has_page(self, root_id: str, page_key: str) -> bool:
-        return f"{root_id}/{page_key}" in self._state["pages"]
+        entry = self._state["pages"].get(f"{root_id}/{page_key}")
+        if not entry:
+            return False
+        path = self.root / "pages" / root_id / page_key
+        if not path.exists():
+            return False
+        return hashlib.sha256(path.read_bytes()).hexdigest() == entry["sha256"]
 
     def save_state(self) -> None:
         self._state_path.write_text(json.dumps(self._state, indent=2))

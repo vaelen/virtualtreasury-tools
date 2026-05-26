@@ -96,3 +96,20 @@ def test_write_resource_writes_metadata_and_manifest(tmp_path):
 
     manifest = _json.loads((item_dir / "manifest.json").read_text())
     assert manifest["@type"] == "sc:Manifest"
+
+
+def test_has_page_false_when_file_corrupted(tmp_path):
+    archive = Archive(tmp_path)
+    archive.store_page(root_id="208925", page_key="p1.jpg",
+                       image_bytes=b"abc", text=None, annotations=None)
+    assert archive.has_page("208925", "p1.jpg") is True
+    (tmp_path / "pages" / "208925" / "p1.jpg").write_bytes(b"corrupted")
+    assert archive.has_page("208925", "p1.jpg") is False
+
+
+def test_has_page_false_when_file_missing(tmp_path):
+    archive = Archive(tmp_path)
+    archive.store_page(root_id="208925", page_key="p1.jpg",
+                       image_bytes=b"abc", text=None, annotations=None)
+    (tmp_path / "pages" / "208925" / "p1.jpg").unlink()
+    assert archive.has_page("208925", "p1.jpg") is False
