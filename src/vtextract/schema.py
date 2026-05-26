@@ -49,3 +49,14 @@ def _parse_canvas(canvas: dict) -> Page:
         width=canvas.get("width") or resource.get("width"),
         height=canvas.get("height") or resource.get("height"),
     )
+
+
+def reconstruct_text(annotation_list: dict) -> str:
+    """Concatenate a page's text annotation fragments in document order."""
+    chars: list[str] = []
+    for annotation in annotation_list.get("resources", []):
+        resource = annotation.get("resource", {})
+        text = resource.get("chars")
+        if text is not None:
+            chars.append(text)
+    return "\n".join(chars)

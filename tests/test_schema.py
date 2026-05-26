@@ -1,6 +1,6 @@
 import pytest
 
-from vtextract.schema import extract_root_id, loris_filename, parse_manifest
+from vtextract.schema import extract_root_id, loris_filename, parse_manifest, reconstruct_text
 from tests.conftest import load_example_json
 
 
@@ -33,3 +33,20 @@ def test_parse_manifest_from_real_sample():
     ]
     assert page.width == 826
     assert page.height == 1368
+
+
+def test_reconstruct_text_joins_chars_in_order():
+    annotation_list = {
+        "resources": [
+            {"resource": {"@type": "cnt:ContentAsText", "chars": "line one"}},
+            {"resource": {"@type": "cnt:ContentAsText", "chars": "line two"}},
+        ]
+    }
+    assert reconstruct_text(annotation_list) == "line one\nline two"
+
+
+def test_reconstruct_text_from_real_sample_starts_expected():
+    sample = load_example_json("item", "list")
+    text = reconstruct_text(sample)
+    assert "REGISTRY OF DEEDS, DUBLIN" in text
+    assert text.splitlines()[0] == "25"
