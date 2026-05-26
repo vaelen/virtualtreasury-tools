@@ -24,18 +24,21 @@ image delivery; this tool replicates the requests the browser makes.
 
 ## Running things
 
-A virtualenv lives at `.venv` (the system `python3` does not have pytest).
+This project uses [uv](https://docs.astral.sh/uv/). `uv sync --extra dev`
+provisions the `.venv` from the committed `uv.lock`; `uv run` auto-syncs before
+each invocation, so prefer it over activating the venv manually.
 
-- **Tests:** `.venv/bin/python -m pytest` — they run entirely against the
-  committed fixtures in `docs/examples/`; they never hit the live site or use a
-  real credential. Keep it that way.
-- **CLI:** `.venv/bin/vtextract "<search-results URL>" --out ./archive --context-pages 1`
+- **Tests:** `uv run pytest` — they run entirely against the committed fixtures
+  in `docs/examples/`; they never hit the live site or use a real credential.
+  Keep it that way.
+- **CLI:** `uv run vtextract "<search-results URL>" --out ./archive --context-pages 1`
 - **Credentials** come only from the environment (`VT_AUTH`, or
   `VT_USERNAME`/`VT_PASSWORD`). Never hardcode the credential in source or tests.
 
-`src/` layout; `pyproject.toml` sets `pythonpath = ["src"]` so tests import
-`vtextract` without an install. `archive/`, `.venv/`, and `*.egg-info/` are
-gitignored.
+`src/` layout; `pyproject.toml` sets `pythonpath = ["src", "."]` so tests import
+`vtextract` (from `src/`) and the `tests.conftest` helpers (from the repo root)
+under `uv run pytest`. `archive/`, `.venv/`, and `*.egg-info/` are gitignored;
+`uv.lock` is committed.
 
 ## Architecture (one responsibility per module, under `src/vtextract/`)
 
