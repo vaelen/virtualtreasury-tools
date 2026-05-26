@@ -19,6 +19,39 @@ installs the dependencies from the committed `uv.lock`, and installs the
 uv sync --extra dev
 ```
 
+### Install the `vtextract` command
+
+To run `vtextract` directly from any directory — without `uv run` and without
+being inside the repo — install it as a uv-managed tool. From the repo root:
+
+```bash
+uv tool install --editable .
+```
+
+This installs the `vtextract` command into an isolated environment and links it
+onto your PATH. `--editable` points that environment at this working tree, so
+edits to `src/vtextract/` take effect immediately; you only need to re-run the
+command if the dependencies change.
+
+If the command isn't found afterward, ensure uv's bin directory is on your PATH
+(then open a new shell):
+
+```bash
+uv tool update-shell
+```
+
+Verify from a directory outside the repo:
+
+```bash
+vtextract --help
+```
+
+To remove it later:
+
+```bash
+uv tool uninstall vtextract
+```
+
 ## Credentials
 
 The backend requires an HTTP Basic credential (the same one the public site's
@@ -63,6 +96,9 @@ uv run vtextract \
 `--person`/`--place` rank results by knowledge-graph entity (the last one wins).
 See [docs/search-query.md](docs/search-query.md) for exactly how the flags map
 onto the backend request. Run `uv run vtextract --help` for the full list.
+
+If you installed the `vtextract` command (see [Install](#install-the-vtextract-command)),
+drop the `uv run` prefix and call `vtextract …` directly from anywhere.
 
 Re-running the same (or an overlapping) search resumes: completed resources and
 already-downloaded pages are skipped.
