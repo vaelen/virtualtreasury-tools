@@ -11,8 +11,12 @@ archive. See the design spec in
 
 ## Install
 
+Uses [uv](https://docs.astral.sh/uv/). `uv sync` creates the virtualenv,
+installs the dependencies from the committed `uv.lock`, and installs the
+`vtextract` package itself in editable mode:
+
 ```bash
-python -m pip install -e ".[dev]"
+uv sync --extra dev
 ```
 
 ## Credentials
@@ -33,7 +37,7 @@ Optional: `VT_BASE_URL`, `VT_DELAY` (seconds between requests, default 0.5),
 ## Usage
 
 ```bash
-vtextract "https://virtualtreasury.ie/search-results?kwList=houston&kwOperList=ALL&\
+uv run vtextract "https://virtualtreasury.ie/search-results?kwList=houston&kwOperList=ALL&\
 searchContentDate_begin=1650-01-01&searchContentDate_end=1760-12-31&\
 kwSearchFieldList=kwTranscription&resultSorting=relevance" \
   --out ./archive --context-pages 1
@@ -54,7 +58,7 @@ archive/
 ## Tests
 
 ```bash
-python -m pytest
+uv run pytest
 ```
 
 Tests run entirely against committed sample responses in `docs/examples/`; they
