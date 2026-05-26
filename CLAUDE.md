@@ -32,8 +32,9 @@ each invocation, so prefer it over activating the venv manually.
   in `docs/examples/`; they never hit the live site or use a real credential.
   Keep it that way.
 - **CLI:** `uv run vtextract search --title --all <keywords> --out ./archive --context-pages 1`
-  (subcommands: `search` and `auth`; searches are built from flags, not a URL;
-  see `docs/search-query.md`)
+  (subcommands: `search`, `get`, and `auth`; searches are built from flags, not a
+  URL; see `docs/search-query.md`). `get <refcodes/ids...>` pulls known resources
+  directly (reference codes normalise ` `/`/` → `-`), reusing the same fetch flow.
 - **Credentials** come only from the config file `~/.vt/vt.toml`
   (`[extract.auth].token`), written by `vtextract auth`. There are no `VT_*`
   env vars. Never hardcode the credential in source or tests; tests pass a
@@ -52,8 +53,10 @@ under `uv run pytest`. `archive/`, `.venv/`, and `*.egg-info/` are gitignored;
   calls. Owns auth header, rate-limit delay, retry/backoff; raises on all error
   statuses, retries only `{429,500,502,503,504}`.
 - `models.py` — `Page`, `PageRef`, `Record` dataclasses.
-- `search.py` — `criteria_to_params` (SearchCriteria → query params),
-  `build_body`, `iter_results` (pagination).
+- `search.py` — produces the search-hit dicts that drive a run:
+  `criteria_to_params` (SearchCriteria → query params), `build_body`,
+  `iter_results` (pagination) for `search`; `resolve_identifier`/`iter_get`
+  (reference code or id → hit) for `get`.
 - `schema.py` — **pure functions, no I/O**: parse manifests → `Page`s, extract
   the volume root id from canvas `@id`s, reconstruct transcription text, select
   context canvases, normalize records.

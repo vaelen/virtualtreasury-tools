@@ -101,7 +101,19 @@ def test_neighbor_canvases_unknown_canvas_returns_empty():
     assert pages == []
 
 
-from vtextract.schema import normalize_record, volume_info
+from vtextract.schema import normalize_record, normalize_reference_code, volume_info
+
+
+@pytest.mark.parametrize(
+    "raw, expected",
+    [
+        ("TNA SO 1/14", "TNA-SO-1-14"),
+        ("TNA-SO-1-14", "TNA-SO-1-14"),  # already dashed -> idempotent
+        ("IMC 1954/RoD/1/1737/550", "IMC-1954-RoD-1-1737-550"),  # matches fixture
+    ],
+)
+def test_normalize_reference_code_replaces_spaces_and_slashes(raw, expected):
+    assert normalize_reference_code(raw) == expected
 
 
 def test_normalize_record_uses_search_hit_fields():
@@ -118,6 +130,20 @@ def test_normalize_record_uses_search_hit_fields():
     assert record.search_hit is hit
     assert record.detail is detail
     assert record.pages == []
+
+
+def test_normalize_record_falls_back_to_detail_when_hit_lacks_display_fields():
+    hit = {"isadgID": 474234}  # the bare hit produced by `get <numeric id>`
+    detail = load_example_json("item", "isadg-identity-statements")
+    record = normalize_record(hit, detail)
+    assert record.reference_code == "IMC 1954/RoD/1/1737/550"
+    assert record.title == "Will of MITCHELL, CALEB, Dublin, carpenter, created 18 January 1724"
+
+
+def test_normalize_record_empty_when_no_hit_fields_and_no_detail():
+    record = normalize_record({"isadgID": 474234}, None)
+    assert record.reference_code == ""
+    assert record.title == ""
 
 
 def test_volume_info_from_real_manifest():

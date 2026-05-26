@@ -244,6 +244,104 @@ def test_run_returns_nonzero_when_a_resource_fails(tmp_path, monkeypatch):
     assert exit_code == 1
 
 
+# --- get command ---------------------------------------------------------
+
+
+def _get_handler(request, *, item_calls=None, refcode_calls=None):
+    """Item handler for `get`, with a reference-code resolution branch."""
+    path = request.url.path
+    if path == "/rest/isadg-identity-statements/" and request.url.params.get("isadgReferenceCode"):
+        if refcode_calls is not None:
+            refcode_calls.append(request.url.params["isadgReferenceCode"])
+        return httpx.Response(200, content=(EXAMPLES / "item" / "isadg-identity-statements" / "response.json").read_bytes())
+    if path == "/rest/isadg-identity-statements/474234":
+        if item_calls is not None:
+            item_calls.append(path)
+        return httpx.Response(200, content=(EXAMPLES / "item" / "isadg-identity-statements" / "response.json").read_bytes())
+    if path == "/iiif/v1/474234/manifest":
+        return httpx.Response(200, content=(EXAMPLES / "item" / "manifest" / "response.json").read_bytes())
+    if path == "/iiif/v1/208925/list/197350":
+        return httpx.Response(200, content=(EXAMPLES / "item" / "list" / "response.json").read_bytes())
+    if path.startswith("/loris/"):
+        return httpx.Response(200, content=(EXAMPLES / "item" / "loris" / "response.jpg").read_bytes())
+    return httpx.Response(404, text=path)
+
+
+def test_get_without_credentials_reports_guidance(tmp_path, capsys):
+    config = tmp_path / "vt.toml"  # no file written -> no token
+    code = cli.run(["get", "474234", "--out", str(tmp_path), "--config", str(config)])
+    assert code != 0
+    assert "vtextract auth" in capsys.readouterr().err
+
+
+def test_get_numeric_id_archives_resource_with_metadata_from_detail(tmp_path, monkeypatch):
+    config = _write_config(tmp_path)
+    monkeypatch.setattr(
+        cli, "_make_transport", lambda: httpx.MockTransport(lambda r: _get_handler(r))
+    )
+    exit_code = cli.run(
+        ["get", "474234", "--out", str(tmp_path), "--context-pages", "0", "--config", str(config)]
+    )
+    assert exit_code == 0
+    metadata = json.loads((tmp_path / "items" / "474234" / "metadata.json").read_text())
+    # the bare numeric hit carries no display fields; they come from the detail
+    assert metadata["referenceCode"] == "IMC 1954/RoD/1/1737/550"
+    assert metadata["title"].startswith("Will of MITCHELL, CALEB")
+
+
+def test_get_reference_code_resolves_then_archives(tmp_path, monkeypatch):
+    config = _write_config(tmp_path)
+    refcode_calls: list[str] = []
+    item_calls: list[str] = []
+    monkeypatch.setattr(
+        cli, "_make_transport",
+        lambda: httpx.MockTransport(
+            lambda r: _get_handler(r, item_calls=item_calls, refcode_calls=refcode_calls)
+        ),
+    )
+    exit_code = cli.run(
+        ["get", "IMC 1954/RoD/1/1737/550", "--out", str(tmp_path),
+         "--context-pages", "0", "--config", str(config)]
+    )
+    assert exit_code == 0
+    assert refcode_calls == ["IMC-1954-RoD-1-1737-550"]  # resolution GET happened
+    assert item_calls == ["/rest/isadg-identity-statements/474234"]  # then by-id fetch
+    assert (tmp_path / "items" / "474234" / "metadata.json").exists()
+
+
+def test_get_one_bad_identifier_does_not_abort_run(tmp_path, monkeypatch):
+    config = _write_config(tmp_path, max_retries=0)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/rest/isadg-identity-statements/" and request.url.params.get("isadgReferenceCode") == "BAD-CODE":
+            return httpx.Response(404, text="no such reference code")
+        return _get_handler(request)
+
+    monkeypatch.setattr(cli, "_make_transport", lambda: httpx.MockTransport(handler))
+    exit_code = cli.run(
+        ["get", "BAD CODE", "474234", "--out", str(tmp_path),
+         "--context-pages", "0", "--config", str(config)]
+    )
+    assert exit_code == 1  # the bad reference code is counted as a failure
+    assert (tmp_path / "items" / "474234" / "metadata.json").exists()  # valid id still archived
+
+
+def test_get_twice_skips_completed_resource(tmp_path, monkeypatch):
+    config = _write_config(tmp_path)
+    item_calls: list[str] = []
+    monkeypatch.setattr(
+        cli, "_make_transport",
+        lambda: httpx.MockTransport(lambda r: _get_handler(r, item_calls=item_calls)),
+    )
+    argv = ["get", "474234", "--out", str(tmp_path), "--context-pages", "0", "--config", str(config)]
+    assert cli.run(argv) == 0
+    assert item_calls == ["/rest/isadg-identity-statements/474234"]
+    item_calls.clear()
+    assert cli.run(argv) == 0
+    assert item_calls == []  # already complete -> no re-fetch
+
+
 def test_run_twice_skips_completed_resource(tmp_path, monkeypatch):
     config = _write_config(tmp_path)
     search_response = {

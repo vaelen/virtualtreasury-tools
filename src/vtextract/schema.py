@@ -84,14 +84,39 @@ def neighbor_canvases(root_manifest: dict, canvas_id: str, n: int) -> list[Page]
     return [p for i, p in enumerate(pages[start:end], start=start) if i != index]
 
 
+def normalize_reference_code(code: str) -> str:
+    """Canonicalise a reference code for the isadgReferenceCode query.
+
+    Reference codes are written with spaces or slashes (`TNA SO 1/14`); the API
+    expects each separator as a dash (`TNA-SO-1-14`).
+    """
+    return code.replace(" ", "-").replace("/", "-")
+
+
 def normalize_record(search_hit: dict, detail: dict | None) -> Record:
-    """Build a Record from a search hit and (optional) detail record."""
+    """Build a Record from a search hit and (optional) detail record.
+
+    Search hits carry `displayReferenceCode`/`displayTitle`; a bare hit from
+    `get <numeric id>` does not, so fall back to the detail record's preferred
+    reference code and title.
+    """
+    detail = detail or {}
+    reference_code = (
+        search_hit.get("displayReferenceCode")
+        or detail.get("preferredReferenceCode", {}).get("referenceCode")
+        or ""
+    )
+    title = (
+        search_hit.get("displayTitle")
+        or detail.get("preferredTitle", {}).get("title")
+        or ""
+    )
     return Record(
         isadg_id=int(search_hit["isadgID"]),
-        reference_code=search_hit.get("displayReferenceCode", ""),
-        title=search_hit.get("displayTitle", ""),
+        reference_code=reference_code,
+        title=title,
         search_hit=search_hit,
-        detail=detail,
+        detail=detail or None,
     )
 
 

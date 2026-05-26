@@ -127,3 +127,25 @@ produces three clauses:
 If keywords appear with no preceding field flag, the field defaults to `all`
 (`--keyword`). A literal keyword beginning with `-` is not supported (it is
 treated as an unknown option).
+
+## Fetching by reference code or id (`get`)
+
+Sometimes you already know which resources you want. The `get` subcommand skips
+`doc_search` entirely and takes the identifiers directly:
+
+```
+vtextract get "TNA SO 1/14" 474234 --out ./archive --context-pages 1
+```
+
+Each argument is resolved to an isadgID, then handed to the *same* per-resource
+fetch pipeline `search` uses (detail, IIIF manifest, page store, context pages,
+dedupe, resume):
+
+- A purely numeric argument is taken as an **isadgID** and used as-is.
+- Anything else is a **reference code**. Spaces and slashes are normalised to
+  dashes (`TNA SO 1/14` → `TNA-SO-1-14`), then resolved with
+  `GET /rest/isadg-identity-statements/?isadgReferenceCode=<code>`, whose
+  response carries the `id`.
+
+A reference code that resolves to nothing is reported and skipped without
+aborting the rest of the run.

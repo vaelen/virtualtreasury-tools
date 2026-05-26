@@ -16,7 +16,7 @@ from vtextract.client import Client
 from vtextract.config import default_config_path, load_config, make_token, set_token
 from vtextract.fetcher import fetch_resource
 from vtextract.models import BOOST_FOR_FIELD, FIELD_MAP, OPERANDS, Filter, SearchCriteria
-from vtextract.search import criteria_to_params, iter_results
+from vtextract.search import criteria_to_params, iter_results, resolve_identifier
 
 
 def _make_transport() -> httpx.BaseTransport | None:
@@ -164,6 +164,7 @@ usage: vtextract <command> [options]
 
 commands:
   search   download resources matching a search (vtextract search --help)
+  get      download resources by reference code or id (vtextract get --help)
   auth     store credentials in the config file (vtextract auth [username])
 """
 
@@ -177,6 +178,8 @@ def run(argv: list[str]) -> int:
     command, rest = argv[0], argv[1:]
     if command == "search":
         return _run_search(rest)
+    if command == "get":
+        return _run_get(rest)
     if command == "auth":
         return _run_auth(rest)
     print(f"unknown command: {command}\n", file=sys.stderr)
@@ -236,12 +239,27 @@ def _run_search(argv: list[str]) -> int:
     archive = Archive(args.out if args.out else config.archive)
     params = criteria_to_params(criteria)
     search_id = json.dumps(params, sort_keys=True)  # stable id; dedupes re-runs
-    root_manifest_cache: dict = {}
 
+    hits = iter_results(
+        client, params, index_db_name=config.index_db_name, page_size=args.page_size
+    )
+    completed, failed = _extract(
+        client, archive, hits, search_id=search_id, context_pages=args.context_pages
+    )
+    return 1 if failed else 0
+
+
+def _extract(client, archive, hits, *, search_id: str, context_pages: int) -> tuple[int, int]:
+    """Run the shared per-resource fetch loop, returning (completed, failed).
+
+    Owns the root-manifest cache and the client's lifetime; one bad resource is
+    logged and skipped so it never aborts the run.
+    """
+    root_manifest_cache: dict = {}
     completed = 0
     failed = 0
     try:
-        for hit in iter_results(client, params, index_db_name=config.index_db_name, page_size=args.page_size):
+        for hit in hits:
             isadg_id = int(hit["isadgID"])
             if archive.is_resource_complete(isadg_id):
                 print(f"skip {isadg_id} (already complete)")
@@ -250,7 +268,7 @@ def _run_search(argv: list[str]) -> int:
                 fetch_resource(
                     client, archive, hit,
                     search_id=search_id,
-                    context_pages=args.context_pages,
+                    context_pages=context_pages,
                     _root_manifest_cache=root_manifest_cache,
                 )
                 completed += 1
@@ -262,7 +280,59 @@ def _run_search(argv: list[str]) -> int:
         client.close()
 
     print(f"finished: {completed} archived, {failed} failed")
-    return 1 if failed else 0
+    return completed, failed
+
+
+def _run_get(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="vtextract get",
+        description="Download resources by reference code or isadgID. Reference "
+        "codes may use spaces or slashes (TNA SO 1/14); both become dashes.",
+    )
+    parser.add_argument(
+        "identifiers", nargs="+",
+        help="Reference codes (e.g. TNA-SO-1-14) and/or numeric isadgIDs.",
+    )
+    parser.add_argument(
+        "--out", help="Output archive directory (defaults to the config file's archive)."
+    )
+    parser.add_argument("--config", help="Config file path (default ~/.vt/vt.toml).")
+    parser.add_argument(
+        "--context-pages", type=_nonneg_int, default=1,
+        help="Neighbouring physical pages to also fetch per page (default 1).",
+    )
+    args = parser.parse_args(argv)
+
+    config = load_config(Path(args.config) if args.config else None)
+    if config.auth_header is None:
+        print("No credentials configured. Run `vtextract auth`.", file=sys.stderr)
+        return 2
+
+    client = Client(
+        base_url=config.base_url,
+        auth_header=config.auth_header,
+        user_agent=config.user_agent,
+        transport=_make_transport(),
+        delay=config.delay,
+        max_retries=config.max_retries,
+    )
+    archive = Archive(args.out if args.out else config.archive)
+
+    # Resolve identifiers up front so a bad reference code is logged and skipped
+    # rather than aborting the shared fetch loop. The list is small (CLI args).
+    hits: list[dict] = []
+    resolution_failures = 0
+    for token in args.identifiers:
+        try:
+            hits.append(resolve_identifier(client, token))
+        except Exception as exc:  # noqa: BLE001 - one bad identifier must not stop the run
+            resolution_failures += 1
+            print(f"FAILED {token}: {exc!r}", file=sys.stderr)
+
+    completed, failed = _extract(
+        client, archive, hits, search_id="get", context_pages=args.context_pages
+    )
+    return 1 if (failed + resolution_failures) else 0
 
 
 def main() -> None:

@@ -119,6 +119,22 @@ drop the `uv run` prefix and call `vtextract …` directly from anywhere.
 Re-running the same (or an overlapping) search resumes: completed resources and
 already-downloaded pages are skipped.
 
+### Fetching specific resources
+
+When you already know which resources you want, the `get` subcommand takes a
+list of reference codes and/or numeric isadgIDs and pulls them directly,
+skipping the search query. Everything downstream is identical to `search`
+(downloads, dedupe, resume):
+
+```bash
+uv run vtextract get "TNA SO 1/14" 474234 --out ./archive --context-pages 1
+```
+
+A reference code may be written with spaces or slashes (`TNA SO 1/14`); each is
+normalised to a dash (`TNA-SO-1-14`) before lookup. A purely numeric argument is
+treated as an isadgID. A reference code that resolves to nothing is reported and
+skipped without aborting the rest of the run.
+
 ## Archive layout
 
 ```
