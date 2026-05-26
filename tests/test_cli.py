@@ -97,6 +97,71 @@ def test_walker_rejects_unknown_option():
         _split(["--bogus", "x"])
 
 
+# --- progress reporting --------------------------------------------------
+
+class _SpyReporter:
+    """Records the Reporter calls _extract makes, as a context manager."""
+
+    def __init__(self):
+        self.calls = []
+
+    def __enter__(self):
+        self.calls.append("enter")
+        return self
+
+    def __exit__(self, *exc):
+        self.calls.append("exit")
+        return False
+
+    def start_item(self, label):
+        self.calls.append(("start_item", label))
+
+    def item_pages(self, n):
+        self.calls.append(("item_pages", n))
+
+    def page_done(self):
+        self.calls.append("page_done")
+
+    def item_done(self, label):
+        self.calls.append(("item_done", label))
+
+    def skip(self, label):
+        self.calls.append(("skip", label))
+
+    def fail(self, label, exc):
+        self.calls.append(("fail", label))
+
+    def finish(self, completed, failed):
+        self.calls.append(("finish", completed, failed))
+
+
+def test_extract_drives_reporter_for_skip_and_fetch(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from vtextract.archive import Archive
+
+    archive = Archive(tmp_path)
+    archive.mark_resource_complete(100, pages=[], search_id="x")  # already done
+
+    monkeypatch.setattr(
+        cli, "fetch_resource",
+        lambda *a, **k: SimpleNamespace(isadg_id=200),
+    )
+    client = SimpleNamespace(close=lambda: None)
+    reporter = _SpyReporter()
+
+    completed, failed = cli._extract(
+        client, archive, [{"isadgID": 100}, {"isadgID": 200}],
+        search_id="x", context_pages=0, reporter=reporter,
+    )
+
+    assert (completed, failed) == (1, 0)
+    assert ("skip", 100) in reporter.calls
+    assert ("start_item", 200) in reporter.calls
+    assert ("item_done", 200) in reporter.calls
+    assert reporter.calls[0] == "enter"
+    assert reporter.calls.index("exit") < reporter.calls.index(("finish", 1, 0))
+
+
 # --- dispatch ------------------------------------------------------------
 
 def test_no_subcommand_prints_help_and_exits_nonzero(capsys):

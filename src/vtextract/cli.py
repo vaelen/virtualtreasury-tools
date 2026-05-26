@@ -16,6 +16,7 @@ from vtextract.client import Client
 from vtextract.config import default_config_path, load_config, make_token, set_token
 from vtextract.fetcher import fetch_resource
 from vtextract.models import BOOST_FOR_FIELD, FIELD_MAP, OPERANDS, Filter, SearchCriteria
+from vtextract.progress import Reporter
 from vtextract.search import criteria_to_params, iter_results
 
 
@@ -240,50 +241,60 @@ def _run_search(argv: list[str]) -> int:
     params = criteria_to_params(criteria)
     search_id = json.dumps(params, sort_keys=True)  # stable id; dedupes re-runs
 
+    reporter = Reporter()
     hits = iter_results(
-        client, params, index_db_name=config.index_db_name, page_size=args.page_size
+        client, params, index_db_name=config.index_db_name,
+        page_size=args.page_size, on_total=reporter.set_total,
     )
     completed, failed = _extract(
-        client, archive, hits, search_id=search_id, context_pages=args.context_pages
+        client, archive, hits, search_id=search_id,
+        context_pages=args.context_pages, reporter=reporter,
     )
     return 1 if failed else 0
 
 
-def _extract(client, archive, hits, *, search_id: str, context_pages: int) -> tuple[int, int]:
+def _extract(client, archive, hits, *, search_id: str, context_pages: int, reporter=None) -> tuple[int, int]:
     """Run the shared per-resource fetch loop, returning (completed, failed).
 
     Owns the root-manifest cache and the client's lifetime; one bad resource is
-    logged and skipped so it never aborts the run.
+    logged and skipped so it never aborts the run. Progress and status output
+    go through ``reporter``.
     """
+    if reporter is None:
+        reporter = Reporter()
     root_manifest_cache: dict = {}
     completed = 0
     failed = 0
     try:
-        for hit in hits:
-            # A numeric isadgID lets us dedupe before any request; a reference-code
-            # hit only learns its id once fetch_resource fetches the detail.
-            raw_id = hit.get("isadgID")
-            isadg_id = int(raw_id) if raw_id is not None and str(raw_id).isdigit() else None
-            if isadg_id is not None and archive.is_resource_complete(isadg_id):
-                print(f"skip {isadg_id} (already complete)")
-                continue
-            label = isadg_id if isadg_id is not None else hit.get("displayReferenceCode", "?")
-            try:
-                record = fetch_resource(
-                    client, archive, hit,
-                    search_id=search_id,
-                    context_pages=context_pages,
-                    _root_manifest_cache=root_manifest_cache,
-                )
-                completed += 1
-                print(f"done {record.isadg_id}")
-            except Exception as exc:  # noqa: BLE001 - one bad item must not stop the run
-                failed += 1
-                print(f"FAILED {label}: {exc!r}", file=sys.stderr)
+        with reporter:
+            for hit in hits:
+                # A numeric isadgID lets us dedupe before any request; a reference-code
+                # hit only learns its id once fetch_resource fetches the detail.
+                raw_id = hit.get("isadgID")
+                isadg_id = int(raw_id) if raw_id is not None and str(raw_id).isdigit() else None
+                if isadg_id is not None and archive.is_resource_complete(isadg_id):
+                    reporter.skip(isadg_id)
+                    continue
+                label = isadg_id if isadg_id is not None else hit.get("displayReferenceCode", "?")
+                reporter.start_item(label)
+                try:
+                    record = fetch_resource(
+                        client, archive, hit,
+                        search_id=search_id,
+                        context_pages=context_pages,
+                        on_item_start=reporter.item_pages,
+                        on_page=reporter.page_done,
+                        _root_manifest_cache=root_manifest_cache,
+                    )
+                    completed += 1
+                    reporter.item_done(record.isadg_id)
+                except Exception as exc:  # noqa: BLE001 - one bad item must not stop the run
+                    failed += 1
+                    reporter.fail(label, exc)
     finally:
         client.close()
 
-    print(f"finished: {completed} archived, {failed} failed")
+    reporter.finish(completed, failed)
     return completed, failed
 
 
@@ -329,8 +340,11 @@ def _run_get(argv: list[str]) -> int:
         {"isadgID": int(token)} if token.isdigit() else {"displayReferenceCode": token}
         for token in args.identifiers
     ]
+    reporter = Reporter()
+    reporter.set_total(len(hits), noun="resources")
     completed, failed = _extract(
-        client, archive, hits, search_id="get", context_pages=args.context_pages
+        client, archive, hits, search_id="get",
+        context_pages=args.context_pages, reporter=reporter,
     )
     return 1 if failed else 0
 
