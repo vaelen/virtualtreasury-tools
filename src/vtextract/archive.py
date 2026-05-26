@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -39,3 +40,40 @@ class Archive:
 
     def save_state(self) -> None:
         self._state_path.write_text(json.dumps(self._state, indent=2))
+
+    # --- shared page store ---
+
+    def _page_dir(self, root_id: str) -> Path:
+        path = self.root / "pages" / root_id
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def page_relative_path(self, root_id: str, page_key: str) -> str:
+        return f"pages/{root_id}/{page_key}"
+
+    def page_checksum(self, root_id: str, page_key: str) -> str | None:
+        entry = self._state["pages"].get(f"{root_id}/{page_key}")
+        return entry["sha256"] if entry else None
+
+    def store_page(
+        self,
+        *,
+        root_id: str,
+        page_key: str,
+        image_bytes: bytes,
+        text: str | None,
+        annotations: dict | None,
+    ) -> None:
+        page_dir = self._page_dir(root_id)
+        (page_dir / page_key).write_bytes(image_bytes)
+        if text is not None:
+            (page_dir / f"{page_key}.txt").write_text(text)
+        if annotations is not None:
+            (page_dir / f"{page_key}.json").write_text(json.dumps(annotations, indent=2))
+        self._state["pages"][f"{root_id}/{page_key}"] = {
+            "sha256": hashlib.sha256(image_bytes).hexdigest(),
+            "bytes": len(image_bytes),
+        }
+
+    def write_volume_info(self, root_id: str, info: dict) -> None:
+        (self._page_dir(root_id) / "volume.json").write_text(json.dumps(info, indent=2))
