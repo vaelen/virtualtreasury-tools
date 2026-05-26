@@ -5,6 +5,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+# CLI field-flag name -> the value the backend expects in kwSearchFieldList.
+FIELD_MAP = {
+    "keyword": "all",
+    "title": "title",
+    "transcription": "kwTranscription",
+    "creator": "creator",
+    "person": "kg_label",
+    "place": "kg_label",
+    "ref": "referenceCode",
+}
+# CLI operand-flag name -> the value the backend expects in kwOperList.
+OPERANDS = {"all": "ALL", "any": "ANY", "none": "NONE", "exact": "EXACT"}
+# Field flags that also set boostItemsWithKGEntityType.
+BOOST_FOR_FIELD = {"person": "Person", "place": "Place"}
+
 
 @dataclass
 class Page:
@@ -43,3 +58,23 @@ class Record:
     search_hit: dict
     detail: dict | None = None
     pages: list[PageRef] = field(default_factory=list)
+
+
+@dataclass
+class Filter:
+    """One search clause: a field, an operand, and the keywords to match."""
+
+    field: str                          # kwSearchFieldList value, e.g. "all", "kg_label"
+    operand: str                        # "ALL" | "ANY" | "NONE" | "EXACT"
+    keywords: list[str]                 # joined by spaces into one kwList entry
+
+
+@dataclass
+class SearchCriteria:
+    """A complete explicit search: parallel filters plus scalar options."""
+
+    filters: list[Filter] = field(default_factory=list)
+    start: str | None = None            # -> searchContentDate_begin (yyyy-mm-dd)
+    end: str | None = None              # -> searchContentDate_end
+    boost: str | None = None            # -> boostItemsWithKGEntityType ("Person"/"Place")
+    sorting: str = "relevance"          # -> resultSorting ("relevance"/"ascending"/"descending")

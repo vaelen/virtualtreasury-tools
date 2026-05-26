@@ -1,7 +1,16 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
 # All rights reserved
 
-from vtextract.models import Page, PageRef, Record
+from vtextract.models import (
+    BOOST_FOR_FIELD,
+    FIELD_MAP,
+    OPERANDS,
+    Filter,
+    Page,
+    PageRef,
+    Record,
+    SearchCriteria,
+)
 
 
 def test_record_defaults_to_empty_pages():
@@ -31,3 +40,29 @@ def test_page_ref_records_role_and_path():
     )
     assert ref.role == "primary"
     assert ref.path == "pages/208925/x.jpg"
+
+
+def test_field_map_covers_every_cli_field_flag():
+    assert FIELD_MAP == {
+        "keyword": "all",
+        "title": "title",
+        "transcription": "kwTranscription",
+        "creator": "creator",
+        "person": "kg_label",
+        "place": "kg_label",
+        "ref": "referenceCode",
+    }
+
+
+def test_operands_and_boost_maps():
+    assert OPERANDS == {"all": "ALL", "any": "ANY", "none": "NONE", "exact": "EXACT"}
+    assert BOOST_FOR_FIELD == {"person": "Person", "place": "Place"}
+
+
+def test_search_criteria_defaults():
+    criteria = SearchCriteria(filters=[Filter("title", "ALL", ["houston"])])
+    assert criteria.filters[0].keywords == ["houston"]
+    assert criteria.start is None
+    assert criteria.end is None
+    assert criteria.boost is None
+    assert criteria.sorting == "relevance"
