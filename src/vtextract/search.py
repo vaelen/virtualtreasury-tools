@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 from vtextract.models import SearchCriteria
 
@@ -68,8 +68,13 @@ def iter_results(
     *,
     index_db_name: str,
     page_size: int = 100,
+    on_total: Callable[[int], None] | None = None,
 ) -> Iterator[dict]:
-    """Yield every resource record across all pages of a doc_search query."""
+    """Yield every resource record across all pages of a doc_search query.
+
+    If given, ``on_total`` is called once with the total match count as soon as
+    the first page reveals it.
+    """
     page_number = 0
     seen = 0
     while True:
@@ -82,6 +87,8 @@ def iter_results(
         response = client.post_json(SEARCH_PATH, body)
         records = response.get("resultInfoList", [])
         total = response.get("generalInfo", {}).get("totalDocs", 0)
+        if on_total is not None and page_number == 0:
+            on_total(total)
         for record in records:
             yield record
         seen += len(records)

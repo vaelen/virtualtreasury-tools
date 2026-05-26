@@ -41,6 +41,21 @@ def test_iter_results_yields_all_records_across_pages():
     assert len(client.posted) == 2  # stops once totalDocs reached
 
 
+def test_iter_results_reports_total_once():
+    client = FakeSearchClient()
+    totals = []
+    list(
+        iter_results(
+            client,
+            {"kwList": "houston"},
+            index_db_name="beyond_2022",
+            page_size=2,
+            on_total=totals.append,
+        )
+    )
+    assert totals == [3]  # reported once, even though there are two pages
+
+
 def test_criteria_to_params_builds_parallel_lists():
     criteria = SearchCriteria(
         filters=[
