@@ -121,6 +121,14 @@ def test_build_all_skipped_exit_2(tmp_path, capsys):
     assert "skipped" in err.lower()
 
 
+def test_no_command_prints_help_exit_2(capsys):
+    code = main([])
+    err = capsys.readouterr().err
+    assert code == 2
+    assert "usage: vtindex" in err
+    assert "build" in err and "search" in err
+
+
 def test_search_apostrophe_keyword_exit_1(tmp_path, capsys):
     archive = _archive(tmp_path)
     main(["build", "--archive", str(archive)])

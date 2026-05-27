@@ -180,7 +180,7 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="vtindex",
         description="Build and search a local index over a vtextract archive.",
     )
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command")
 
     p_build = sub.add_parser("build", help="(re)build the index from the archive")
     _add_archive_args(p_build)
@@ -216,6 +216,9 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+    if args.command is None:
+        parser.print_help(sys.stderr)
+        return 2
     try:
         return args.func(args)
     except (FileNotFoundError, SchemaMismatch, Fts5Unavailable) as exc:
