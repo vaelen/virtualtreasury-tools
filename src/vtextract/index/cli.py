@@ -67,8 +67,8 @@ def _open_for_read(archive: Path) -> IndexDB:
 
 def _cmd_build(args) -> int:
     archive = _resolve_archive(args.archive)
-    reporter = BuildReporter()
-    build(archive, rebuild=args.rebuild, reporter=reporter)
+    with BuildReporter() as reporter:
+        build(archive, rebuild=args.rebuild, reporter=reporter)
     return 0
 
 
