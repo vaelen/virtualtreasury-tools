@@ -282,6 +282,16 @@ def test_page_not_found_exit_1(tmp_path, capsys):
     assert json.loads(out) is None
 
 
+def test_page_not_found_plain_exit_1(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    code = main(["page", "volA/nope.jpg", "--archive", str(archive)])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "page not found" in out
+
+
 def test_page_bad_ref_exit_2(tmp_path, capsys):
     archive = _archive(tmp_path)
     main(["build", "--archive", str(archive)])

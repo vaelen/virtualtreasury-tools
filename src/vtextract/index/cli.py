@@ -247,7 +247,7 @@ def _print_page_nav(nav: dict, title: str | None) -> None:
             entry["label"] or "-",
             entry["image"] or entry["page_key"],
         )
-    Console(width=200).print(table)
+    Console().print(table)
 
 
 @dataclass(frozen=True)
