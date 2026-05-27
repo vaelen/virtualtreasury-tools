@@ -165,6 +165,61 @@ def test_extract_drives_reporter_for_skip_and_fetch(tmp_path, monkeypatch):
     assert reporter.calls.index("exit") < reporter.calls.index(("finish", 1, 0))
 
 
+def test_extract_emits_verify_summary_when_refresh(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from vtextract.archive import Archive
+
+    archive = Archive(tmp_path)
+    # Mark one resource complete so we can also exercise the refresh-skips-nothing path.
+    archive.mark_resource_complete(100, pages=[], search_id="x")
+
+    monkeypatch.setattr(
+        cli, "fetch_resource",
+        lambda *a, **k: SimpleNamespace(isadg_id=100),
+    )
+    client = SimpleNamespace(close=lambda: None)
+    reporter = _SpyReporter()
+
+    completed, failed = cli._extract(
+        client, archive, [{"isadgID": 100}],
+        search_id="x", context_pages=0, reporter=reporter,
+        refresh=True,
+    )
+
+    assert (completed, failed) == (1, 0)
+    # verify_summary must appear in the calls list when refresh=True
+    vs_calls = [c for c in reporter.calls if isinstance(c, tuple) and c[0] == "verify_summary"]
+    assert len(vs_calls) == 1
+    _, counts, flagged = vs_calls[0]
+    assert isinstance(counts, dict)
+    assert isinstance(flagged, list)
+    # verify_summary must come before finish
+    assert reporter.calls.index(vs_calls[0]) < reporter.calls.index(("finish", 1, 0))
+
+
+def test_extract_omits_verify_summary_without_refresh(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from vtextract.archive import Archive
+
+    archive = Archive(tmp_path)
+
+    monkeypatch.setattr(
+        cli, "fetch_resource",
+        lambda *a, **k: SimpleNamespace(isadg_id=200),
+    )
+    client = SimpleNamespace(close=lambda: None)
+    reporter = _SpyReporter()
+
+    cli._extract(
+        client, archive, [{"isadgID": 200}],
+        search_id="x", context_pages=0, reporter=reporter,
+        # refresh defaults to False
+    )
+
+    vs_calls = [c for c in reporter.calls if isinstance(c, tuple) and c[0] == "verify_summary"]
+    assert vs_calls == []
+
+
 # --- dispatch ------------------------------------------------------------
 
 def test_no_subcommand_prints_help_and_exits_nonzero(capsys):
