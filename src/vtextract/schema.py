@@ -108,10 +108,25 @@ def normalize_record(detail: dict) -> Record:
     )
 
 
-def volume_info(manifest: dict) -> dict:
-    """Extract a human-readable label and reference code from a IIIF manifest."""
-    info = {"label": manifest.get("label"), "reference_code": None}
+def detail_title(detail: dict) -> str:
+    """The descriptive title from an identity-statement detail object."""
+    return (detail.get("preferredTitle") or {}).get("title") or ""
+
+
+def volume_info(manifest: dict, *, title: str | None = None) -> dict:
+    """Extract label, reference code, descriptive title, and ordered pages.
+
+    `title` is the volume root's descriptive title, supplied by the caller (the
+    manifest itself carries only the shelfmark). `pages` is one entry per canvas
+    in sequence order; canvases without a parseable image are skipped.
+    """
+    info = {"label": manifest.get("label"), "reference_code": None, "title": title}
     for entry in manifest.get("metadata", []):
         if entry.get("label") == "ReferenceCode":
             info["reference_code"] = entry.get("value")
+    info["pages"] = [
+        {"page_key": page.page_key, "label": page.canvas_label, "canvas_id": page.canvas_id}
+        for page in parse_manifest(manifest)
+        if page.page_key
+    ]
     return info
