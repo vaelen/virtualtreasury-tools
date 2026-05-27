@@ -129,6 +129,20 @@ def test_no_command_prints_help_exit_2(capsys):
     assert "build" in err and "search" in err
 
 
+def test_search_table_prints_header(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    code = main(["search", "Houston", "--in", "title", "--archive", str(archive)])
+    out = capsys.readouterr().out
+    assert code == 0
+    for header in ("ID", "Date", "Reference", "Title"):
+        assert header in out
+    assert "Fields" not in out
+    assert "100" in out
+    assert "HOUSTON" in out
+
+
 def test_search_apostrophe_keyword_exit_1(tmp_path, capsys):
     archive = _archive(tmp_path)
     main(["build", "--archive", str(archive)])

@@ -9,6 +9,9 @@ import sqlite3
 import sys
 from pathlib import Path
 
+from rich.console import Console
+from rich.table import Table
+
 from vtextract.config import load_config
 from vtextract.index.builder import INDEX_RELPATH, build, is_stale
 from vtextract.index.db import Fts5Unavailable, IndexDB, SchemaMismatch
@@ -160,10 +163,14 @@ def _print_results_table(results) -> None:
     if not results:
         print("no matches")
         return
+    table = Table(show_header=True, row_styles=["", "on grey23"])
+    table.add_column("ID", no_wrap=True)
+    table.add_column("Date", no_wrap=True)
+    table.add_column("Reference", no_wrap=True)
+    table.add_column("Title")
     for r in results:
-        fields = ",".join(r.matched_fields) if r.matched_fields else "-"
-        print(f'{r.isadg_id}\t{r.content_date or "-"}\t{r.reference_code}\t'
-              f'{r.title}\t[{fields}]')
+        table.add_row(str(r.isadg_id), r.content_date or "-", r.reference_code, r.title)
+    Console().print(table)
 
 
 _ARCHIVE_HELP = "archive dir (default: the config file's archive)"
