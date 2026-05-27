@@ -49,7 +49,10 @@ def fetch_resource(
     context_pages: int = 1,
     on_item_start: Callable[[int], None] | None = None,
     on_page: Callable[[], None] | None = None,
+    refresh: bool = False,
+    on_verify: Callable[[str, str], None] | None = None,
     _root_manifest_cache: dict | None = None,
+    _verified_pages: set[str] | None = None,
 ) -> Record:
     """Fetch one resource: detail metadata, manifest, images, transcriptions.
 
@@ -59,8 +62,14 @@ def fetch_resource(
     For progress reporting, ``on_item_start`` is called once with the total
     number of pages to process (primary + context), then ``on_page`` is called
     after each page.
+
+    When ``refresh=True``, existing pages are HEAD-verified against the server;
+    mismatched or missing pages are re-downloaded.  ``on_verify`` receives
+    ``(outcome, relative_path)`` for each page verified.  Pass a shared
+    ``_verified_pages`` set across calls to avoid re-HEADing the same page.
     """
     cache = _root_manifest_cache if _root_manifest_cache is not None else {}
+    verified = _verified_pages if _verified_pages is not None else set()
     # The hit only tells us which detail object to fetch; everything else is
     # derived from that detail, whose `id` is the canonical isadgID.
     detail = _fetch_detail(client, search_hit)
@@ -80,7 +89,10 @@ def fetch_resource(
 
         page_refs: list[PageRef] = []
         for page, role in work:
-            _ensure_page(client, archive, page, role=role, refs=page_refs)
+            _ensure_page(
+                client, archive, page, role=role, refs=page_refs,
+                refresh=refresh, verified=verified, on_verify=on_verify,
+            )
             if on_page is not None:
                 on_page()
 
@@ -116,6 +128,46 @@ def _context_for(client: Client, cache: dict, archive: Archive, page: Page, cont
     return neighbor_canvases(cache[page.root_id], page.canvas_id, context_pages)
 
 
+def _download_page(client: Client, archive: Archive, page: Page) -> None:
+    """Download a page's image (and its annotation text, if any) into the store."""
+    image_bytes = client.get_bytes(page.image_url)
+    text = None
+    annotations = None
+    if page.annotation_list_urls:
+        annotations = client.get_json(page.annotation_list_urls[0])
+        text = reconstruct_text(annotations)
+    archive.store_page(
+        root_id=page.root_id,
+        page_key=page.page_key,
+        image_bytes=image_bytes,
+        text=text,
+        annotations=annotations,
+    )
+
+
+def _verify_or_redownload(client: Client, archive: Archive, page: Page) -> str:
+    """HEAD-verify a page image against the on-disk size; re-download on mismatch.
+
+    Returns the outcome: "ok" (size matched), "mismatch" (re-downloaded),
+    "missing" (file absent, downloaded), or "unverified" (HEAD failed or had no
+    Content-Length; file left untouched).
+    """
+    disk_size = archive.page_size(page.root_id, page.page_key)
+    if disk_size is None:
+        _download_page(client, archive, page)
+        return "missing"
+    try:
+        head_size = client.head(page.image_url)
+    except Exception:  # noqa: BLE001 - cannot verify; leave the file as-is
+        return "unverified"
+    if head_size is None:
+        return "unverified"
+    if head_size == disk_size:
+        return "ok"
+    _download_page(client, archive, page)
+    return "mismatch"
+
+
 def _ensure_page(
     client: Client,
     archive: Archive,
@@ -123,6 +175,9 @@ def _ensure_page(
     *,
     role: str,
     refs: list[PageRef],
+    refresh: bool = False,
+    verified: set[str] | None = None,
+    on_verify: Callable[[str, str], None] | None = None,
 ) -> None:
     if not page.page_key:
         return
@@ -140,19 +195,18 @@ def _ensure_page(
         return
     refs.append(ref)
 
-    if archive.has_page(page.root_id, page.page_key):
+    if not refresh:
+        if archive.has_page(page.root_id, page.page_key):
+            return
+        _download_page(client, archive, page)
         return
 
-    image_bytes = client.get_bytes(page.image_url)
-    text = None
-    annotations = None
-    if page.annotation_list_urls:
-        annotations = client.get_json(page.annotation_list_urls[0])
-        text = reconstruct_text(annotations)
-    archive.store_page(
-        root_id=page.root_id,
-        page_key=page.page_key,
-        image_bytes=image_bytes,
-        text=text,
-        annotations=annotations,
-    )
+    # refresh mode: verify (once per run) the image size against disk.
+    key = f"{page.root_id}/{page.page_key}"
+    if verified is not None and key in verified:
+        return
+    outcome = _verify_or_redownload(client, archive, page)
+    if verified is not None:
+        verified.add(key)
+    if on_verify is not None:
+        on_verify(outcome, archive.page_relative_path(page.root_id, page.page_key))
