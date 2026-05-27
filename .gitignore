@@ -1,5 +1,6 @@
 .claude
 archive/
+!tests/fixtures/archive/
 *.pyc
 __pycache__/
 .venv/

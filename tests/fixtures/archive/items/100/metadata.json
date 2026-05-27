@@ -1,0 +1,21 @@
+{
+  "isadgID": 100,
+  "referenceCode": "FIX 1/A/1",
+  "title": "Will of HOUSTON, JOHN, Dublin, merchant, created 1737",
+  "pages": [
+    {"page_key": "volA_p1.jpg", "root_id": "volA", "role": "primary",
+     "path": "pages/volA/volA_p1.jpg", "canvas_label": "p1"},
+    {"page_key": "volA_p0.jpg", "root_id": "volA", "role": "context",
+     "path": "pages/volA/volA_p0.jpg", "canvas_label": "p0"}
+  ],
+  "searchHit": {
+    "documentRepositoryName": "Registry of Deeds",
+    "displayTitle": "Will of HOUSTON, JOHN, Dublin, merchant, created 1737",
+    "contentDate": {"gte": "1737-05-06", "lte": "1737-05-06"},
+    "createdDate": {"gte": "1737-01-18", "lte": "1737-01-18"},
+    "scopeAndContent": ["Mentions a seal and a memorial in Dublin."],
+    "archivalHistory": ["Abstract of a will from the Registry of Deeds."],
+    "archivistsNote": [], "administrativeOrBiographicalHistory": [], "note": []
+  },
+  "detail": null
+}

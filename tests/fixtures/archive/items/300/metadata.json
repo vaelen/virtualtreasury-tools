@@ -1,0 +1,18 @@
+{
+  "isadgID": 300,
+  "referenceCode": "FIX 2/B/1",
+  "title": "Grant of land, Galway, 1689",
+  "pages": [
+    {"page_key": "volB_p9.jpg", "root_id": "volB", "role": "primary",
+     "path": "pages/volB/volB_p9.jpg", "canvas_label": "p9"}
+  ],
+  "searchHit": {
+    "documentRepositoryName": "National Archives, Ireland",
+    "displayTitle": "Grant of land, Galway, 1689",
+    "contentDate": {"gte": "1689-01-01", "lte": "1689-12-31"},
+    "scopeAndContent": ["A grant of land in Galway."],
+    "archivalHistory": [], "archivistsNote": [],
+    "administrativeOrBiographicalHistory": [], "note": []
+  },
+  "detail": null
+}
