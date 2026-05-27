@@ -67,6 +67,11 @@ class Archive:
         entry = self._state["pages"].get(f"{root_id}/{page_key}")
         return entry["sha256"] if entry else None
 
+    def page_size(self, root_id: str, page_key: str) -> int | None:
+        """Byte size of a stored page image on disk, or None if absent."""
+        path = self.root / "pages" / root_id / page_key
+        return path.stat().st_size if path.exists() else None
+
     def store_page(
         self,
         *,

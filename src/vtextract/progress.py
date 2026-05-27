@@ -106,6 +106,17 @@ class Reporter(ProgressReporter):
     def finish(self, completed: int, failed: int) -> None:
         self._say(f"finished: {completed} archived, {failed} failed")
 
+    def verify_summary(self, counts: dict[str, int], flagged: list[str]) -> None:
+        """Summarise a refresh run's image-verification outcomes."""
+        self._say(
+            f"verified images: {counts.get('ok', 0)} ok, "
+            f"{counts.get('mismatch', 0)} re-downloaded, "
+            f"{counts.get('missing', 0)} downloaded (missing), "
+            f"{counts.get('unverified', 0)} unverified"
+        )
+        for path in flagged:
+            self._say(f"  flagged: {path}")
+
 
 class BuildReporter(ProgressReporter):
     """Live progress + status output for the index build loop (one bar)."""

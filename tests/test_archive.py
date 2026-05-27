@@ -112,3 +112,19 @@ def test_has_page_false_when_file_missing(tmp_path):
                        image_bytes=b"abc", text=None, annotations=None)
     (tmp_path / "pages" / "208925" / "p1.jpg").unlink()
     assert archive.has_page("208925", "p1.jpg") is False
+
+
+def test_page_size_returns_byte_size_for_existing_page(tmp_path):
+    from vtextract.archive import Archive
+    archive = Archive(tmp_path)
+    archive.store_page(
+        root_id="r1", page_key="p1.jpg",
+        image_bytes=b"\xff\xd8abc", text=None, annotations=None,
+    )
+    assert archive.page_size("r1", "p1.jpg") == 5
+
+
+def test_page_size_returns_none_when_missing(tmp_path):
+    from vtextract.archive import Archive
+    archive = Archive(tmp_path)
+    assert archive.page_size("r1", "nope.jpg") is None

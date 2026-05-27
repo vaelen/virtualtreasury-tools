@@ -47,6 +47,8 @@ _SORT_FLAGS = {"--relevance", "--newest", "--oldest"}
 _FIELD_FLAGS = {f"--{name}": name for name in FIELD_MAP}
 # Operand flags: "--all" -> "all" key into OPERANDS.
 _OPERAND_FLAGS = {f"--{name}": name for name in OPERANDS}
+# Zero-arg boolean global flags handled by argparse.
+_BOOL_FLAGS = {"--refresh"}
 
 _EPILOG = """\
 search criteria (parsed positionally, in order):
@@ -103,6 +105,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--page-size", type=_positive_int, default=100,
         help="doc_search page size (default 100).",
     )
+    parser.add_argument(
+        "--refresh", action="store_true",
+        help="Re-fetch metadata and HEAD-verify images for matched resources, "
+        "even if already archived.",
+    )
     return parser
 
 
@@ -132,7 +139,7 @@ def split_and_group(
     i = 0
     while i < len(argv):
         tok = argv[i]
-        if tok in ("--help", "-h") or tok in _SORT_FLAGS:
+        if tok in ("--help", "-h") or tok in _SORT_FLAGS or tok in _BOOL_FLAGS:
             global_tokens.append(tok)
             i += 1
         elif tok in _VALUE_OPTS:
@@ -167,6 +174,7 @@ commands:
   search   download resources matching a search (vtextract search --help)
   get      download resources by reference code or id (vtextract get --help)
   auth     store credentials in the config file (vtextract auth [username])
+  refresh  re-fetch metadata and verify images for the whole archive
 """
 
 
@@ -183,6 +191,8 @@ def run(argv: list[str]) -> int:
         return _run_get(rest)
     if command == "auth":
         return _run_auth(rest)
+    if command == "refresh":
+        return _run_refresh(rest)
     print(f"unknown command: {command}\n", file=sys.stderr)
     print(_USAGE, end="", file=sys.stderr)
     return 2
@@ -249,11 +259,13 @@ def _run_search(argv: list[str]) -> int:
     completed, failed = _extract(
         client, archive, hits, search_id=search_id,
         context_pages=args.context_pages, reporter=reporter,
+        refresh=args.refresh,
     )
     return 1 if failed else 0
 
 
-def _extract(client, archive, hits, *, search_id: str, context_pages: int, reporter=None) -> tuple[int, int]:
+def _extract(client, archive, hits, *, search_id: str, context_pages: int,
+             reporter=None, refresh: bool = False) -> tuple[int, int]:
     """Run the shared per-resource fetch loop, returning (completed, failed).
 
     Owns the root-manifest cache and the client's lifetime; one bad resource is
@@ -263,6 +275,15 @@ def _extract(client, archive, hits, *, search_id: str, context_pages: int, repor
     if reporter is None:
         reporter = Reporter()
     root_manifest_cache: dict = {}
+    verified: set[str] = set()
+    vcounts: dict[str, int] = {}
+    flagged: list[str] = []
+
+    def _on_verify(outcome: str, path: str) -> None:
+        vcounts[outcome] = vcounts.get(outcome, 0) + 1
+        if outcome in ("mismatch", "unverified"):
+            flagged.append(path)
+
     completed = 0
     failed = 0
     try:
@@ -272,7 +293,7 @@ def _extract(client, archive, hits, *, search_id: str, context_pages: int, repor
                 # hit only learns its id once fetch_resource fetches the detail.
                 raw_id = hit.get("isadgID")
                 isadg_id = int(raw_id) if raw_id is not None and str(raw_id).isdigit() else None
-                if isadg_id is not None and archive.is_resource_complete(isadg_id):
+                if (not refresh) and isadg_id is not None and archive.is_resource_complete(isadg_id):
                     reporter.skip(isadg_id)
                     continue
                 label = isadg_id if isadg_id is not None else hit.get("displayReferenceCode", "?")
@@ -284,7 +305,10 @@ def _extract(client, archive, hits, *, search_id: str, context_pages: int, repor
                         context_pages=context_pages,
                         on_item_start=reporter.item_pages,
                         on_page=reporter.page_done,
+                        refresh=refresh,
+                        on_verify=_on_verify,
                         _root_manifest_cache=root_manifest_cache,
+                        _verified_pages=verified,
                     )
                     completed += 1
                     reporter.item_done(record.isadg_id)
@@ -294,6 +318,8 @@ def _extract(client, archive, hits, *, search_id: str, context_pages: int, repor
     finally:
         client.close()
 
+    if refresh:
+        reporter.verify_summary(vcounts, flagged)
     reporter.finish(completed, failed)
     return completed, failed
 
@@ -315,6 +341,11 @@ def _run_get(argv: list[str]) -> int:
     parser.add_argument(
         "--context-pages", type=_nonneg_int, default=1,
         help="Neighbouring physical pages to also fetch per page (default 1).",
+    )
+    parser.add_argument(
+        "--refresh", action="store_true",
+        help="Re-fetch metadata and HEAD-verify images for the given resources, "
+        "even if already archived.",
     )
     args = parser.parse_args(argv)
 
@@ -345,6 +376,84 @@ def _run_get(argv: list[str]) -> int:
     completed, failed = _extract(
         client, archive, hits, search_id="get",
         context_pages=args.context_pages, reporter=reporter,
+        refresh=args.refresh,
+    )
+    return 1 if failed else 0
+
+
+def _stdin_is_tty() -> bool:
+    return sys.stdin.isatty()
+
+
+def _prompt_yes_no(message: str) -> bool:
+    try:
+        return input(message).strip().lower() in ("y", "yes")
+    except EOFError:
+        return False
+
+
+def _run_refresh(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="vtextract refresh",
+        description="Re-fetch metadata and HEAD-verify images for every archived item.",
+    )
+    parser.add_argument(
+        "--out", help="Archive directory (defaults to the config file's archive)."
+    )
+    parser.add_argument("--config", help="Config file path (default ~/.vt/vt.toml).")
+    parser.add_argument(
+        "--context-pages", type=_nonneg_int, default=1,
+        help="Neighbouring physical pages to also consider per page (default 1).",
+    )
+    parser.add_argument(
+        "-y", "--yes", action="store_true",
+        help="Skip the confirmation prompt.",
+    )
+    args = parser.parse_args(argv)
+
+    config = load_config(Path(args.config) if args.config else None)
+    if config.auth_header is None:
+        print("No credentials configured. Run `vtextract auth`.", file=sys.stderr)
+        return 2
+
+    archive = Archive(args.out if args.out else config.archive)
+    items_dir = archive.root / "items"
+    hits = [
+        {"isadgID": int(meta.parent.name)}
+        for meta in sorted(items_dir.glob("*/metadata.json"))
+        if meta.parent.name.isdigit()
+    ]
+    if not hits:
+        print(f"no items to refresh in {archive.root}", file=sys.stderr)
+        return 0
+
+    if not args.yes:
+        if not _stdin_is_tty():
+            print(
+                "refusing to run refresh without confirmation; re-run with --yes",
+                file=sys.stderr,
+            )
+            return 2
+        if not _prompt_yes_no(
+            f"Refresh {len(hits)} item(s) in {archive.root}? This re-fetches "
+            "metadata and HEAD-verifies every image against the server. [y/N] "
+        ):
+            print("aborted.", file=sys.stderr)
+            return 0
+
+    client = Client(
+        base_url=config.base_url,
+        auth_header=config.auth_header,
+        user_agent=config.user_agent,
+        transport=_make_transport(),
+        delay=config.delay,
+        max_retries=config.max_retries,
+    )
+    reporter = Reporter()
+    reporter.set_total(len(hits), noun="items")
+    completed, failed = _extract(
+        client, archive, hits, search_id="refresh",
+        context_pages=args.context_pages, reporter=reporter, refresh=True,
     )
     return 1 if failed else 0
 

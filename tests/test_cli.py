@@ -134,6 +134,9 @@ class _SpyReporter:
     def finish(self, completed, failed):
         self.calls.append(("finish", completed, failed))
 
+    def verify_summary(self, counts, flagged):
+        self.calls.append(("verify_summary", counts, flagged))
+
 
 def test_extract_drives_reporter_for_skip_and_fetch(tmp_path, monkeypatch):
     from types import SimpleNamespace
@@ -160,6 +163,61 @@ def test_extract_drives_reporter_for_skip_and_fetch(tmp_path, monkeypatch):
     assert ("item_done", 200) in reporter.calls
     assert reporter.calls[0] == "enter"
     assert reporter.calls.index("exit") < reporter.calls.index(("finish", 1, 0))
+
+
+def test_extract_emits_verify_summary_when_refresh(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from vtextract.archive import Archive
+
+    archive = Archive(tmp_path)
+    # Mark one resource complete so we can also exercise the refresh-skips-nothing path.
+    archive.mark_resource_complete(100, pages=[], search_id="x")
+
+    monkeypatch.setattr(
+        cli, "fetch_resource",
+        lambda *a, **k: SimpleNamespace(isadg_id=100),
+    )
+    client = SimpleNamespace(close=lambda: None)
+    reporter = _SpyReporter()
+
+    completed, failed = cli._extract(
+        client, archive, [{"isadgID": 100}],
+        search_id="x", context_pages=0, reporter=reporter,
+        refresh=True,
+    )
+
+    assert (completed, failed) == (1, 0)
+    # verify_summary must appear in the calls list when refresh=True
+    vs_calls = [c for c in reporter.calls if isinstance(c, tuple) and c[0] == "verify_summary"]
+    assert len(vs_calls) == 1
+    _, counts, flagged = vs_calls[0]
+    assert isinstance(counts, dict)
+    assert isinstance(flagged, list)
+    # verify_summary must come before finish
+    assert reporter.calls.index(vs_calls[0]) < reporter.calls.index(("finish", 1, 0))
+
+
+def test_extract_omits_verify_summary_without_refresh(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from vtextract.archive import Archive
+
+    archive = Archive(tmp_path)
+
+    monkeypatch.setattr(
+        cli, "fetch_resource",
+        lambda *a, **k: SimpleNamespace(isadg_id=200),
+    )
+    client = SimpleNamespace(close=lambda: None)
+    reporter = _SpyReporter()
+
+    cli._extract(
+        client, archive, [{"isadgID": 200}],
+        search_id="x", context_pages=0, reporter=reporter,
+        # refresh defaults to False
+    )
+
+    vs_calls = [c for c in reporter.calls if isinstance(c, tuple) and c[0] == "verify_summary"]
+    assert vs_calls == []
 
 
 # --- dispatch ------------------------------------------------------------
@@ -392,6 +450,59 @@ def test_get_one_bad_identifier_does_not_abort_run(tmp_path, monkeypatch):
     assert (tmp_path / "items" / "474234" / "metadata.json").exists()  # valid id still archived
 
 
+def _refresh_get_handler(request, *, item_calls=None, loris=None):
+    """Like _get_handler, plus a HEAD branch for /loris/ image verification."""
+    path = request.url.path
+    if path.startswith("/loris/") and request.method == "HEAD":
+        img = (EXAMPLES / "item" / "loris" / "response.jpg").read_bytes()
+        return httpx.Response(200, headers={"content-length": str(len(img))})
+    if path.startswith("/loris/") and loris is not None:
+        loris.append(path)
+    if path == "/rest/isadg-identity-statements/474234" and item_calls is not None:
+        item_calls.append(path)
+    return _get_handler(request)
+
+
+def test_get_refresh_reprocesses_completed_resource(tmp_path, monkeypatch):
+    config = _write_config(tmp_path)
+    item_calls: list[str] = []
+    monkeypatch.setattr(
+        cli, "_make_transport",
+        lambda: httpx.MockTransport(lambda r: _refresh_get_handler(r, item_calls=item_calls)),
+    )
+    # --context-pages 0: these tests don't mock the volume manifest, so no context fetch.
+    base = ["get", "474234", "--out", str(tmp_path), "--config", str(config),
+            "--context-pages", "0"]
+    assert cli.run(base) == 0
+    item_calls.clear()
+    # without --refresh it would be skipped; with --refresh the detail is re-fetched
+    assert cli.run(base + ["--refresh"]) == 0
+    assert item_calls == ["/rest/isadg-identity-statements/474234"]
+
+
+def test_get_refresh_verifies_image_with_head_not_get(tmp_path, monkeypatch):
+    config = _write_config(tmp_path)
+    loris: list[str] = []
+    monkeypatch.setattr(
+        cli, "_make_transport",
+        lambda: httpx.MockTransport(lambda r: _refresh_get_handler(r, loris=loris)),
+    )
+    base = ["get", "474234", "--out", str(tmp_path), "--config", str(config),
+            "--context-pages", "0"]
+    assert cli.run(base) == 0
+    loris.clear()  # GET-only list (HEAD requests are not appended)
+    assert cli.run(base + ["--refresh"]) == 0
+    assert loris == []  # size matched on HEAD -> no image GET
+
+
+def test_search_refresh_parses_as_global_flag():
+    from vtextract.cli import build_parser, split_and_group
+    globals_, criteria = split_and_group(["houston", "--refresh"], build_parser())
+    assert "--refresh" in globals_
+    assert build_parser().parse_args(globals_).refresh is True
+    assert [f.keywords for f in criteria.filters] == [["houston"]]
+
+
 def test_get_twice_skips_completed_resource(tmp_path, monkeypatch):
     config = _write_config(tmp_path)
     item_calls: list[str] = []
@@ -405,6 +516,74 @@ def test_get_twice_skips_completed_resource(tmp_path, monkeypatch):
     item_calls.clear()
     assert cli.run(argv) == 0
     assert item_calls == []  # already complete -> no re-fetch
+
+
+# --- refresh command ---------------------------------------------------------
+
+
+def _seed_one_item(tmp_path, monkeypatch):
+    """Archive item 474234 so the refresh command has something to enumerate."""
+    config = _write_config(tmp_path)
+    monkeypatch.setattr(
+        cli, "_make_transport",
+        lambda: httpx.MockTransport(lambda r: _get_handler(r)),
+    )
+    assert cli.run(["get", "474234", "--out", str(tmp_path), "--config", str(config),
+                    "--context-pages", "0"]) == 0
+    return config
+
+
+def test_refresh_with_yes_reprocesses_all_items(tmp_path, monkeypatch):
+    config = _seed_one_item(tmp_path, monkeypatch)
+    item_calls: list[str] = []
+    monkeypatch.setattr(
+        cli, "_make_transport",
+        lambda: httpx.MockTransport(lambda r: _refresh_get_handler(r, item_calls=item_calls)),
+    )
+    code = cli.run(["refresh", "--yes", "--out", str(tmp_path), "--config", str(config),
+                    "--context-pages", "0"])
+    assert code == 0
+    assert item_calls == ["/rest/isadg-identity-statements/474234"]  # re-fetched
+
+
+def test_refresh_declined_at_prompt_does_nothing(tmp_path, monkeypatch):
+    config = _seed_one_item(tmp_path, monkeypatch)
+    item_calls: list[str] = []
+    monkeypatch.setattr(
+        cli, "_make_transport",
+        lambda: httpx.MockTransport(lambda r: _refresh_get_handler(r, item_calls=item_calls)),
+    )
+    monkeypatch.setattr(cli, "_stdin_is_tty", lambda: True)
+    monkeypatch.setattr(cli, "_prompt_yes_no", lambda *_a, **_k: False)
+    code = cli.run(["refresh", "--out", str(tmp_path), "--config", str(config)])
+    assert code == 0
+    assert item_calls == []  # declined -> no requests
+
+
+def test_refresh_non_tty_without_yes_aborts(tmp_path, monkeypatch, capsys):
+    config = _seed_one_item(tmp_path, monkeypatch)
+    monkeypatch.setattr(cli, "_stdin_is_tty", lambda: False)
+    code = cli.run(["refresh", "--out", str(tmp_path), "--config", str(config)])
+    assert code == 2
+    assert "--yes" in capsys.readouterr().err
+
+
+def test_refresh_empty_archive_reports_and_exits_zero(tmp_path, monkeypatch, capsys):
+    config = _write_config(tmp_path)
+    (tmp_path / "items").mkdir()  # archive dir exists but has no items
+    code = cli.run(["refresh", "--yes", "--out", str(tmp_path), "--config", str(config)])
+    assert code == 0
+    assert "no items" in capsys.readouterr().err.lower()
+
+
+def test_refresh_fresh_archive_without_items_dir_exits_zero(tmp_path, capsys):
+    # A brand-new archive has no items/ directory at all; refresh must not crash.
+    config = _write_config(tmp_path)
+    out = tmp_path / "fresh"
+    code = cli.run(["refresh", "--yes", "--out", str(out), "--config", str(config)])
+    assert code == 0
+    assert "no items" in capsys.readouterr().err.lower()
+    assert not (out / "items").exists()  # refresh did not need to create it
 
 
 def test_run_twice_skips_completed_resource(tmp_path, monkeypatch):
