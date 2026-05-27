@@ -166,6 +166,33 @@ archive/
   items/<isadgID>/metadata.json, manifest.json  # resources referencing their pages
 ```
 
+## Searching the archive
+
+`vtindex` builds a local SQLite/FTS5 index over an archive so you can search it
+without re-reading every file. The index lives at `<archive>/index/`.
+
+```bash
+# build (or incrementally refresh) the index after a download
+vtindex build --archive ./archive
+
+# keyword search (title + description + transcription by default)
+vtindex search "houston" --archive ./archive
+
+# restrict fields, add a time frame and a volume, get JSON for scripting
+vtindex search "deed" --in title,transcription \
+  --from 1700 --to 1760 --date-type content --volume 208925 \
+  --archive ./archive --json
+
+# discover volume ids/labels, or inspect the index
+vtindex volumes --archive ./archive
+vtindex stats   --archive ./archive
+```
+
+The archive dir defaults to `$VT_ARCHIVE` or `./archive`. Exit codes follow the
+grep convention: `0` = at least one match, `1` = no matches, `2` = error (e.g.
+the index has not been built yet). Re-running `vtindex build` is incremental —
+it only reads files whose size/mtime changed since the last build.
+
 ## Tests
 
 ```bash

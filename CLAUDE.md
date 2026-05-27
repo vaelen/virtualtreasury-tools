@@ -35,6 +35,8 @@ each invocation, so prefer it over activating the venv manually.
   (subcommands: `search`, `get`, and `auth`; searches are built from flags, not a
   URL; see `docs/search-query.md`). `get <refcodes/ids...>` pulls known resources
   directly (reference codes normalise ` `/`/` → `-`), reusing the same fetch flow.
+- **Index CLI:** `.venv/bin/vtindex build --archive ./archive` then
+  `.venv/bin/vtindex search "<keyword>" --archive ./archive [--json]`.
 - **Credentials** come only from the config file `~/.vt/vt.toml`
   (`[extract.auth].token`), written by `vtextract auth`. There are no `VT_*`
   env vars. Never hardcode the credential in source or tests; tests pass a
@@ -66,6 +68,12 @@ under `uv run pytest`. `archive/`, `.venv/`, and `*.egg-info/` are gitignored;
   query), and the detail's `id` is the canonical isadgID.
 - `cli.py` — argparse wiring; `_make_transport()` is a test seam (returns
   `None` in prod; tests monkeypatch it to inject an `httpx.MockTransport`).
+- `index/` (subpackage) — the `vtindex` CLI. `db.py` is the **single SQL choke
+  point** (SQLite + FTS5; analogous to `client.py`). `reader.py` is pure
+  archive-file parsing (analogous to `schema.py`). `builder.py` does an
+  incremental, stat-fingerprint build (analogous to `fetcher.py`). `query.py`
+  composes a search from `db` primitives. `cli.py` wires `build`/`search`/
+  `volumes`/`stats`. Build progress reuses `progress.BuildReporter`.
 
 ## Domain model (important, non-obvious)
 
