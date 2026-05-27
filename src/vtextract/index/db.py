@@ -139,3 +139,133 @@ class IndexDB:
     def get_meta(self, key: str) -> str | None:
         row = self._conn.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
         return row[0] if row else None
+
+    # --- fingerprints ---
+
+    def fingerprints(self) -> dict[str, tuple[float, int]]:
+        return {
+            r["path"]: (r["mtime"], r["size"])
+            for r in self._conn.execute("SELECT path, mtime, size FROM source_file")
+        }
+
+    def _set_fingerprint(self, path: str, kind: str, mtime: float, size: int) -> None:
+        self._conn.execute(
+            "INSERT INTO source_file (path, kind, mtime, size) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(path) DO UPDATE SET kind=excluded.kind, "
+            "mtime=excluded.mtime, size=excluded.size",
+            (path, kind, mtime, size),
+        )
+
+    # --- item upsert / delete ---
+
+    def upsert_item(self, item, *, fingerprint: tuple[str, float, int]) -> None:
+        path, mtime, size = fingerprint
+        self._delete_item_rows(item.isadg_id)
+        self._conn.execute(
+            "INSERT INTO item (isadg_id, reference_code, title, description, repository, "
+            "content_begin, content_end, created_begin, created_end, path) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (item.isadg_id, item.reference_code, item.title, item.description,
+             item.repository, item.content_begin, item.content_end,
+             item.created_begin, item.created_end, item.path),
+        )
+        self._conn.execute(
+            "INSERT INTO item_fts (rowid, title, description) VALUES (?, ?, ?)",
+            (item.isadg_id, item.title, item.description),
+        )
+        for root_id in item.volumes:
+            self._conn.execute(
+                "INSERT OR IGNORE INTO item_volume (isadg_id, root_id) VALUES (?, ?)",
+                (item.isadg_id, root_id),
+            )
+        for page in item.pages:
+            self._conn.execute(
+                "INSERT OR IGNORE INTO item_page (isadg_id, root_id, page_key, role) "
+                "VALUES (?, ?, ?, ?)",
+                (item.isadg_id, page.root_id, page.page_key, page.role),
+            )
+        self._set_fingerprint(path, "item", mtime, size)
+
+    def _delete_item_rows(self, isadg_id: int) -> None:
+        self._conn.execute("DELETE FROM item WHERE isadg_id=?", (isadg_id,))
+        self._conn.execute("DELETE FROM item_fts WHERE rowid=?", (isadg_id,))
+        self._conn.execute("DELETE FROM item_volume WHERE isadg_id=?", (isadg_id,))
+        self._conn.execute("DELETE FROM item_page WHERE isadg_id=?", (isadg_id,))
+
+    # --- volume upsert ---
+
+    def upsert_volume(self, volume, *, fingerprint: tuple[str, float, int]) -> None:
+        path, mtime, size = fingerprint
+        self._conn.execute(
+            "INSERT INTO volume (root_id, label, reference_code) VALUES (?, ?, ?) "
+            "ON CONFLICT(root_id) DO UPDATE SET label=excluded.label, "
+            "reference_code=excluded.reference_code",
+            (volume.root_id, volume.label, volume.reference_code),
+        )
+        self._set_fingerprint(path, "volume", mtime, size)
+
+    # --- transcription (page) upsert / delete ---
+
+    def upsert_transcription(
+        self, root_id: str, page_key: str, text: str, *, fingerprint: tuple[str, float, int]
+    ) -> None:
+        path, mtime, size = fingerprint
+        self._delete_page_fts(root_id, page_key)
+        self._conn.execute(
+            "INSERT OR REPLACE INTO page (root_id, page_key, has_text) VALUES (?, ?, 1)",
+            (root_id, page_key),
+        )
+        cur = self._conn.execute("INSERT INTO transcription_fts (text) VALUES (?)", (text,))
+        self._conn.execute(
+            "INSERT INTO transcription_map (rowid, root_id, page_key) VALUES (?, ?, ?)",
+            (cur.lastrowid, root_id, page_key),
+        )
+        self._set_fingerprint(path, "transcription", mtime, size)
+
+    def _delete_page_fts(self, root_id: str, page_key: str) -> None:
+        rows = list(self._conn.execute(
+            "SELECT rowid FROM transcription_map WHERE root_id=? AND page_key=?",
+            (root_id, page_key),
+        ))
+        for r in rows:
+            self._conn.execute("DELETE FROM transcription_fts WHERE rowid=?", (r["rowid"],))
+            self._conn.execute("DELETE FROM transcription_map WHERE rowid=?", (r["rowid"],))
+        self._conn.execute(
+            "DELETE FROM page WHERE root_id=? AND page_key=?", (root_id, page_key)
+        )
+
+    # --- generic source deletion (used by build prune) ---
+
+    def delete_source(self, path: str) -> None:
+        row = self._conn.execute(
+            "SELECT kind FROM source_file WHERE path=?", (path,)
+        ).fetchone()
+        if row is None:
+            return
+        kind = row["kind"]
+        if kind == "item":
+            isadg_id = int(path.split("/")[1])
+            self._delete_item_rows(isadg_id)
+        elif kind == "transcription":
+            # path = pages/<root_id>/<page_key>.txt ; page_key already ends in .jpg
+            parts = path.split("/")
+            root_id = parts[1]
+            page_key = parts[2][: -len(".txt")]
+            self._delete_page_fts(root_id, page_key)
+        elif kind == "volume":
+            root_id = path.split("/")[1]
+            self._conn.execute("DELETE FROM volume WHERE root_id=?", (root_id,))
+        self._conn.execute("DELETE FROM source_file WHERE path=?", (path,))
+
+    # --- counts ---
+
+    def counts(self) -> dict[str, int]:
+        # Keys: items, volumes, pages, item_volume, item_page, source_files.
+        names = ["item", "volume", "page", "item_volume", "item_page", "source_file"]
+        plural = {"item": "items", "volume": "volumes", "page": "pages",
+                  "source_file": "source_files"}
+        out = {}
+        for name in names:
+            key = plural.get(name, name)
+            out[key] = self._conn.execute(f"SELECT COUNT(*) FROM {name}").fetchone()[0]
+        return out
