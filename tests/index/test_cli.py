@@ -1,13 +1,26 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
 # All rights reserved
 
+import io
 import json
 import shutil
 from pathlib import Path
 
-from vtextract.index.cli import main
+from rich.console import Console
+from rich.text import Text
+
+from vtextract.index.cli import THEMES, _build_results_table, _highlight_title, main
+from vtextract.index.models import SearchResult
 
 FIXTURE = Path(__file__).resolve().parent.parent / "fixtures" / "archive"
+
+
+def _sample_result(title: str = "Will of HOUSTON, JOHN") -> SearchResult:
+    return SearchResult(
+        isadg_id=100, title=title, reference_code="FIX 1/A/1", repository=None,
+        content_date="1737-05-06", created_date=None, matched_fields=["title"],
+        matched_pages=[], score=0.0, path="items/100",
+    )
 
 
 def _archive(tmp_path) -> Path:
@@ -141,6 +154,67 @@ def test_search_table_prints_header(tmp_path, capsys):
     assert "Fields" not in out
     assert "100" in out
     assert "HOUSTON" in out
+
+
+def test_highlight_title_marks_matching_words():
+    t = _highlight_title("Will of HOUSTON, JOHN", "houston john", "bold yellow")
+    spans = sorted((s.start, s.end) for s in t.spans)
+    assert (8, 15) in spans   # HOUSTON
+    assert (17, 21) in spans  # JOHN
+
+
+def test_highlight_title_no_query_has_no_spans():
+    assert _highlight_title("Will of HOUSTON", None, "bold yellow").spans == []
+
+
+def test_highlight_title_empty_style_has_no_spans():
+    # the --plain theme carries no match style, so nothing is highlighted
+    assert _highlight_title("Will of HOUSTON", "houston", THEMES["plain"].match_style).spans == []
+
+
+def test_themes_cover_all_four_modes():
+    assert set(THEMES) == {"dark", "light", "bw", "plain"}
+
+
+def test_bw_theme_has_no_zebra_striping():
+    table = _build_results_table([_sample_result()], theme=THEMES["bw"], query=None)
+    assert table.row_styles == []
+
+
+def test_dark_theme_renders_ansi_color():
+    table = _build_results_table([_sample_result()], theme=THEMES["dark"], query="houston")
+    buf = io.StringIO()
+    Console(file=buf, force_terminal=True, width=120, color_system="standard").print(table)
+    assert "\x1b[" in buf.getvalue()
+
+
+def test_title_cell_is_highlighted_text():
+    table = _build_results_table([_sample_result()], theme=THEMES["dark"], query="houston")
+    title_cell = list(table.columns[3].cells)[0]
+    assert isinstance(title_cell, Text)
+    assert title_cell.spans  # HOUSTON highlighted
+
+
+def test_search_theme_flags_accepted(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    for flag in ("--dark", "--light", "--bw", "--plain"):
+        capsys.readouterr()
+        code = main(["search", "Houston", "--in", "title", flag, "--archive", str(archive)])
+        assert code == 0
+        assert "HOUSTON" in capsys.readouterr().out
+
+
+def test_search_theme_flags_mutually_exclusive(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    try:
+        main(["search", "Houston", "--dark", "--light", "--archive", str(archive)])
+    except SystemExit as exc:
+        assert exc.code == 2
+    else:
+        raise AssertionError("expected mutually-exclusive flags to error")
 
 
 def test_search_apostrophe_keyword_exit_1(tmp_path, capsys):

@@ -5,12 +5,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sqlite3
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from rich.console import Console
 from rich.table import Table
+from rich.text import Text
 
 from vtextract.config import load_config
 from vtextract.index.builder import INDEX_RELPATH, build, is_stale
@@ -102,7 +105,7 @@ def _cmd_search(args) -> int:
     if args.json:
         print(json.dumps([_result_dict(r) for r in results], indent=2))
     else:
-        _print_results_table(results)
+        _print_results_table(results, theme=THEMES[args.theme], query=args.query)
     return 0 if results else 1
 
 
@@ -159,18 +162,82 @@ def _result_dict(r) -> dict:
     }
 
 
-def _print_results_table(results) -> None:
-    if not results:
-        print("no matches")
-        return
-    table = Table(show_header=True, row_styles=["", "on grey23"])
+@dataclass(frozen=True)
+class Theme:
+    """A color scheme for the search results table."""
+
+    header_style: str
+    border_style: str
+    match_style: str  # applied to query keywords found in the Title
+    row_styles: tuple[str, ...] = field(default_factory=tuple)
+    no_color: bool = False
+
+
+# `--dark` is the default. Each adds a touch of color tuned for a terminal
+# background; `--bw` keeps a neutral no-color-fill scheme and `--plain` is
+# unstyled for piping or color-averse terminals.
+THEMES: dict[str, Theme] = {
+    "dark": Theme(
+        header_style="bold cyan", border_style="grey42",
+        match_style="bold yellow", row_styles=("", "on grey19"),
+    ),
+    "light": Theme(
+        header_style="bold blue", border_style="grey50",
+        match_style="black on yellow", row_styles=("", "on grey85"),
+    ),
+    "bw": Theme(header_style="bold", border_style="", match_style="reverse"),
+    "plain": Theme(header_style="none", border_style="", match_style="", no_color=True),
+}
+
+_WORD_RE = re.compile(r"\w+", re.UNICODE)
+
+
+def _highlight_title(title: str, query: str | None, style: str) -> Text:
+    """Return the title as rich Text with query keywords styled.
+
+    Keywords are the word tokens of the raw query (mirroring the whitespace
+    tokenization the FTS index uses); a title word is highlighted when it
+    equals one of them, case-insensitively. No query or no style → no spans.
+    """
+    text = Text(title)
+    if not query or not style:
+        return text
+    terms = {m.group(0).lower() for m in _WORD_RE.finditer(query)}
+    if not terms:
+        return text
+    for m in _WORD_RE.finditer(title):
+        if m.group(0).lower() in terms:
+            text.stylize(style, m.start(), m.end())
+    return text
+
+
+def _build_results_table(results, *, theme: Theme, query: str | None) -> Table:
+    table = Table(
+        show_header=True,
+        header_style=theme.header_style,
+        border_style=theme.border_style,
+        row_styles=list(theme.row_styles),
+    )
     table.add_column("ID", no_wrap=True)
     table.add_column("Date", no_wrap=True)
     table.add_column("Reference", no_wrap=True)
     table.add_column("Title")
     for r in results:
-        table.add_row(str(r.isadg_id), r.content_date or "-", r.reference_code, r.title)
-    Console().print(table)
+        table.add_row(
+            str(r.isadg_id),
+            r.content_date or "-",
+            r.reference_code,
+            _highlight_title(r.title, query, theme.match_style),
+        )
+    return table
+
+
+def _print_results_table(results, *, theme: Theme, query: str | None) -> None:
+    if not results:
+        print("no matches")
+        return
+    table = _build_results_table(results, theme=theme, query=query)
+    Console(no_color=theme.no_color).print(table)
 
 
 _ARCHIVE_HELP = "archive dir (default: the config file's archive)"
@@ -205,7 +272,16 @@ def _build_parser() -> argparse.ArgumentParser:
     p_search.add_argument("--volume", help="restrict to items referencing this volume root id")
     p_search.add_argument("--limit", type=int, default=50)
     p_search.add_argument("--json", action="store_true")
-    p_search.set_defaults(func=_cmd_search)
+    theme = p_search.add_mutually_exclusive_group()
+    theme.add_argument("--dark", dest="theme", action="store_const", const="dark",
+                       help="dark-mode color scheme (default)")
+    theme.add_argument("--light", dest="theme", action="store_const", const="light",
+                       help="light-mode color scheme")
+    theme.add_argument("--bw", dest="theme", action="store_const", const="bw",
+                       help="neutral black-and-white scheme (no color fills)")
+    theme.add_argument("--plain", dest="theme", action="store_const", const="plain",
+                       help="disable all colors")
+    p_search.set_defaults(func=_cmd_search, theme="dark")
 
     p_vol = sub.add_parser("volumes", help="list indexed volumes")
     _add_archive_args(p_vol)
