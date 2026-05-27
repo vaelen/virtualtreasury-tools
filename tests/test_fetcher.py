@@ -242,6 +242,43 @@ def test_fetch_resource_writes_volume_title_from_root_detail(tmp_path):
     assert vol["title"] == "Will of MITCHELL, CALEB, Dublin, carpenter, created 18 January 1724"
 
 
+def test_refresh_unverified_when_head_raises(tmp_path):
+    from vtextract.archive import Archive
+    archive = Archive(tmp_path)
+    hit = {"isadgID": 474234}
+    img = _item_image()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.startswith("/loris/") and request.method == "HEAD":
+            return httpx.Response(404)  # client.head -> raise_for_status raises
+        if path == "/rest/isadg-identity-statements/474234":
+            return httpx.Response(200, content=_item_json("isadg-identity-statements"))
+        if path == "/iiif/v1/474234/manifest":
+            return httpx.Response(200, content=_item_json("manifest"))
+        if path == "/iiif/v1/208925/list/197350":
+            return httpx.Response(200, content=_item_json("list"))
+        if path.startswith("/loris/"):  # GET
+            return httpx.Response(200, content=img)
+        return httpx.Response(404, text=path)
+
+    def client():
+        return Client(base_url="https://by2022-prod.adaptcentre.ie", auth_header="Basic x",
+                      user_agent="UA", transport=httpx.MockTransport(handler),
+                      delay=0.0, max_retries=0, sleep_func=lambda _s: None)
+
+    # seed the page on disk
+    fetch_resource(client(), archive, hit, search_id="s", context_pages=0)
+    img_path = tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg"
+    before = img_path.read_bytes()
+
+    outcomes = []
+    fetch_resource(client(), archive, hit, search_id="s", context_pages=0, refresh=True,
+                   on_verify=lambda o, p: outcomes.append(o))
+    assert outcomes == ["unverified"]       # HEAD raised -> unverified
+    assert img_path.read_bytes() == before  # file left untouched
+
+
 def _refresh_client(calls, *, head_len):
     """Client whose handler counts HEAD/GET on /loris/ and answers item routes.
 
@@ -288,6 +325,13 @@ def test_refresh_verifies_without_redownload_when_size_matches(tmp_path):
     fetch_resource(_refresh_client(calls, head_len=img_len), archive, hit,
                    search_id="s", context_pages=0, refresh=True)
     assert calls == {"head": 1, "get": 0}  # size matches: HEAD only, no re-download
+
+    # Test B: confirm the matching-size path reports "ok" via on_verify
+    ok_outcomes = []
+    fetch_resource(_refresh_client(calls, head_len=img_len), archive, hit,
+                   search_id="s", context_pages=0, refresh=True,
+                   on_verify=lambda o, p: ok_outcomes.append(o))
+    assert ok_outcomes == ["ok"]
 
 
 def test_refresh_redownloads_on_size_mismatch(tmp_path):
