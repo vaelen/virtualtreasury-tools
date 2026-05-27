@@ -5,11 +5,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sqlite3
 import sys
 from pathlib import Path
 
+from vtextract.config import load_config
 from vtextract.index.builder import INDEX_RELPATH, build, is_stale
 from vtextract.index.db import Fts5Unavailable, IndexDB, SchemaMismatch
 from vtextract.index.models import SearchQuery
@@ -19,8 +19,12 @@ from vtextract.progress import BuildReporter
 _FIELD_CHOICES = ("title", "description", "transcription")
 
 
-def _resolve_archive(value: str | None) -> Path:
-    return Path(value or os.environ.get("VT_ARCHIVE") or "archive")
+def _resolve_archive(args) -> Path:
+    """Archive dir: ``--archive`` if given, else the config file's ``archive``."""
+    if args.archive:
+        return Path(args.archive)
+    config = load_config(Path(args.config) if args.config else None)
+    return config.archive
 
 
 def _date_bound(value: str | None, *, upper: bool) -> str | None:
@@ -56,7 +60,7 @@ def _open_for_read(archive: Path) -> IndexDB:
 
 
 def _cmd_build(args) -> int:
-    archive = _resolve_archive(args.archive)
+    archive = _resolve_archive(args)
     if not archive.is_dir() or not (
         (archive / "items").is_dir() or (archive / "pages").is_dir()
     ):
@@ -77,7 +81,7 @@ def _cmd_build(args) -> int:
 
 
 def _cmd_search(args) -> int:
-    archive = _resolve_archive(args.archive)
+    archive = _resolve_archive(args)
     query = SearchQuery(
         text=args.query,
         fields=_parse_fields(args.in_fields),
@@ -100,7 +104,7 @@ def _cmd_search(args) -> int:
 
 
 def _cmd_volumes(args) -> int:
-    archive = _resolve_archive(args.archive)
+    archive = _resolve_archive(args)
     with _open_for_read(archive) as db:
         vols = db.volumes()
     data = [
@@ -118,7 +122,7 @@ def _cmd_volumes(args) -> int:
 
 
 def _cmd_stats(args) -> int:
-    archive = _resolve_archive(args.archive)
+    archive = _resolve_archive(args)
     with _open_for_read(archive) as db:
         counts = db.counts()
         stale = is_stale(db, archive)
@@ -162,6 +166,15 @@ def _print_results_table(results) -> None:
               f'{r.title}\t[{fields}]')
 
 
+_ARCHIVE_HELP = "archive dir (default: the config file's archive)"
+
+
+def _add_archive_args(parser: argparse.ArgumentParser) -> None:
+    """Add the shared ``--archive`` / ``--config`` options to a subparser."""
+    parser.add_argument("--archive", help=_ARCHIVE_HELP)
+    parser.add_argument("--config", help="Config file path (default ~/.vt/vt.toml).")
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vtindex",
@@ -170,13 +183,13 @@ def _build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_build = sub.add_parser("build", help="(re)build the index from the archive")
-    p_build.add_argument("--archive", help="archive dir (default: $VT_ARCHIVE or ./archive)")
+    _add_archive_args(p_build)
     p_build.add_argument("--rebuild", action="store_true", help="discard and rebuild fully")
     p_build.set_defaults(func=_cmd_build)
 
     p_search = sub.add_parser("search", help="search the index")
     p_search.add_argument("query", nargs="?", help="FTS5 keyword expression (optional)")
-    p_search.add_argument("--archive")
+    _add_archive_args(p_search)
     p_search.add_argument("--in", dest="in_fields",
                           help="comma list of: title,description,transcription (default: all)")
     p_search.add_argument("--from", dest="date_from", help="lower date bound (YEAR or ISO)")
@@ -188,12 +201,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p_search.set_defaults(func=_cmd_search)
 
     p_vol = sub.add_parser("volumes", help="list indexed volumes")
-    p_vol.add_argument("--archive")
+    _add_archive_args(p_vol)
     p_vol.add_argument("--json", action="store_true")
     p_vol.set_defaults(func=_cmd_volumes)
 
     p_stats = sub.add_parser("stats", help="show index stats and staleness")
-    p_stats.add_argument("--archive")
+    _add_archive_args(p_stats)
     p_stats.add_argument("--json", action="store_true")
     p_stats.set_defaults(func=_cmd_stats)
 

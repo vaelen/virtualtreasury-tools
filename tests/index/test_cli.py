@@ -79,12 +79,15 @@ def test_date_and_volume_filters(tmp_path, capsys):
     assert [r["isadg_id"] for r in payload] == [300]
 
 
-def test_archive_from_env(tmp_path, capsys, monkeypatch):
+def test_archive_from_config(tmp_path, capsys):
     archive = _archive(tmp_path)
-    monkeypatch.setenv("VT_ARCHIVE", str(archive))
-    assert main(["build"]) == 0
+    config = tmp_path / "vt.toml"
+    config.write_text(f'archive = "{archive}"\n')
+    assert main(["build", "--config", str(config)]) == 0
     capsys.readouterr()
-    assert main(["search", "Houston", "--in", "title", "--json"]) == 0
+    assert main(
+        ["search", "Houston", "--in", "title", "--json", "--config", str(config)]
+    ) == 0
 
 
 def test_stale_index_warns(tmp_path, capsys):

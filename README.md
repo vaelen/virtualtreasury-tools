@@ -188,7 +188,9 @@ vtindex volumes --archive ./archive
 vtindex stats   --archive ./archive
 ```
 
-The archive dir defaults to `$VT_ARCHIVE` or `./archive`. Exit codes follow the
+The archive dir defaults to the `archive` setting in `~/.vt/vt.toml` (the same
+config `vtextract` uses; override the file with `--config` or the dir with
+`--archive`). Exit codes follow the
 grep convention: `0` = at least one match, `1` = no matches, `2` = error (e.g.
 the index has not been built yet). Re-running `vtindex build` is incremental —
 it only reads files whose size/mtime changed since the last build.
