@@ -14,21 +14,13 @@ from rich.progress import (
 )
 
 
-class Reporter:
-    """Live progress + status output for the fetch loop.
+class ProgressReporter:
+    """Shared progress plumbing: a single 'overall' bar plus plain status lines.
 
-    The only module that knows about ``rich``. It renders two bars — overall
-    progress across resources and per-page progress within the current
-    resource — and prints the fetching/done/skipping/failed status lines above
-    them. When ``enabled`` is false (the default off a TTY) the live bars are
-    disabled and only the plain status lines are emitted, so piped output stays
-    clean. Used as a context manager around the loop::
-
-        with reporter:
-            ...
-        reporter.finish(completed, failed)
-
-    ``console`` and ``enabled`` are injectable for testing.
+    The only place that knows about ``rich``. When ``enabled`` is false (the
+    default off a TTY) the live bar is disabled and only the plain status lines
+    are emitted, so piped output stays clean. ``console`` and ``enabled`` are
+    injectable for testing. Used as a context manager around a loop.
     """
 
     def __init__(self, *, console: Console | None = None, enabled: bool | None = None) -> None:
@@ -44,9 +36,8 @@ class Reporter:
             disable=not self.enabled,
         )
         self._overall: int | None = None
-        self._item: int | None = None
 
-    def __enter__(self) -> "Reporter":
+    def __enter__(self):
         self.progress.__enter__()
         return self
 
@@ -57,13 +48,33 @@ class Reporter:
         # Literal output: don't let ids or exception reprs be read as markup.
         self.console.print(message, markup=False, highlight=False)
 
+    def _begin_overall(self, n: int, description: str = "overall") -> None:
+        if self._overall is None:
+            self._overall = self.progress.add_task(description, total=n)
+        else:
+            self.progress.update(self._overall, total=n)
+
+    def advance(self) -> None:
+        if self._overall is not None:
+            self.progress.advance(self._overall)
+
+
+class Reporter(ProgressReporter):
+    """Live progress + status output for the fetch loop.
+
+    Renders two bars — overall progress across resources and per-page progress
+    within the current resource — and prints fetching/done/skipping/failed
+    status lines above them.
+    """
+
+    def __init__(self, *, console: Console | None = None, enabled: bool | None = None) -> None:
+        super().__init__(console=console, enabled=enabled)
+        self._item: int | None = None
+
     def set_total(self, n: int, noun: str = "matches") -> None:
         """Announce the count and size the overall bar."""
         self._say(f"Found {n} {noun}.")
-        if self._overall is None:
-            self._overall = self.progress.add_task("overall", total=n)
-        else:
-            self.progress.update(self._overall, total=n)
+        self._begin_overall(n)
 
     def start_item(self, label) -> None:
         self._say(f"fetching {label}...")
@@ -82,19 +93,31 @@ class Reporter:
 
     def item_done(self, label) -> None:
         self._say(f"done {label}")
-        self._advance_overall()
+        self.advance()
 
     def skip(self, label) -> None:
         self._say(f"skipping {label}, already archived")
-        self._advance_overall()
+        self.advance()
 
     def fail(self, label, exc: BaseException) -> None:
         self._say(f"FAILED {label}: {exc!r}")
-        self._advance_overall()
+        self.advance()
 
     def finish(self, completed: int, failed: int) -> None:
         self._say(f"finished: {completed} archived, {failed} failed")
 
-    def _advance_overall(self) -> None:
-        if self._overall is not None:
-            self.progress.advance(self._overall)
+
+class BuildReporter(ProgressReporter):
+    """Live progress + status output for the index build loop (one bar)."""
+
+    def start(self, total: int) -> None:
+        self._say(f"Indexing {total} files.")
+        self._begin_overall(total, description="indexing")
+
+    def finish(
+        self, *, added: int, updated: int, removed: int, unchanged: int, skipped: int
+    ) -> None:
+        self._say(
+            f"indexed: {added} added, {updated} updated, {removed} removed, "
+            f"{unchanged} unchanged, {skipped} skipped"
+        )
