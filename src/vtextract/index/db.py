@@ -269,3 +269,91 @@ class IndexDB:
             key = plural.get(name, name)
             out[key] = self._conn.execute(f"SELECT COUNT(*) FROM {name}").fetchone()[0]
         return out
+
+    # --- search primitives ---
+
+    def item_fts_search(self, text: str, fields: tuple[str, ...]) -> dict[int, float]:
+        """Return {isadg_id: best bm25 score} for title/description FTS matches."""
+        cols = [f for f in fields if f in ("title", "description")]
+        if not cols:
+            return {}
+        match = "{" + " ".join(cols) + "} : " + text
+        rows = self._conn.execute(
+            "SELECT rowid, bm25(item_fts) AS score FROM item_fts "
+            "WHERE item_fts MATCH ?",
+            (match,),
+        )
+        return {r["rowid"]: r["score"] for r in rows}
+
+    def transcription_fts_search(self, text: str) -> list[tuple[str, str, float]]:
+        """Return [(root_id, page_key, score)] for transcription FTS matches."""
+        rows = self._conn.execute(
+            "SELECT tm.root_id AS root_id, tm.page_key AS page_key, "
+            "bm25(transcription_fts) AS score FROM transcription_fts "
+            "JOIN transcription_map tm ON tm.rowid = transcription_fts.rowid "
+            "WHERE transcription_fts MATCH ?",
+            (text,),
+        )
+        return [(r["root_id"], r["page_key"], r["score"]) for r in rows]
+
+    def items_for_pages(self, pages: list[tuple[str, str]]) -> dict[int, list[tuple[str, str]]]:
+        """Map matched (root_id,page_key) pages to the items that reference them."""
+        out: dict[int, list[tuple[str, str]]] = {}
+        for root_id, page_key in pages:
+            for r in self._conn.execute(
+                "SELECT isadg_id FROM item_page WHERE root_id=? AND page_key=?",
+                (root_id, page_key),
+            ):
+                out.setdefault(r["isadg_id"], []).append((root_id, page_key))
+        return out
+
+    def filter_items(
+        self,
+        ids: set[int] | None,
+        *,
+        date_type: str = "content",
+        date_from: str | None = None,
+        date_to: str | None = None,
+        volume: str | None = None,
+    ):
+        """Return item rows (as sqlite3.Row) passing the structured filters.
+
+        ids=None means 'all items'. Results are ordered by content_begin asc,
+        then isadg_id, for stable filter-only output.
+        """
+        begin_col = "content_begin" if date_type == "content" else "created_begin"
+        end_col = "content_end" if date_type == "content" else "created_end"
+        where: list[str] = []
+        params: list = []
+        if ids is not None:
+            if not ids:
+                return []
+            placeholders = ",".join("?" * len(ids))
+            where.append(f"i.isadg_id IN ({placeholders})")
+            params.extend(ids)
+        if date_to is not None:
+            where.append(f"i.{begin_col} IS NOT NULL AND i.{begin_col} <= ?")
+            params.append(date_to)
+        if date_from is not None:
+            where.append(f"i.{end_col} IS NOT NULL AND i.{end_col} >= ?")
+            params.append(date_from)
+        if volume is not None:
+            where.append(
+                "EXISTS (SELECT 1 FROM item_volume iv "
+                "WHERE iv.isadg_id = i.isadg_id AND iv.root_id = ?)"
+            )
+            params.append(volume)
+        sql = "SELECT * FROM item i"
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+        sql += " ORDER BY i.content_begin IS NULL, i.content_begin, i.isadg_id"
+        return list(self._conn.execute(sql, params))
+
+    def volumes(self):
+        """Return [(root_id, label, reference_code, item_count)] for all volumes."""
+        return list(self._conn.execute(
+            "SELECT v.root_id, v.label, v.reference_code, "
+            "(SELECT COUNT(DISTINCT iv.isadg_id) FROM item_volume iv "
+            " WHERE iv.root_id = v.root_id) AS item_count "
+            "FROM volume v ORDER BY v.root_id"
+        ))
