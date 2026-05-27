@@ -103,7 +103,7 @@ def _cmd_search(args) -> int:
                   file=sys.stderr)
         results = search(db, query)
     if args.json:
-        print(json.dumps([_result_dict(r) for r in results], indent=2))
+        print(json.dumps([_result_dict(r, archive) for r in results], indent=2))
     else:
         _print_results_table(results, theme=THEMES[args.theme], query=args.query)
     return 0 if results else 1
@@ -147,7 +147,26 @@ def _cmd_stats(args) -> int:
     return 0
 
 
-def _result_dict(r) -> dict:
+def _page_file(page_dir: Path, name: str) -> str | None:
+    """Absolute path to a page file, or None if it isn't in the archive."""
+    path = page_dir / name
+    return str(path.resolve()) if path.exists() else None
+
+
+def _page_dict(archive: Path, root_id: str, page_key: str) -> dict:
+    # Page store layout (see archive.py): image is `{page_key}`, transcription
+    # is `{page_key}.txt`, annotations/metadata is `{page_key}.json`.
+    page_dir = archive / "pages" / root_id
+    return {
+        "root_id": root_id,
+        "page_key": page_key,
+        "image": _page_file(page_dir, page_key),
+        "metadata": _page_file(page_dir, f"{page_key}.json"),
+        "transcription": _page_file(page_dir, f"{page_key}.txt"),
+    }
+
+
+def _result_dict(r, archive: Path) -> dict:
     return {
         "isadg_id": r.isadg_id,
         "title": r.title,
@@ -156,7 +175,7 @@ def _result_dict(r) -> dict:
         "content_date": r.content_date,
         "created_date": r.created_date,
         "matched_fields": r.matched_fields,
-        "matched_pages": [{"root_id": rt, "page_key": pk} for rt, pk in r.matched_pages],
+        "matched_pages": [_page_dict(archive, rt, pk) for rt, pk in r.matched_pages],
         "score": r.score,
         "path": r.path,
     }

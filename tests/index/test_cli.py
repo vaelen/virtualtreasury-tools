@@ -41,6 +41,25 @@ def test_build_then_search_json_match(tmp_path, capsys):
     assert payload[0]["matched_fields"] == ["title"]
 
 
+def test_json_matched_pages_include_file_paths(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    code = main(["search", "memorial", "--in", "transcription",
+                 "--archive", str(archive), "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 0
+    pages = payload[0]["matched_pages"]
+    assert pages, "expected a transcription match to carry matched_pages"
+    pg = next(p for p in pages if p["page_key"] == "volA_p1.jpg")
+    assert pg["root_id"] == "volA"
+    page_dir = archive / "pages" / "volA"
+    # the .txt exists in the fixture -> full path; image/metadata absent -> null
+    assert pg["transcription"] == str((page_dir / "volA_p1.jpg.txt").resolve())
+    assert pg["image"] is None
+    assert pg["metadata"] is None
+
+
 def test_search_no_match_exit_1(tmp_path, capsys):
     archive = _archive(tmp_path)
     main(["build", "--archive", str(archive)])
