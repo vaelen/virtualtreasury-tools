@@ -8,7 +8,7 @@ from pathlib import Path
 
 from vtextract.index.models import VolumeInfo
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class Fts5Unavailable(RuntimeError):
@@ -55,9 +55,9 @@ CREATE TABLE item (
     created_begin TEXT, created_end TEXT,
     path TEXT
 );
-CREATE TABLE volume (root_id TEXT PRIMARY KEY, label TEXT, reference_code TEXT);
+CREATE TABLE volume (root_id TEXT PRIMARY KEY, label TEXT, reference_code TEXT, title TEXT);
 CREATE TABLE page (
-    root_id TEXT, page_key TEXT, has_text INTEGER,
+    root_id TEXT, page_key TEXT, ordinal INTEGER, label TEXT, has_text INTEGER,
     PRIMARY KEY (root_id, page_key)
 );
 CREATE TABLE item_volume (
