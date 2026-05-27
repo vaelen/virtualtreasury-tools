@@ -199,6 +199,47 @@ def test_fetch_resource_pulls_context_pages_and_writes_volume_info(tmp_path):
     import json as _json
     vol = _json.loads((tmp_path / "pages" / "208925" / "volume.json").read_text())
     assert vol["reference_code"] == "IMC 1954/RoD/1"
+    assert vol["title"] is None  # root detail 208925 is not mocked -> graceful fallback
+    assert [p["page_key"] for p in vol["pages"]] == ["before.jpg", "IMC_1954_RoD_1_Page_253.jpg", "after.jpg"]
+    assert vol["pages"][1]["label"] == "IMC 1954/RoD/1/1737/550"
+
+
+def test_fetch_resource_writes_volume_title_from_root_detail(tmp_path):
+    from vtextract.archive import Archive
+
+    root_manifest = {
+        "label": "TNA SP 63/356",
+        "metadata": [{"label": "ReferenceCode", "value": "TNA SP 63/356"}],
+        "sequences": [{"canvases": [
+            {"@id": "https://by2022-prod.adaptcentre.ie/iiif/v1/208925/canvas/p235288",
+             "label": "IMC 1954/RoD/1/1737/550", "width": 826, "height": 1368,
+             "images": [{"resource": {"@id": "https://by2022-prod.adaptcentre.ie/loris/IMC_1954_RoD_1_Page_253.jpg/full/full/0/default.jpg"}}],
+             "otherContent": [{"@id": "https://by2022-prod.adaptcentre.ie/iiif/v1/208925/list/197350"}]},
+        ]}],
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/iiif/v1/208925/manifest":
+            return httpx.Response(200, json=root_manifest)
+        if path == "/rest/isadg-identity-statements/208925":
+            # the volume root's own descriptive title
+            return httpx.Response(200, content=_item_json("isadg-identity-statements"))
+        if path.startswith("/loris/"):
+            return httpx.Response(200, content=b"\xff\xd8img")
+        return _handler(request)
+
+    client = Client(
+        base_url="https://by2022-prod.adaptcentre.ie", auth_header="Basic x",
+        user_agent="UA", transport=httpx.MockTransport(handler),
+        delay=0.0, sleep_func=lambda _s: None,
+    )
+    archive = Archive(tmp_path)
+    fetch_resource(client, archive, {"isadgID": 474234, "displayReferenceCode": "X", "displayTitle": "Y"},
+                   search_id="s", context_pages=1)
+
+    vol = json.loads((tmp_path / "pages" / "208925" / "volume.json").read_text())
+    assert vol["title"] == "Will of MITCHELL, CALEB, Dublin, carpenter, created 18 January 1724"
 
 
 def test_fetch_resource_empty_manifest_completes_with_no_pages(tmp_path):
