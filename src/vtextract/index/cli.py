@@ -115,14 +115,15 @@ def _cmd_volumes(args) -> int:
         vols = db.volumes()
     data = [
         {"root_id": v.root_id, "label": v.label,
-         "reference_code": v.reference_code, "item_count": v.item_count}
+         "reference_code": v.reference_code, "item_count": v.item_count,
+         "title": v.title}
         for v in vols
     ]
     if args.json:
         print(json.dumps(data, indent=2))
     else:
         for d in data:
-            print(f'{d["root_id"]}\t{d["item_count"]:>4}\t{d["label"] or ""}\t'
+            print(f'{d["root_id"]}\t{d["item_count"]:>4}\t{d["title"] or d["label"] or ""}\t'
                   f'{d["reference_code"] or ""}')
     return 0
 
@@ -179,6 +180,74 @@ def _result_dict(r, archive: Path) -> dict:
         "score": r.score,
         "path": r.path,
     }
+
+
+def _page_nav_dict(archive: Path, row: dict | None) -> dict | None:
+    """Page navigation entry: file paths (_page_dict) plus ordinal and label."""
+    if row is None:
+        return None
+    d = _page_dict(archive, row["root_id"], row["page_key"])
+    d["ordinal"] = row["ordinal"]
+    d["label"] = row["label"]
+    return d
+
+
+def _cmd_page(args) -> int:
+    archive = _resolve_archive(args)
+    if "/" not in args.ref:
+        print("error: argument must be <root_id>/<page_key>", file=sys.stderr)
+        return 2
+    root_id, page_key = args.ref.split("/", 1)
+    with _open_for_read(archive) as db:
+        if is_stale(db, archive):
+            print("warning: index is stale; run `vtindex build` to refresh.",
+                  file=sys.stderr)
+        current = db.get_page(root_id, page_key)
+        if current is None:
+            if args.json:
+                print(json.dumps(None))
+            else:
+                print(f"page not found: {args.ref}")
+            return 1
+        ordinal = current["ordinal"]
+        if ordinal is None:
+            print("warning: page ordering unavailable (re-extract this volume to "
+                  "regenerate volume.json).", file=sys.stderr)
+            previous = nxt = None
+        else:
+            previous = db.page_at_ordinal(root_id, ordinal - 1)
+            nxt = db.page_at_ordinal(root_id, ordinal + 1)
+        volume = db.volume(root_id) or {"root_id": root_id, "title": None}
+    nav = {
+        "volume": {"root_id": root_id, "title": volume.get("title")},
+        "previous": _page_nav_dict(archive, previous),
+        "current": _page_nav_dict(archive, current),
+        "next": _page_nav_dict(archive, nxt),
+    }
+    if args.json:
+        print(json.dumps(nav, indent=2))
+    else:
+        _print_page_nav(nav, volume.get("title"))
+    return 0
+
+
+def _print_page_nav(nav: dict, title: str | None) -> None:
+    table = Table(show_header=True, title=title or nav["volume"]["root_id"])
+    table.add_column("Position", no_wrap=True)
+    table.add_column("Ordinal", no_wrap=True)
+    table.add_column("Label", no_wrap=True)
+    table.add_column("Image")
+    for position in ("previous", "current", "next"):
+        entry = nav[position]
+        if entry is None:
+            continue
+        table.add_row(
+            position,
+            str(entry["ordinal"]) if entry["ordinal"] is not None else "-",
+            entry["label"] or "-",
+            entry["image"] or entry["page_key"],
+        )
+    Console().print(table)
 
 
 @dataclass(frozen=True)
@@ -311,6 +380,12 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_archive_args(p_stats)
     p_stats.add_argument("--json", action="store_true")
     p_stats.set_defaults(func=_cmd_stats)
+
+    p_page = sub.add_parser("page", help="show a page's previous/next neighbours")
+    p_page.add_argument("ref", help="page reference as <root_id>/<page_key>")
+    _add_archive_args(p_page)
+    p_page.add_argument("--json", action="store_true")
+    p_page.set_defaults(func=_cmd_page)
 
     return parser
 

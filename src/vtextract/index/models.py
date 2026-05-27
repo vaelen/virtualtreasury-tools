@@ -37,10 +37,21 @@ class ItemRow:
 
 
 @dataclass
+class VolumePage:
+    """One physical page of a volume, in sequence order."""
+
+    page_key: str
+    ordinal: int
+    label: str | None = None
+
+
+@dataclass
 class VolumeRow:
     root_id: str
     label: str | None
     reference_code: str | None
+    title: str | None = None
+    pages: list[VolumePage] = field(default_factory=list)
 
 
 @dataclass
@@ -74,6 +85,7 @@ class VolumeInfo:
     label: str | None
     reference_code: str | None
     item_count: int
+    title: str | None = None
 
 
 @dataclass

@@ -244,3 +244,98 @@ def test_search_apostrophe_keyword_exit_1(tmp_path, capsys):
     out = capsys.readouterr().out
     assert code == 1
     assert json.loads(out) == []
+
+
+def test_page_json_mid_volume_has_prev_and_next(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    code = main(["page", "volA/volA_p1.jpg", "--archive", str(archive), "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert payload["current"]["page_key"] == "volA_p1.jpg"
+    assert payload["current"]["ordinal"] == 2
+    assert payload["previous"]["page_key"] == "volA_p0.jpg"
+    assert payload["next"] is None  # volA_p1 is the last page
+    assert payload["volume"]["title"] == "Registry of Deeds Transcript Book 86: memorials 1737"
+    assert payload["current"]["transcription"].endswith("volA_p1.jpg.txt")
+
+
+def test_page_json_first_page_has_no_previous(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    code = main(["page", "volA/volA_p0.jpg", "--archive", str(archive), "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert payload["previous"] is None
+    assert payload["next"]["page_key"] == "volA_p1.jpg"
+
+
+def test_page_not_found_exit_1(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    code = main(["page", "volA/nope.jpg", "--archive", str(archive), "--json"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert json.loads(out) is None
+
+
+def test_page_not_found_plain_exit_1(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    code = main(["page", "volA/nope.jpg", "--archive", str(archive)])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "page not found" in out
+
+
+def test_page_bad_ref_exit_2(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    code = main(["page", "no-slash-here", "--archive", str(archive)])
+    err = capsys.readouterr().err
+    assert code == 2
+    assert "root_id" in err
+
+
+def test_page_without_ordinal_warns_exit_0(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    from vtextract.index.builder import INDEX_RELPATH
+    import sqlite3
+    conn = sqlite3.connect(archive / INDEX_RELPATH)
+    conn.execute("UPDATE page SET ordinal=NULL WHERE root_id='volA' AND page_key='volA_p1.jpg'")
+    conn.commit()
+    conn.close()
+    code = main(["page", "volA/volA_p1.jpg", "--archive", str(archive), "--json"])
+    out = capsys.readouterr()
+    payload = json.loads(out.out)
+    assert code == 0
+    assert payload["current"]["page_key"] == "volA_p1.jpg"
+    assert payload["previous"] is None and payload["next"] is None
+    assert "ordering" in out.err.lower()
+
+
+def test_volumes_json_includes_title(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    main(["volumes", "--archive", str(archive), "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    volA = next(v for v in payload if v["root_id"] == "volA")
+    assert volA["title"] == "Registry of Deeds Transcript Book 86: memorials 1737"
+
+
+def test_page_table_output_shows_paths(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    code = main(["page", "volA/volA_p1.jpg", "--archive", str(archive)])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "volA_p0.jpg" in out and "volA_p1.jpg" in out

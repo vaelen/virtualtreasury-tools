@@ -8,7 +8,7 @@ from pathlib import Path
 
 from vtextract.index.models import VolumeInfo
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class Fts5Unavailable(RuntimeError):
@@ -55,9 +55,9 @@ CREATE TABLE item (
     created_begin TEXT, created_end TEXT,
     path TEXT
 );
-CREATE TABLE volume (root_id TEXT PRIMARY KEY, label TEXT, reference_code TEXT);
+CREATE TABLE volume (root_id TEXT PRIMARY KEY, label TEXT, reference_code TEXT, title TEXT);
 CREATE TABLE page (
-    root_id TEXT, page_key TEXT, has_text INTEGER,
+    root_id TEXT, page_key TEXT, ordinal INTEGER, label TEXT, has_text INTEGER,
     PRIMARY KEY (root_id, page_key)
 );
 CREATE TABLE item_volume (
@@ -212,10 +212,29 @@ class IndexDB:
     def upsert_volume(self, volume, *, fingerprint: tuple[str, float, int]) -> None:
         path, mtime, size = fingerprint
         self._conn.execute(
-            "INSERT INTO volume (root_id, label, reference_code) VALUES (?, ?, ?) "
+            "INSERT INTO volume (root_id, label, reference_code, title) VALUES (?, ?, ?, ?) "
             "ON CONFLICT(root_id) DO UPDATE SET label=excluded.label, "
-            "reference_code=excluded.reference_code",
-            (volume.root_id, volume.label, volume.reference_code),
+            "reference_code=excluded.reference_code, title=excluded.title",
+            (volume.root_id, volume.label, volume.reference_code, volume.title),
+        )
+        # The volume page list is authoritative for page existence + ordinal + label.
+        # Clear this volume's ordinals, (re)assign from the list, then prune
+        # volume-only rows (has_text=0) no longer listed. Transcription-backed rows
+        # survive with their ordering cleared if dropped from the list.
+        self._conn.execute(
+            "UPDATE page SET ordinal=NULL, label=NULL WHERE root_id=?", (volume.root_id,)
+        )
+        for page in volume.pages:
+            self._conn.execute(
+                "INSERT INTO page (root_id, page_key, ordinal, label, has_text) "
+                "VALUES (?, ?, ?, ?, 0) "
+                "ON CONFLICT(root_id, page_key) DO UPDATE SET "
+                "ordinal=excluded.ordinal, label=excluded.label",
+                (volume.root_id, page.page_key, page.ordinal, page.label),
+            )
+        self._conn.execute(
+            "DELETE FROM page WHERE root_id=? AND ordinal IS NULL AND has_text=0",
+            (volume.root_id,),
         )
         self._set_fingerprint(path, "volume", mtime, size)
 
@@ -227,7 +246,8 @@ class IndexDB:
         path, mtime, size = fingerprint
         self._delete_page_fts(root_id, page_key)
         self._conn.execute(
-            "INSERT OR REPLACE INTO page (root_id, page_key, has_text) VALUES (?, ?, 1)",
+            "INSERT INTO page (root_id, page_key, has_text) VALUES (?, ?, 1) "
+            "ON CONFLICT(root_id, page_key) DO UPDATE SET has_text=1",
             (root_id, page_key),
         )
         cur = self._conn.execute("INSERT INTO transcription_fts (text) VALUES (?)", (text,))
@@ -238,6 +258,10 @@ class IndexDB:
         self._set_fingerprint(path, "transcription", mtime, size)
 
     def _delete_page_fts(self, root_id: str, page_key: str) -> None:
+        """Remove FTS data for a page (transcription_fts + transcription_map).
+
+        Does NOT touch the page row itself — callers are responsible for that.
+        """
         rows = list(self._conn.execute(
             "SELECT rowid FROM transcription_map WHERE root_id=? AND page_key=?",
             (root_id, page_key),
@@ -245,9 +269,6 @@ class IndexDB:
         for r in rows:
             self._conn.execute("DELETE FROM transcription_fts WHERE rowid=?", (r["rowid"],))
             self._conn.execute("DELETE FROM transcription_map WHERE rowid=?", (r["rowid"],))
-        self._conn.execute(
-            "DELETE FROM page WHERE root_id=? AND page_key=?", (root_id, page_key)
-        )
 
     # --- generic source deletion (used by build prune) ---
 
@@ -267,9 +288,26 @@ class IndexDB:
             root_id = parts[1]
             page_key = parts[2][: -len(".txt")]
             self._delete_page_fts(root_id, page_key)
+            # Remove the page row only if it has no volume ordering (no volume indexed it).
+            # If a volume owns the row, clearing has_text is sufficient.
+            self._conn.execute(
+                "DELETE FROM page WHERE root_id=? AND page_key=? AND ordinal IS NULL",
+                (root_id, page_key),
+            )
+            self._conn.execute(
+                "UPDATE page SET has_text=0 WHERE root_id=? AND page_key=? AND ordinal IS NOT NULL",
+                (root_id, page_key),
+            )
         elif kind == "volume":
             root_id = path.split("/")[1]
             self._conn.execute("DELETE FROM volume WHERE root_id=?", (root_id,))
+            self._conn.execute(
+                "UPDATE page SET ordinal=NULL, label=NULL WHERE root_id=?", (root_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM page WHERE root_id=? AND ordinal IS NULL AND has_text=0",
+                (root_id,),
+            )
         self._conn.execute("DELETE FROM source_file WHERE path=?", (path,))
 
     # --- counts ---
@@ -373,7 +411,7 @@ class IndexDB:
     def volumes(self) -> list[VolumeInfo]:
         """Return VolumeInfo for all volumes, ordered by root_id."""
         rows = self._conn.execute(
-            "SELECT v.root_id, v.label, v.reference_code, "
+            "SELECT v.root_id, v.label, v.reference_code, v.title, "
             "(SELECT COUNT(DISTINCT iv.isadg_id) FROM item_volume iv "
             " WHERE iv.root_id = v.root_id) AS item_count "
             "FROM volume v ORDER BY v.root_id"
@@ -382,6 +420,35 @@ class IndexDB:
             VolumeInfo(
                 root_id=r["root_id"], label=r["label"],
                 reference_code=r["reference_code"], item_count=r["item_count"],
+                title=r["title"],
             )
             for r in rows
         ]
+
+    def volume(self, root_id: str) -> dict | None:
+        """Return one volume row as a dict, or None."""
+        row = self._conn.execute(
+            "SELECT root_id, label, reference_code, title FROM volume WHERE root_id=?",
+            (root_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def get_page(self, root_id: str, page_key: str) -> dict | None:
+        """Return one page row (root_id, page_key, ordinal, label, has_text) or None."""
+        row = self._conn.execute(
+            "SELECT root_id, page_key, ordinal, label, has_text FROM page "
+            "WHERE root_id=? AND page_key=?",
+            (root_id, page_key),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def page_at_ordinal(self, root_id: str, ordinal: int | None) -> dict | None:
+        """Return the page at a given 1-based ordinal in a volume, or None."""
+        if ordinal is None:
+            return None
+        row = self._conn.execute(
+            "SELECT root_id, page_key, ordinal, label, has_text FROM page "
+            "WHERE root_id=? AND ordinal=?",
+            (root_id, ordinal),
+        ).fetchone()
+        return dict(row) if row else None

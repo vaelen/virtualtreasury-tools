@@ -70,6 +70,19 @@ def test_read_volume():
     assert vol.root_id == "volA"
     assert vol.label == "Registry of Deeds Transcript Book 86"
     assert vol.reference_code == "IMC 1954/RoD/1/86"
+    assert vol.title == "Registry of Deeds Transcript Book 86: memorials 1737"
+    assert [(p.page_key, p.ordinal, p.label) for p in vol.pages] == [
+        ("volA_p0.jpg", 1, "p0"),
+        ("volA_p1.jpg", 2, "p1"),
+    ]
+
+
+def test_read_volume_without_pages_yields_empty_list(tmp_path):
+    path = tmp_path / "volume.json"
+    path.write_text('{"label": "L", "reference_code": "R"}')
+    vol = read_volume(path, root_id="volX")
+    assert vol.title is None
+    assert vol.pages == []
 
 
 def test_read_transcription_reads_text():

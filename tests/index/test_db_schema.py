@@ -50,3 +50,12 @@ def test_rebuild_drops_and_recreates(tmp_path):
     with IndexDB(db_path, rebuild=True) as db:
         assert db.get_meta("probe") is None
         assert db.get_meta("schema_version") == str(SCHEMA_VERSION)
+
+
+def test_page_and_volume_tables_have_new_columns(tmp_path):
+    from vtextract.index.db import IndexDB
+    with IndexDB(tmp_path / "index" / "vtindex.sqlite3") as db:
+        page_cols = {r[1] for r in db._conn.execute("PRAGMA table_info(page)")}
+        assert {"ordinal", "label"} <= page_cols
+        vol_cols = {r[1] for r in db._conn.execute("PRAGMA table_info(volume)")}
+        assert "title" in vol_cols

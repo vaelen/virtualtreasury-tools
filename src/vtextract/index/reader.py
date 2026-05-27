@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from vtextract.index.models import ItemRow, PageLink, VolumeRow
+from vtextract.index.models import ItemRow, PageLink, VolumePage, VolumeRow
 
 # Description is composed from these searchHit fields, in this order. Each is a
 # list of strings on the search hit (may be empty or absent).
@@ -67,10 +67,16 @@ def read_item(meta_path: Path) -> ItemRow:
 
 def read_volume(volume_path: Path, *, root_id: str) -> VolumeRow:
     data = json.loads(Path(volume_path).read_text())
+    pages = [
+        VolumePage(page_key=p["page_key"], ordinal=i, label=p.get("label"))
+        for i, p in enumerate(data.get("pages") or [], start=1)
+    ]
     return VolumeRow(
         root_id=root_id,
         label=data.get("label"),
         reference_code=data.get("reference_code"),
+        title=data.get("title"),
+        pages=pages,
     )
 
 

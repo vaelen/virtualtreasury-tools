@@ -36,7 +36,9 @@ each invocation, so prefer it over activating the venv manually.
   URL; see `docs/search-query.md`). `get <refcodes/ids...>` pulls known resources
   directly (reference codes normalise ` `/`/` → `-`), reusing the same fetch flow.
 - **Index CLI:** `.venv/bin/vtindex build --archive ./archive` then
-  `.venv/bin/vtindex search "<keyword>" --archive ./archive [--json]`.
+  `.venv/bin/vtindex search "<keyword>" --archive ./archive [--json]`, or
+  `.venv/bin/vtindex page <rootID>/<page_key> --archive ./archive` for
+  previous/next page navigation within a volume.
 - **Credentials** come only from the config file `~/.vt/vt.toml`
   (`[extract.auth].token`), written by `vtextract auth`. There are no `VT_*`
   env vars. Never hardcode the credential in source or tests; tests pass a

@@ -10,6 +10,7 @@ from vtextract.archive import Archive
 from vtextract.client import Client
 from vtextract.models import Page, PageRef, Record
 from vtextract.schema import (
+    detail_title,
     neighbor_canvases,
     normalize_record,
     normalize_reference_code,
@@ -95,13 +96,23 @@ def fetch_resource(
         raise
 
 
+def _volume_title(client: Client, root_id: str) -> str | None:
+    """Best-effort descriptive title for the volume root; None if unavailable."""
+    try:
+        detail = client.get_json(f"{IDENTITY_STATEMENT_PATH}{root_id}")
+    except Exception:  # noqa: BLE001 - title is optional; never block the volume record
+        return None
+    return detail_title(detail) or None
+
+
 def _context_for(client: Client, cache: dict, archive: Archive, page: Page, context_pages: int) -> list[Page]:
     if context_pages <= 0:
         return []
     if page.root_id not in cache:
         root_manifest = client.get_json(f"/iiif/v1/{page.root_id}/manifest")
         cache[page.root_id] = root_manifest
-        archive.write_volume_info(page.root_id, volume_info(root_manifest))
+        title = _volume_title(client, page.root_id)
+        archive.write_volume_info(page.root_id, volume_info(root_manifest, title=title))
     return neighbor_canvases(cache[page.root_id], page.canvas_id, context_pages)
 
 

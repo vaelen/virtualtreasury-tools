@@ -186,6 +186,9 @@ vtindex search "deed" --in title,transcription \
 # discover volume ids/labels, or inspect the index
 vtindex volumes --archive ./archive
 vtindex stats   --archive ./archive
+
+# show a page's previous / current / next neighbours in its volume
+vtindex page <root_id>/<page_key> --archive ./archive [--json]
 ```
 
 The archive dir defaults to the `archive` setting in `~/.vt/vt.toml` (the same
@@ -194,6 +197,12 @@ config `vtextract` uses; override the file with `--config` or the dir with
 grep convention: `0` = at least one match, `1` = no matches, `2` = error (e.g.
 the index has not been built yet). Re-running `vtindex build` is incremental —
 it only reads files whose size/mtime changed since the last build.
+
+- `vtindex page <root_id>/<page_key>` — show a page's previous / current / next
+  neighbours in its volume, with resolved file paths (`--json` for structured
+  output). Page ordering comes from the volume's `volume.json`, which is written
+  during extraction with `--context-pages >= 1`; re-extract an existing archive
+  to populate ordering for older volumes.
 
 ## Tests
 

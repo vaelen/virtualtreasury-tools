@@ -101,7 +101,12 @@ def test_neighbor_canvases_unknown_canvas_returns_empty():
     assert pages == []
 
 
-from vtextract.schema import normalize_record, normalize_reference_code, volume_info
+from vtextract.schema import (
+    detail_title,
+    normalize_record,
+    normalize_reference_code,
+    volume_info,
+)
 
 
 @pytest.mark.parametrize(
@@ -138,3 +143,40 @@ def test_volume_info_from_real_manifest():
     info = volume_info(manifest)
     assert info["label"] == "Will of MITCHELL, CALEB, Dublin, carpenter, created 18 January 1724"
     assert info["reference_code"] == "IMC 1954/RoD/1/1737/550"
+
+
+def test_detail_title_from_real_detail():
+    detail = load_example_json("item", "isadg-identity-statements")
+    assert detail_title(detail) == "Will of MITCHELL, CALEB, Dublin, carpenter, created 18 January 1724"
+
+
+def test_detail_title_empty_when_absent():
+    assert detail_title({"id": 1}) == ""
+
+
+def test_volume_info_includes_ordered_pages():
+    manifest = load_example_json("item", "manifest")
+    info = volume_info(manifest)
+    assert info["pages"] == [
+        {
+            "page_key": "IMC_1954_RoD_1_Page_253.jpg",
+            "label": "IMC 1954/RoD/1/1737/550",
+            "canvas_id": "https://by2022-prod.adaptcentre.ie/iiif/v1/208925/canvas/p235288",
+        }
+    ]
+
+
+def test_volume_info_title_defaults_none_and_passes_through():
+    manifest = load_example_json("item", "manifest")
+    assert volume_info(manifest)["title"] is None
+    assert volume_info(manifest, title="A Volume")["title"] == "A Volume"
+
+
+def test_volume_info_skips_canvas_without_image():
+    manifest = {"sequences": [{"canvases": [
+        {"@id": "https://api/iiif/v1/9/canvas/p1", "label": "ok",
+         "images": [{"resource": {"@id": "https://api/loris/a.jpg/full/full/0/default.jpg"}}]},
+        {"@id": "https://api/iiif/v1/9/canvas/p2", "label": "no image", "images": []},
+    ]}]}
+    keys = [p["page_key"] for p in volume_info(manifest)["pages"]]
+    assert keys == ["a.jpg"]
