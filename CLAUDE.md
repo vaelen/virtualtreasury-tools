@@ -35,6 +35,9 @@ each invocation, so prefer it over activating the venv manually.
   (subcommands: `search`, `get`, and `auth`; searches are built from flags, not a
   URL; see `docs/search-query.md`). `get <refcodes/ids...>` pulls known resources
   directly (reference codes normalise ` `/`/` → `-`), reusing the same fetch flow.
+  A `refresh` command (and `--refresh` on `search`/`get`) re-fetches metadata for
+  already-archived resources and HEAD-verifies image sizes against disk,
+  re-downloading mismatches; the full-archive `refresh` confirms first (`-y` to skip).
 - **Index CLI:** `.venv/bin/vtindex build --archive ./archive` then
   `.venv/bin/vtindex search "<keyword>" --archive ./archive [--json]`, or
   `.venv/bin/vtindex page <rootID>/<page_key> --archive ./archive` for

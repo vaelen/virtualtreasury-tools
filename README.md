@@ -119,6 +119,23 @@ drop the `uv run` prefix and call `vtextract …` directly from anywhere.
 Re-running the same (or an overlapping) search resumes: completed resources and
 already-downloaded pages are skipped.
 
+### Refreshing already-archived resources
+
+`refresh` re-fetches each item's metadata (detail, manifest, `volume.json`) and
+issues a `HEAD` for every referenced image, comparing the server's
+`Content-Length` to the file on disk. Mismatched or missing images are
+re-downloaded; images whose size cannot be verified are reported as
+"unverified". The full-archive `refresh` asks for confirmation first (use
+`-y/--yes` to skip); `--refresh` on `search`/`get` does the same for just those
+resources.
+
+```bash
+# re-fetch metadata + verify image sizes for already-archived resources
+vtextract search --refresh houston            # scoped to search results
+vtextract get --refresh TNA-SP-63-356         # scoped to given resources
+vtextract refresh                             # the whole archive (asks to confirm; -y to skip)
+```
+
 ### Fetching specific resources
 
 When you already know which resources you want, the `get` subcommand takes a
