@@ -8,44 +8,59 @@ from pathlib import Path
 
 from vtextract.index.models import ItemRow, PageLink, VolumePage, VolumeRow
 
-# Description is composed from these searchHit fields, in this order. Each is a
-# list of strings on the search hit (may be empty or absent).
+# Description is composed from these free-text fields, in this order. Each entry
+# is (detail array key, field on each array element); the identity-statement
+# detail groups them into separate sub-resource lists, any of which may be
+# empty or absent.
 _DESCRIPTION_FIELDS = (
-    "scopeAndContent",
-    "archivalHistory",
-    "archivistsNote",
-    "administrativeOrBiographicalHistory",
-    "note",
+    ("isadgContentAndStructure", "scopeAndContent"),
+    ("isadgContexts", "archivalHistory"),
+    ("isadgDescriptionControls", "archivistsNote"),
+    ("isadgContexts", "administrativeOrBiographicalHistory"),
+    ("isadgNotes", "note"),
 )
 
+# eventType.name on an isadgDates entry, per date kind.
+_DATE_EVENT_NAME = {"content": "Content Date", "created": "Created"}
 
-def compose_description(search_hit: dict) -> str:
-    """Join the free-text description fields into one newline-separated blob."""
+
+def compose_description(detail: dict) -> str:
+    """Join the free-text description fields from a detail object into one blob."""
     parts: list[str] = []
-    for field in _DESCRIPTION_FIELDS:
-        for value in search_hit.get(field) or []:
+    for array_key, field in _DESCRIPTION_FIELDS:
+        for entry in detail.get(array_key) or []:
+            value = entry.get(field)
             if value:
                 parts.append(str(value))
     return "\n".join(parts)
 
 
-def date_bounds(search_hit: dict, kind: str) -> tuple[str | None, str | None]:
-    """Return (begin, end) ISO dates for kind in {"content", "created"}."""
-    key = "contentDate" if kind == "content" else "createdDate"
-    span = search_hit.get(key) or {}
-    return span.get("gte"), span.get("lte")
+def date_bounds(detail: dict, kind: str) -> tuple[str | None, str | None]:
+    """Return (begin, end) ISO dates for kind in {"content", "created"}.
+
+    Dates live in detail["isadgDates"], one entry per event keyed by
+    eventType.name. The outer span of the timespan (beginOfBegin .. endOfEnd)
+    is the inclusive range, so a single-day POINT collapses to (d, d) and a
+    PERIOD spans the whole interval.
+    """
+    target = _DATE_EVENT_NAME[kind]
+    for entry in detail.get("isadgDates") or []:
+        if (entry.get("eventType") or {}).get("name") == target:
+            span = entry.get("timespan") or {}
+            return span.get("beginOfBegin"), span.get("endOfEnd")
+    return None, None
 
 
 def read_item(meta_path: Path) -> ItemRow:
     """Parse an items/<id>/metadata.json into an ItemRow."""
     data = json.loads(Path(meta_path).read_text())
-    hit = data.get("searchHit") or {}
+    detail = data.get("detail") or {}
     pages = [
         PageLink(root_id=str(p["root_id"]), page_key=p["page_key"], role=p.get("role", "primary"))
         for p in data.get("pages") or []
     ]
-    content_begin, content_end = date_bounds(hit, "content")
-    created_begin, created_end = date_bounds(hit, "created")
+    content_begin, content_end = date_bounds(detail, "content")
+    created_begin, created_end = date_bounds(detail, "created")
     volumes: list[str] = []
     for p in pages:
         if p.root_id not in volumes:
@@ -53,9 +68,9 @@ def read_item(meta_path: Path) -> ItemRow:
     return ItemRow(
         isadg_id=int(data["isadgID"]),
         reference_code=data.get("referenceCode") or "",
-        title=data.get("title") or hit.get("displayTitle") or "",
-        description=compose_description(hit),
-        repository=hit.get("documentRepositoryName"),
+        title=data.get("title") or (detail.get("preferredTitle") or {}).get("title") or "",
+        description=compose_description(detail),
+        repository=(detail.get("documentRepository") or {}).get("name"),
         content_begin=content_begin,
         content_end=content_end,
         created_begin=created_begin,

@@ -46,23 +46,41 @@ def test_read_item_missing_created_date_is_none():
     assert row.content_begin == "1689-01-01" and row.content_end == "1689-12-31"
 
 
-def test_date_bounds_content_and_created():
-    hit = {
-        "contentDate": {"gte": "1737-05-06", "lte": "1737-05-06"},
-        "createdDate": {"gte": "1737-01-18", "lte": "1737-01-18"},
+def test_date_bounds_reads_isadg_dates_by_event_type():
+    detail = {
+        "isadgDates": [
+            {"eventType": {"name": "Created"},
+             "timespan": {"beginOfBegin": "1737-01-18", "endOfEnd": "1737-01-18"}},
+            {"eventType": {"name": "Content Date"},
+             "timespan": {"beginOfBegin": "1737-05-06", "endOfEnd": "1737-05-06"}},
+        ]
     }
-    assert date_bounds(hit, "content") == ("1737-05-06", "1737-05-06")
-    assert date_bounds(hit, "created") == ("1737-01-18", "1737-01-18")
+    assert date_bounds(detail, "content") == ("1737-05-06", "1737-05-06")
+    assert date_bounds(detail, "created") == ("1737-01-18", "1737-01-18")
     assert date_bounds({}, "content") == (None, None)
 
 
-def test_compose_description_skips_empty_lists():
-    hit = {
-        "scopeAndContent": ["A.", "B."],
-        "archivalHistory": [],
-        "note": ["C."],
+def test_date_bounds_uses_outer_span_for_ranges():
+    # A PERIOD timespan: begin bound is beginOfBegin, end bound is endOfEnd.
+    detail = {
+        "isadgDates": [
+            {"eventType": {"name": "Content Date"},
+             "timespan": {"beginOfBegin": "1689-01-01", "endOfBegin": "1689-01-01",
+                          "beginOfEnd": "1689-12-31", "endOfEnd": "1689-12-31"}},
+        ]
     }
-    assert compose_description(hit) == "A.\nB.\nC."
+    assert date_bounds(detail, "content") == ("1689-01-01", "1689-12-31")
+    assert date_bounds(detail, "created") == (None, None)
+
+
+def test_compose_description_joins_detail_fields_in_order():
+    detail = {
+        "isadgContentAndStructure": [{"scopeAndContent": "A."}],
+        "isadgContexts": [{"archivalHistory": "B.", "administrativeOrBiographicalHistory": None}],
+        "isadgDescriptionControls": [{"archivistsNote": None}],
+        "isadgNotes": [{"note": "C."}],
+    }
+    assert compose_description(detail) == "A.\nB.\nC."
 
 
 def test_read_volume():

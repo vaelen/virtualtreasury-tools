@@ -8,14 +8,28 @@
     {"page_key": "volB_p5.jpg", "root_id": "volB", "role": "primary",
      "path": "pages/volB/volB_p5.jpg", "canvas_label": "p5"}
   ],
-  "searchHit": {
-    "documentRepositoryName": "Public Record Office of Northern Ireland",
-    "displayTitle": "Deed of MITCHELL, ROSE, Cork, spinster, created 1751",
-    "contentDate": {"gte": "1751-03-01", "lte": "1751-03-01"},
-    "createdDate": {"gte": "1751-02-01", "lte": "1751-02-01"},
-    "scopeAndContent": ["A deed concerning land near Cork."],
-    "archivalHistory": [], "archivistsNote": ["Curated 2025."],
-    "administrativeOrBiographicalHistory": [], "note": []
-  },
-  "detail": null
+  "detail": {
+    "id": 200,
+    "preferredReferenceCode": {"referenceCode": "FIX 1/A/2"},
+    "preferredTitle": {"title": "Deed of MITCHELL, ROSE, Cork, spinster, created 1751"},
+    "documentRepository": {"name": "Public Record Office of Northern Ireland"},
+    "isadgContentAndStructure": [
+      {"scopeAndContent": "A deed concerning land near Cork.", "accruals": null}
+    ],
+    "isadgContexts": [
+      {"archivalHistory": null, "administrativeOrBiographicalHistory": null}
+    ],
+    "isadgDescriptionControls": [{"archivistsNote": "Curated 2025."}],
+    "isadgNotes": [],
+    "isadgDates": [
+      {"type": "POINT", "eventType": {"id": 3, "name": "Created"},
+       "timespan": {"beginOfBegin": "1751-02-01", "endOfBegin": "1751-02-01",
+                    "beginOfEnd": "1751-02-01", "endOfEnd": "1751-02-01",
+                    "simpleTimespan": {"type": "YEAR_MONTH_DAY", "simpleDate": "1751-02-01"}}},
+      {"type": "POINT", "eventType": {"id": 4, "name": "Content Date"},
+       "timespan": {"beginOfBegin": "1751-03-01", "endOfBegin": "1751-03-01",
+                    "beginOfEnd": "1751-03-01", "endOfEnd": "1751-03-01",
+                    "simpleTimespan": {"type": "YEAR_MONTH_DAY", "simpleDate": "1751-03-01"}}}
+    ]
+  }
 }

@@ -8,14 +8,29 @@
     {"page_key": "volA_p0.jpg", "root_id": "volA", "role": "context",
      "path": "pages/volA/volA_p0.jpg", "canvas_label": "p0"}
   ],
-  "searchHit": {
-    "documentRepositoryName": "Registry of Deeds",
-    "displayTitle": "Will of HOUSTON, JOHN, Dublin, merchant, created 1737",
-    "contentDate": {"gte": "1737-05-06", "lte": "1737-05-06"},
-    "createdDate": {"gte": "1737-01-18", "lte": "1737-01-18"},
-    "scopeAndContent": ["Mentions a seal and a memorial in Dublin."],
-    "archivalHistory": ["Abstract of a will from the Registry of Deeds."],
-    "archivistsNote": [], "administrativeOrBiographicalHistory": [], "note": []
-  },
-  "detail": null
+  "detail": {
+    "id": 100,
+    "preferredReferenceCode": {"referenceCode": "FIX 1/A/1"},
+    "preferredTitle": {"title": "Will of HOUSTON, JOHN, Dublin, merchant, created 1737"},
+    "documentRepository": {"name": "Registry of Deeds"},
+    "isadgContentAndStructure": [
+      {"scopeAndContent": "Mentions a seal and a memorial in Dublin.", "accruals": null}
+    ],
+    "isadgContexts": [
+      {"archivalHistory": "Abstract of a will from the Registry of Deeds.",
+       "administrativeOrBiographicalHistory": null}
+    ],
+    "isadgDescriptionControls": [{"archivistsNote": null}],
+    "isadgNotes": [],
+    "isadgDates": [
+      {"type": "POINT", "eventType": {"id": 3, "name": "Created"},
+       "timespan": {"beginOfBegin": "1737-01-18", "endOfBegin": "1737-01-18",
+                    "beginOfEnd": "1737-01-18", "endOfEnd": "1737-01-18",
+                    "simpleTimespan": {"type": "YEAR_MONTH_DAY", "simpleDate": "1737-01-18"}}},
+      {"type": "POINT", "eventType": {"id": 4, "name": "Content Date"},
+       "timespan": {"beginOfBegin": "1737-05-06", "endOfBegin": "1737-05-06",
+                    "beginOfEnd": "1737-05-06", "endOfEnd": "1737-05-06",
+                    "simpleTimespan": {"type": "YEAR_MONTH_DAY", "simpleDate": "1737-05-06"}}}
+    ]
+  }
 }
