@@ -9,8 +9,14 @@ from pathlib import Path
 from rich.console import Console
 from rich.text import Text
 
-from vtextract.index.cli import THEMES, _build_results_table, _highlight_title, main
-from vtextract.index.models import SearchResult
+from vtextract.index.cli import (
+    THEMES,
+    _build_results_table,
+    _build_volumes_table,
+    _highlight_title,
+    main,
+)
+from vtextract.index.models import SearchResult, VolumeInfo
 
 FIXTURE = Path(__file__).resolve().parent.parent / "fixtures" / "archive"
 
@@ -339,3 +345,65 @@ def test_page_table_output_shows_paths(tmp_path, capsys):
     out = capsys.readouterr().out
     assert code == 0
     assert "volA_p0.jpg" in out and "volA_p1.jpg" in out
+
+
+def test_page_no_ref_prints_help_exit_2(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    code = main(["page", "--archive", str(archive)])
+    err = capsys.readouterr().err
+    assert code == 2
+    assert "usage: vtindex page" in err
+    assert "root_id" in err
+
+
+def _sample_volume(root_id: str = "volA") -> VolumeInfo:
+    return VolumeInfo(
+        root_id=root_id, label="Book 86", reference_code="FIX 1/A",
+        item_count=2, title="Registry of Deeds Transcript Book 86",
+    )
+
+
+def test_volumes_table_prints_header(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    code = main(["volumes", "--archive", str(archive)])
+    out = capsys.readouterr().out
+    assert code == 0
+    for header in ("Root ID", "Items", "Title", "Reference"):
+        assert header in out
+    assert "volA" in out
+
+
+def test_volumes_bw_theme_has_no_zebra_striping():
+    table = _build_volumes_table([_sample_volume()], theme=THEMES["bw"])
+    assert table.row_styles == []
+
+
+def test_volumes_dark_theme_renders_ansi_color():
+    table = _build_volumes_table([_sample_volume()], theme=THEMES["dark"])
+    buf = io.StringIO()
+    Console(file=buf, force_terminal=True, width=120, color_system="standard").print(table)
+    assert "\x1b[" in buf.getvalue()
+
+
+def test_volumes_theme_flags_accepted(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    for flag in ("--dark", "--light", "--bw", "--plain"):
+        capsys.readouterr()
+        code = main(["volumes", flag, "--archive", str(archive)])
+        assert code == 0
+        assert "volA" in capsys.readouterr().out
+
+
+def test_page_theme_flags_accepted(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    for flag in ("--dark", "--light", "--bw", "--plain"):
+        capsys.readouterr()
+        code = main(["page", "volA/volA_p1.jpg", flag, "--archive", str(archive)])
+        assert code == 0
+        assert "volA_p1.jpg" in capsys.readouterr().out

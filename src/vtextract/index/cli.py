@@ -122,10 +122,37 @@ def _cmd_volumes(args) -> int:
     if args.json:
         print(json.dumps(data, indent=2))
     else:
-        for d in data:
-            print(f'{d["root_id"]}\t{d["item_count"]:>4}\t{d["title"] or d["label"] or ""}\t'
-                  f'{d["reference_code"] or ""}')
+        _print_volumes_table(vols, theme=THEMES[args.theme])
     return 0
+
+
+def _build_volumes_table(vols, *, theme: Theme) -> Table:
+    table = Table(
+        show_header=True,
+        header_style=theme.header_style,
+        border_style=theme.border_style,
+        row_styles=list(theme.row_styles),
+    )
+    table.add_column("Root ID", no_wrap=True)
+    table.add_column("Items", no_wrap=True, justify="right")
+    table.add_column("Title")
+    table.add_column("Reference", no_wrap=True)
+    for v in vols:
+        table.add_row(
+            v.root_id,
+            str(v.item_count),
+            v.title or v.label or "-",
+            v.reference_code or "-",
+        )
+    return table
+
+
+def _print_volumes_table(vols, *, theme: Theme) -> None:
+    if not vols:
+        print("no volumes")
+        return
+    table = _build_volumes_table(vols, theme=theme)
+    Console(no_color=theme.no_color).print(table)
 
 
 def _cmd_stats(args) -> int:
@@ -193,6 +220,9 @@ def _page_nav_dict(archive: Path, row: dict | None) -> dict | None:
 
 
 def _cmd_page(args) -> int:
+    if not args.ref:
+        args.parser.print_help(sys.stderr)
+        return 2
     archive = _resolve_archive(args)
     if "/" not in args.ref:
         print("error: argument must be <root_id>/<page_key>", file=sys.stderr)
@@ -227,12 +257,18 @@ def _cmd_page(args) -> int:
     if args.json:
         print(json.dumps(nav, indent=2))
     else:
-        _print_page_nav(nav, volume.get("title"))
+        _print_page_nav(nav, volume.get("title"), theme=THEMES[args.theme])
     return 0
 
 
-def _print_page_nav(nav: dict, title: str | None) -> None:
-    table = Table(show_header=True, title=title or nav["volume"]["root_id"])
+def _print_page_nav(nav: dict, title: str | None, *, theme: Theme) -> None:
+    table = Table(
+        show_header=True,
+        title=title or nav["volume"]["root_id"],
+        header_style=theme.header_style,
+        border_style=theme.border_style,
+        row_styles=list(theme.row_styles),
+    )
     table.add_column("Position", no_wrap=True)
     table.add_column("Ordinal", no_wrap=True)
     table.add_column("Label", no_wrap=True)
@@ -247,7 +283,7 @@ def _print_page_nav(nav: dict, title: str | None) -> None:
             entry["label"] or "-",
             entry["image"] or entry["page_key"],
         )
-    Console().print(table)
+    Console(no_color=theme.no_color).print(table)
 
 
 @dataclass(frozen=True)
@@ -337,6 +373,21 @@ def _add_archive_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", help="Config file path (default ~/.vt/vt.toml).")
 
 
+def _add_theme_args(parser: argparse.ArgumentParser) -> None:
+    """Add the shared ``--dark``/``--light``/``--bw``/``--plain`` color-scheme
+    flags (mutually exclusive) to a subparser; ``--dark`` is the default."""
+    theme = parser.add_mutually_exclusive_group()
+    theme.add_argument("--dark", dest="theme", action="store_const", const="dark",
+                       help="dark-mode color scheme (default)")
+    theme.add_argument("--light", dest="theme", action="store_const", const="light",
+                       help="light-mode color scheme")
+    theme.add_argument("--bw", dest="theme", action="store_const", const="bw",
+                       help="neutral black-and-white scheme (no color fills)")
+    theme.add_argument("--plain", dest="theme", action="store_const", const="plain",
+                       help="disable all colors")
+    parser.set_defaults(theme="dark")
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vtindex",
@@ -360,20 +411,13 @@ def _build_parser() -> argparse.ArgumentParser:
     p_search.add_argument("--volume", help="restrict to items referencing this volume root id")
     p_search.add_argument("--limit", type=int, default=50)
     p_search.add_argument("--json", action="store_true")
-    theme = p_search.add_mutually_exclusive_group()
-    theme.add_argument("--dark", dest="theme", action="store_const", const="dark",
-                       help="dark-mode color scheme (default)")
-    theme.add_argument("--light", dest="theme", action="store_const", const="light",
-                       help="light-mode color scheme")
-    theme.add_argument("--bw", dest="theme", action="store_const", const="bw",
-                       help="neutral black-and-white scheme (no color fills)")
-    theme.add_argument("--plain", dest="theme", action="store_const", const="plain",
-                       help="disable all colors")
-    p_search.set_defaults(func=_cmd_search, theme="dark")
+    _add_theme_args(p_search)
+    p_search.set_defaults(func=_cmd_search)
 
     p_vol = sub.add_parser("volumes", help="list indexed volumes")
     _add_archive_args(p_vol)
     p_vol.add_argument("--json", action="store_true")
+    _add_theme_args(p_vol)
     p_vol.set_defaults(func=_cmd_volumes)
 
     p_stats = sub.add_parser("stats", help="show index stats and staleness")
@@ -382,10 +426,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p_stats.set_defaults(func=_cmd_stats)
 
     p_page = sub.add_parser("page", help="show a page's previous/next neighbours")
-    p_page.add_argument("ref", help="page reference as <root_id>/<page_key>")
+    p_page.add_argument("ref", nargs="?",
+                        help="page reference as <root_id>/<page_key>")
     _add_archive_args(p_page)
     p_page.add_argument("--json", action="store_true")
-    p_page.set_defaults(func=_cmd_page)
+    _add_theme_args(p_page)
+    p_page.set_defaults(func=_cmd_page, parser=p_page)
 
     return parser
 
