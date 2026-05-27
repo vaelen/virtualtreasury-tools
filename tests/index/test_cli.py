@@ -99,3 +99,30 @@ def test_stale_index_warns(tmp_path, capsys):
     err = capsys.readouterr().err
     assert code == 0
     assert "stale" in err.lower() or "build" in err.lower()
+
+
+def test_build_missing_archive_exit_2(tmp_path, capsys):
+    code = main(["build", "--archive", str(tmp_path / "does_not_exist")])
+    err = capsys.readouterr().err
+    assert code == 2
+    assert "archive" in err.lower()
+
+
+def test_build_all_skipped_exit_2(tmp_path, capsys):
+    archive = tmp_path / "archive"
+    (archive / "items" / "999").mkdir(parents=True)
+    (archive / "items" / "999" / "metadata.json").write_text("{ not json")
+    code = main(["build", "--archive", str(archive)])
+    err = capsys.readouterr().err
+    assert code == 2
+    assert "skipped" in err.lower()
+
+
+def test_search_apostrophe_keyword_exit_1(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    code = main(["search", "O'Brien", "--archive", str(archive), "--json"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert json.loads(out) == []

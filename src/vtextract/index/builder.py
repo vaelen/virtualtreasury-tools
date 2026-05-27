@@ -78,6 +78,18 @@ def build(archive, *, rebuild: bool = False, reporter=None) -> BuildStats:
     return stats
 
 
+def is_stale(db: IndexDB, archive: Path) -> bool:
+    """True if any source file is new/changed/removed vs stored fingerprints."""
+    fingerprints = db.fingerprints()
+    seen: set[str] = set()
+    for _kind, relpath, abspath in _candidates(archive):
+        seen.add(relpath)
+        st = abspath.stat()
+        if fingerprints.get(relpath) != (st.st_mtime, st.st_size):
+            return True
+    return bool(set(fingerprints) - seen)
+
+
 def _index_one(db: IndexDB, kind: str, relpath: str, abspath: Path, st) -> None:
     fp = (relpath, st.st_mtime, st.st_size)
     if kind == "item":

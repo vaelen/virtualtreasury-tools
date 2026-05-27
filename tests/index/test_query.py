@@ -97,3 +97,17 @@ def test_keyword_and_date_combine(tmp_path):
         results = search(
             db, SearchQuery(text="Houston", date_from="1900-01-01", date_to="1950-12-31"))
     assert results == []  # keyword matches 100 but date excludes it
+
+
+def test_keyword_with_punctuation_is_safe(tmp_path):
+    # "Mitchell, Rose" has a comma; must match item 200's title without crashing.
+    with _built(tmp_path) as db:
+        results = search(db, SearchQuery(text="Mitchell, Rose", fields=("title",)))
+    assert [r.isadg_id for r in results] == [200]
+
+
+def test_keyword_apostrophe_does_not_crash(tmp_path):
+    # No fixture has an apostrophe name; this must return [] (not raise).
+    with _built(tmp_path) as db:
+        results = search(db, SearchQuery(text="O'Brien"))
+    assert results == []

@@ -6,6 +6,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+from vtextract.index.models import VolumeInfo
+
 SCHEMA_VERSION = 1
 
 
@@ -26,6 +28,19 @@ def fts5_available() -> bool:
         return False
     finally:
         conn.close()
+
+
+def fts_query(text: str) -> str:
+    """Turn user keyword input into a safe FTS5 MATCH expression.
+
+    Each whitespace-delimited token is wrapped as a quoted FTS5 string so that
+    apostrophes, commas, parentheses, hyphens, etc. in ordinary words (e.g.
+    "O'Brien", "Cork (city)") are matched literally rather than parsed as FTS5
+    operators. Tokens combine with implicit AND. Returns "" when there are no
+    tokens.
+    """
+    tokens = text.split()
+    return " ".join('"' + t.replace('"', '""') + '"' for t in tokens)
 
 
 _DDL = """
@@ -277,7 +292,10 @@ class IndexDB:
         cols = [f for f in fields if f in ("title", "description")]
         if not cols:
             return {}
-        match = "{" + " ".join(cols) + "} : " + text
+        query = fts_query(text)
+        if not query:
+            return {}
+        match = "{" + " ".join(cols) + "} : " + query
         rows = self._conn.execute(
             "SELECT rowid, bm25(item_fts) AS score FROM item_fts "
             "WHERE item_fts MATCH ?",
@@ -287,12 +305,15 @@ class IndexDB:
 
     def transcription_fts_search(self, text: str) -> list[tuple[str, str, float]]:
         """Return [(root_id, page_key, score)] for transcription FTS matches."""
+        query = fts_query(text)
+        if not query:
+            return []
         rows = self._conn.execute(
             "SELECT tm.root_id AS root_id, tm.page_key AS page_key, "
             "bm25(transcription_fts) AS score FROM transcription_fts "
             "JOIN transcription_map tm ON tm.rowid = transcription_fts.rowid "
             "WHERE transcription_fts MATCH ?",
-            (text,),
+            (query,),
         )
         return [(r["root_id"], r["page_key"], r["score"]) for r in rows]
 
@@ -349,11 +370,18 @@ class IndexDB:
         sql += " ORDER BY i.content_begin IS NULL, i.content_begin, i.isadg_id"
         return list(self._conn.execute(sql, params))
 
-    def volumes(self):
-        """Return [(root_id, label, reference_code, item_count)] for all volumes."""
-        return list(self._conn.execute(
+    def volumes(self) -> list[VolumeInfo]:
+        """Return VolumeInfo for all volumes, ordered by root_id."""
+        rows = self._conn.execute(
             "SELECT v.root_id, v.label, v.reference_code, "
             "(SELECT COUNT(DISTINCT iv.isadg_id) FROM item_volume iv "
             " WHERE iv.root_id = v.root_id) AS item_count "
             "FROM volume v ORDER BY v.root_id"
-        ))
+        )
+        return [
+            VolumeInfo(
+                root_id=r["root_id"], label=r["label"],
+                reference_code=r["reference_code"], item_count=r["item_count"],
+            )
+            for r in rows
+        ]

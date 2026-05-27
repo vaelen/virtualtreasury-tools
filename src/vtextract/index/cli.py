@@ -6,10 +6,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sqlite3
 import sys
 from pathlib import Path
 
-from vtextract.index.builder import INDEX_RELPATH, _candidates, build
+from vtextract.index.builder import INDEX_RELPATH, build, is_stale
 from vtextract.index.db import Fts5Unavailable, IndexDB, SchemaMismatch
 from vtextract.index.models import SearchQuery
 from vtextract.index.query import search
@@ -44,17 +45,6 @@ def _parse_fields(value: str | None) -> tuple[str, ...]:
     return fields
 
 
-def _is_stale(db: IndexDB, archive: Path) -> bool:
-    """True if any source file is new/changed/removed vs the stored fingerprints."""
-    fingerprints = db.fingerprints()
-    seen: set[str] = set()
-    for _kind, relpath, abspath in _candidates(archive):
-        seen.add(relpath)
-        st = abspath.stat()
-        if fingerprints.get(relpath) != (st.st_mtime, st.st_size):
-            return True
-    return bool(set(fingerprints) - seen)
-
 
 def _open_for_read(archive: Path) -> IndexDB:
     db_path = archive / INDEX_RELPATH
@@ -67,8 +57,22 @@ def _open_for_read(archive: Path) -> IndexDB:
 
 def _cmd_build(args) -> int:
     archive = _resolve_archive(args.archive)
+    if not archive.is_dir() or not (
+        (archive / "items").is_dir() or (archive / "pages").is_dir()
+    ):
+        raise FileNotFoundError(
+            f"{archive} does not look like a vtextract archive "
+            "(no items/ or pages/ directory); nothing to index."
+        )
     with BuildReporter() as reporter:
-        build(archive, rebuild=args.rebuild, reporter=reporter)
+        stats = build(archive, rebuild=args.rebuild, reporter=reporter)
+    if stats.skipped and (stats.added + stats.updated + stats.unchanged) == 0:
+        print(
+            f"error: indexed nothing; {stats.skipped} source file(s) were skipped "
+            "due to parse errors.",
+            file=sys.stderr,
+        )
+        return 2
     return 0
 
 
@@ -84,7 +88,7 @@ def _cmd_search(args) -> int:
         limit=args.limit,
     )
     with _open_for_read(archive) as db:
-        if _is_stale(db, archive):
+        if is_stale(db, archive):
             print("warning: index is stale; run `vtindex build` to refresh.",
                   file=sys.stderr)
         results = search(db, query)
@@ -98,11 +102,11 @@ def _cmd_search(args) -> int:
 def _cmd_volumes(args) -> int:
     archive = _resolve_archive(args.archive)
     with _open_for_read(archive) as db:
-        rows = db.volumes()
+        vols = db.volumes()
     data = [
-        {"root_id": r["root_id"], "label": r["label"],
-         "reference_code": r["reference_code"], "item_count": r["item_count"]}
-        for r in rows
+        {"root_id": v.root_id, "label": v.label,
+         "reference_code": v.reference_code, "item_count": v.item_count}
+        for v in vols
     ]
     if args.json:
         print(json.dumps(data, indent=2))
@@ -117,7 +121,7 @@ def _cmd_stats(args) -> int:
     archive = _resolve_archive(args.archive)
     with _open_for_read(archive) as db:
         counts = db.counts()
-        stale = _is_stale(db, archive)
+        stale = is_stale(db, archive)
         data = {
             "items": counts["items"],
             "volumes": counts["volumes"],
@@ -203,6 +207,9 @@ def main(argv: list[str] | None = None) -> int:
         return args.func(args)
     except (FileNotFoundError, SchemaMismatch, Fts5Unavailable) as exc:
         print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except sqlite3.OperationalError as exc:
+        print(f"error: invalid query: {exc}", file=sys.stderr)
         return 2
     except argparse.ArgumentTypeError as exc:
         print(f"error: {exc}", file=sys.stderr)
