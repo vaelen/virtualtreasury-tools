@@ -2,7 +2,7 @@
 # All rights reserved
 
 from vtextract.index.db import IndexDB
-from vtextract.index.models import ItemRow, PageLink, VolumeRow
+from vtextract.index.models import ItemRow, PageLink, VolumePage, VolumeRow
 
 
 def _db(tmp_path):
@@ -80,3 +80,82 @@ def test_delete_transcription_source_removes_fts(tmp_path):
         db.delete_source("pages/volA/volA_p1.jpg.txt")
         assert db.counts()["pages"] == 0
         assert list(db._conn.execute("SELECT * FROM transcription_map")) == []
+
+
+def _vol(root_id="volA", **kw):
+    base = dict(root_id=root_id, label="Vol A", reference_code="REF-A", title="Volume A",
+                pages=[VolumePage("volA_p0.jpg", 1, "p0"), VolumePage("volA_p1.jpg", 2, "p1")])
+    base.update(kw)
+    return VolumeRow(**base)
+
+
+def test_upsert_volume_inserts_pages_with_ordinals_and_title(tmp_path):
+    with _db(tmp_path) as db:
+        db.upsert_volume(_vol(), fingerprint=("pages/volA/volume.json", 1.0, 5))
+        assert db.counts()["pages"] == 2  # both pages indexed even without transcriptions
+        rows = list(db._conn.execute(
+            "SELECT page_key, ordinal, label, has_text FROM page WHERE root_id='volA' ORDER BY ordinal"))
+        assert [(r["page_key"], r["ordinal"], r["label"], r["has_text"]) for r in rows] == [
+            ("volA_p0.jpg", 1, "p0", 0),
+            ("volA_p1.jpg", 2, "p1", 0),
+        ]
+        title = db._conn.execute("SELECT title FROM volume WHERE root_id='volA'").fetchone()[0]
+        assert title == "Volume A"
+
+
+def test_volume_then_transcription_preserves_both(tmp_path):
+    with _db(tmp_path) as db:
+        db.upsert_volume(_vol(), fingerprint=("pages/volA/volume.json", 1.0, 5))
+        db.upsert_transcription("volA", "volA_p1.jpg", "Houston of Dublin",
+                                fingerprint=("pages/volA/volA_p1.jpg.txt", 1.0, 9))
+        row = db._conn.execute(
+            "SELECT ordinal, label, has_text FROM page WHERE root_id='volA' AND page_key='volA_p1.jpg'"
+        ).fetchone()
+        assert (row["ordinal"], row["label"], row["has_text"]) == (2, "p1", 1)
+
+
+def test_transcription_then_volume_preserves_both(tmp_path):
+    with _db(tmp_path) as db:
+        db.upsert_transcription("volA", "volA_p1.jpg", "Houston of Dublin",
+                                fingerprint=("pages/volA/volA_p1.jpg.txt", 1.0, 9))
+        db.upsert_volume(_vol(), fingerprint=("pages/volA/volume.json", 1.0, 5))
+        row = db._conn.execute(
+            "SELECT ordinal, label, has_text FROM page WHERE root_id='volA' AND page_key='volA_p1.jpg'"
+        ).fetchone()
+        assert (row["ordinal"], row["label"], row["has_text"]) == (2, "p1", 1)
+
+
+def test_upsert_volume_prunes_volume_only_pages_on_shrink(tmp_path):
+    with _db(tmp_path) as db:
+        db.upsert_volume(_vol(), fingerprint=("pages/volA/volume.json", 1.0, 5))
+        db.upsert_volume(_vol(pages=[VolumePage("volA_p1.jpg", 1, "p1")]),
+                         fingerprint=("pages/volA/volume.json", 2.0, 6))
+        keys = [r["page_key"] for r in db._conn.execute(
+            "SELECT page_key FROM page WHERE root_id='volA'")]
+        assert keys == ["volA_p1.jpg"]
+
+
+def test_upsert_volume_shrink_keeps_transcribed_page(tmp_path):
+    with _db(tmp_path) as db:
+        db.upsert_volume(_vol(), fingerprint=("pages/volA/volume.json", 1.0, 5))
+        db.upsert_transcription("volA", "volA_p0.jpg", "text",
+                                fingerprint=("pages/volA/volA_p0.jpg.txt", 1.0, 4))
+        db.upsert_volume(_vol(pages=[VolumePage("volA_p1.jpg", 1, "p1")]),
+                         fingerprint=("pages/volA/volume.json", 2.0, 6))
+        row = db._conn.execute(
+            "SELECT ordinal, has_text FROM page WHERE root_id='volA' AND page_key='volA_p0.jpg'"
+        ).fetchone()
+        assert row is not None
+        assert (row["ordinal"], row["has_text"]) == (None, 1)  # ordering cleared, text kept
+
+
+def test_delete_volume_source_clears_ordinals_and_drops_volume_only(tmp_path):
+    with _db(tmp_path) as db:
+        db.upsert_volume(_vol(), fingerprint=("pages/volA/volume.json", 1.0, 5))
+        db.upsert_transcription("volA", "volA_p1.jpg", "text",
+                                fingerprint=("pages/volA/volA_p1.jpg.txt", 1.0, 4))
+        db.delete_source("pages/volA/volume.json")
+        rows = {r["page_key"]: r["ordinal"] for r in db._conn.execute(
+            "SELECT page_key, ordinal FROM page WHERE root_id='volA'")}
+        assert rows == {"volA_p1.jpg": None}
+        assert db._conn.execute("SELECT COUNT(*) FROM volume WHERE root_id='volA'").fetchone()[0] == 0
