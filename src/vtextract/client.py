@@ -73,5 +73,11 @@ class Client:
     def get_bytes(self, url: str) -> bytes:
         return self._request("GET", url).content
 
+    def head(self, url: str) -> int | None:
+        """HEAD a URL; return its Content-Length in bytes, or None if absent."""
+        response = self._request("HEAD", url)
+        length = response.headers.get("content-length")
+        return int(length) if length is not None else None
+
     def close(self) -> None:
         self._http.close()

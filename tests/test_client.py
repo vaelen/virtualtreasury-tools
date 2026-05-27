@@ -143,3 +143,34 @@ def test_backoff_grows_per_retry():
     # delay=0.0 means _throttle never sleeps, so these are pure backoff waits:
     # 2**0 after the first 500, 2**1 after the second.
     assert slept == [1.0, 2.0]
+
+
+def test_head_returns_content_length_int():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "HEAD"
+        return httpx.Response(200, headers={"content-length": "2003189"})
+
+    client = make_client(handler)
+    assert client.head("https://api.test/loris/x/full/full/0/default.jpg") == 2003189
+
+
+def test_head_returns_none_when_no_content_length():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200)  # no content-length header
+
+    client = make_client(handler)
+    assert client.head("https://api.test/loris/x") is None
+
+
+def test_head_retries_on_503_then_succeeds():
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(503)
+        return httpx.Response(200, headers={"content-length": "5"})
+
+    client = make_client(handler)  # make_client passes sleep_func=lambda _s: None
+    assert client.head("https://api.test/loris/x") == 5
+    assert calls["n"] == 2
