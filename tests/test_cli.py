@@ -518,6 +518,64 @@ def test_get_twice_skips_completed_resource(tmp_path, monkeypatch):
     assert item_calls == []  # already complete -> no re-fetch
 
 
+# --- refresh command ---------------------------------------------------------
+
+
+def _seed_one_item(tmp_path, monkeypatch):
+    """Archive item 474234 so the refresh command has something to enumerate."""
+    config = _write_config(tmp_path)
+    monkeypatch.setattr(
+        cli, "_make_transport",
+        lambda: httpx.MockTransport(lambda r: _get_handler(r)),
+    )
+    assert cli.run(["get", "474234", "--out", str(tmp_path), "--config", str(config),
+                    "--context-pages", "0"]) == 0
+    return config
+
+
+def test_refresh_with_yes_reprocesses_all_items(tmp_path, monkeypatch):
+    config = _seed_one_item(tmp_path, monkeypatch)
+    item_calls: list[str] = []
+    monkeypatch.setattr(
+        cli, "_make_transport",
+        lambda: httpx.MockTransport(lambda r: _refresh_get_handler(r, item_calls=item_calls)),
+    )
+    code = cli.run(["refresh", "--yes", "--out", str(tmp_path), "--config", str(config),
+                    "--context-pages", "0"])
+    assert code == 0
+    assert item_calls == ["/rest/isadg-identity-statements/474234"]  # re-fetched
+
+
+def test_refresh_declined_at_prompt_does_nothing(tmp_path, monkeypatch):
+    config = _seed_one_item(tmp_path, monkeypatch)
+    item_calls: list[str] = []
+    monkeypatch.setattr(
+        cli, "_make_transport",
+        lambda: httpx.MockTransport(lambda r: _refresh_get_handler(r, item_calls=item_calls)),
+    )
+    monkeypatch.setattr(cli, "_stdin_is_tty", lambda: True)
+    monkeypatch.setattr(cli, "_prompt_yes_no", lambda *_a, **_k: False)
+    code = cli.run(["refresh", "--out", str(tmp_path), "--config", str(config)])
+    assert code == 0
+    assert item_calls == []  # declined -> no requests
+
+
+def test_refresh_non_tty_without_yes_aborts(tmp_path, monkeypatch, capsys):
+    config = _seed_one_item(tmp_path, monkeypatch)
+    monkeypatch.setattr(cli, "_stdin_is_tty", lambda: False)
+    code = cli.run(["refresh", "--out", str(tmp_path), "--config", str(config)])
+    assert code == 2
+    assert "--yes" in capsys.readouterr().err
+
+
+def test_refresh_empty_archive_reports_and_exits_zero(tmp_path, monkeypatch, capsys):
+    config = _write_config(tmp_path)
+    (tmp_path / "items").mkdir()  # archive dir exists but has no items
+    code = cli.run(["refresh", "--yes", "--out", str(tmp_path), "--config", str(config)])
+    assert code == 0
+    assert "no items" in capsys.readouterr().err.lower()
+
+
 def test_run_twice_skips_completed_resource(tmp_path, monkeypatch):
     config = _write_config(tmp_path)
     search_response = {

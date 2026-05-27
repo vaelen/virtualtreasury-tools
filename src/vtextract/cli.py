@@ -174,6 +174,7 @@ commands:
   search   download resources matching a search (vtextract search --help)
   get      download resources by reference code or id (vtextract get --help)
   auth     store credentials in the config file (vtextract auth [username])
+  refresh  re-fetch metadata and verify images for the whole archive
 """
 
 
@@ -190,6 +191,8 @@ def run(argv: list[str]) -> int:
         return _run_get(rest)
     if command == "auth":
         return _run_auth(rest)
+    if command == "refresh":
+        return _run_refresh(rest)
     print(f"unknown command: {command}\n", file=sys.stderr)
     print(_USAGE, end="", file=sys.stderr)
     return 2
@@ -374,6 +377,83 @@ def _run_get(argv: list[str]) -> int:
         client, archive, hits, search_id="get",
         context_pages=args.context_pages, reporter=reporter,
         refresh=args.refresh,
+    )
+    return 1 if failed else 0
+
+
+def _stdin_is_tty() -> bool:
+    return sys.stdin.isatty()
+
+
+def _prompt_yes_no(message: str) -> bool:
+    try:
+        return input(message).strip().lower() in ("y", "yes")
+    except EOFError:
+        return False
+
+
+def _run_refresh(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="vtextract refresh",
+        description="Re-fetch metadata and HEAD-verify images for every archived item.",
+    )
+    parser.add_argument(
+        "--out", help="Archive directory (defaults to the config file's archive)."
+    )
+    parser.add_argument("--config", help="Config file path (default ~/.vt/vt.toml).")
+    parser.add_argument(
+        "--context-pages", type=_nonneg_int, default=1,
+        help="Neighbouring physical pages to also consider per page (default 1).",
+    )
+    parser.add_argument(
+        "-y", "--yes", action="store_true",
+        help="Skip the confirmation prompt.",
+    )
+    args = parser.parse_args(argv)
+
+    config = load_config(Path(args.config) if args.config else None)
+    if config.auth_header is None:
+        print("No credentials configured. Run `vtextract auth`.", file=sys.stderr)
+        return 2
+
+    archive = Archive(args.out if args.out else config.archive)
+    items_dir = archive.root / "items"
+    hits = [
+        {"isadgID": int(meta.parent.name)}
+        for meta in sorted(items_dir.glob("*/metadata.json"))
+        if meta.parent.name.isdigit()
+    ]
+    if not hits:
+        print(f"no items to refresh in {archive.root}", file=sys.stderr)
+        return 0
+
+    if not args.yes:
+        if not _stdin_is_tty():
+            print(
+                "refusing to run refresh without confirmation; re-run with --yes",
+                file=sys.stderr,
+            )
+            return 2
+        if not _prompt_yes_no(
+            f"Refresh {len(hits)} item(s) in {archive.root}? This re-fetches "
+            "metadata and HEAD-verifies every image against the server. [y/N] "
+        ):
+            print("aborted.", file=sys.stderr)
+            return 0
+
+    client = Client(
+        base_url=config.base_url,
+        auth_header=config.auth_header,
+        user_agent=config.user_agent,
+        transport=_make_transport(),
+        delay=config.delay,
+        max_retries=config.max_retries,
+    )
+    reporter = Reporter()
+    reporter.set_total(len(hits), noun="items")
+    completed, failed = _extract(
+        client, archive, hits, search_id="refresh",
+        context_pages=args.context_pages, reporter=reporter, refresh=True,
     )
     return 1 if failed else 0
 
