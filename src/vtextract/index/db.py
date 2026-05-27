@@ -411,7 +411,7 @@ class IndexDB:
     def volumes(self) -> list[VolumeInfo]:
         """Return VolumeInfo for all volumes, ordered by root_id."""
         rows = self._conn.execute(
-            "SELECT v.root_id, v.label, v.reference_code, "
+            "SELECT v.root_id, v.label, v.reference_code, v.title, "
             "(SELECT COUNT(DISTINCT iv.isadg_id) FROM item_volume iv "
             " WHERE iv.root_id = v.root_id) AS item_count "
             "FROM volume v ORDER BY v.root_id"
@@ -420,6 +420,35 @@ class IndexDB:
             VolumeInfo(
                 root_id=r["root_id"], label=r["label"],
                 reference_code=r["reference_code"], item_count=r["item_count"],
+                title=r["title"],
             )
             for r in rows
         ]
+
+    def volume(self, root_id: str) -> dict | None:
+        """Return one volume row as a dict, or None."""
+        row = self._conn.execute(
+            "SELECT root_id, label, reference_code, title FROM volume WHERE root_id=?",
+            (root_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def get_page(self, root_id: str, page_key: str) -> dict | None:
+        """Return one page row (root_id, page_key, ordinal, label, has_text) or None."""
+        row = self._conn.execute(
+            "SELECT root_id, page_key, ordinal, label, has_text FROM page "
+            "WHERE root_id=? AND page_key=?",
+            (root_id, page_key),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def page_at_ordinal(self, root_id: str, ordinal: int | None) -> dict | None:
+        """Return the page at a given 1-based ordinal in a volume, or None."""
+        if ordinal is None:
+            return None
+        row = self._conn.execute(
+            "SELECT root_id, page_key, ordinal, label, has_text FROM page "
+            "WHERE root_id=? AND ordinal=?",
+            (root_id, ordinal),
+        ).fetchone()
+        return dict(row) if row else None

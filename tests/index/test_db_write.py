@@ -174,3 +174,23 @@ def test_delete_volume_source_clears_ordinals_and_drops_volume_only(tmp_path):
             "SELECT page_key, ordinal FROM page WHERE root_id='volA'")}
         assert rows == {"volA_p1.jpg": None}
         assert db._conn.execute("SELECT COUNT(*) FROM volume WHERE root_id='volA'").fetchone()[0] == 0
+
+
+def test_get_page_and_page_at_ordinal(tmp_path):
+    with _db(tmp_path) as db:
+        db.upsert_volume(_vol(), fingerprint=("pages/volA/volume.json", 1.0, 5))
+        cur = db.get_page("volA", "volA_p1.jpg")
+        assert cur["ordinal"] == 2 and cur["label"] == "p1"
+        assert db.get_page("volA", "nope.jpg") is None
+        prev = db.page_at_ordinal("volA", 1)
+        assert prev["page_key"] == "volA_p0.jpg"
+        assert db.page_at_ordinal("volA", 99) is None
+
+
+def test_volume_lookup_and_volumes_include_title(tmp_path):
+    with _db(tmp_path) as db:
+        db.upsert_volume(_vol(), fingerprint=("pages/volA/volume.json", 1.0, 5))
+        assert db.volume("volA")["title"] == "Volume A"
+        assert db.volume("missing") is None
+        infos = {v.root_id: v for v in db.volumes()}
+        assert infos["volA"].title == "Volume A"
