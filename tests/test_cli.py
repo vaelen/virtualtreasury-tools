@@ -576,6 +576,16 @@ def test_refresh_empty_archive_reports_and_exits_zero(tmp_path, monkeypatch, cap
     assert "no items" in capsys.readouterr().err.lower()
 
 
+def test_refresh_fresh_archive_without_items_dir_exits_zero(tmp_path, capsys):
+    # A brand-new archive has no items/ directory at all; refresh must not crash.
+    config = _write_config(tmp_path)
+    out = tmp_path / "fresh"
+    code = cli.run(["refresh", "--yes", "--out", str(out), "--config", str(config)])
+    assert code == 0
+    assert "no items" in capsys.readouterr().err.lower()
+    assert not (out / "items").exists()  # refresh did not need to create it
+
+
 def test_run_twice_skips_completed_resource(tmp_path, monkeypatch):
     config = _write_config(tmp_path)
     search_response = {
