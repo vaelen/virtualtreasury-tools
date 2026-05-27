@@ -1,1 +1,8 @@
-{"label": "PRONI Deeds Volume 25", "reference_code": "PRONI D4164/A/25"}
+{
+  "label": "PRONI Deeds Volume 25",
+  "reference_code": "PRONI D4164/A/25",
+  "title": "PRONI Deeds Volume 25: 1689",
+  "pages": [
+    {"page_key": "volB_p5.jpg", "label": "p5", "canvas_id": "https://api/iiif/v1/volB/canvas/p5"}
+  ]
+}
