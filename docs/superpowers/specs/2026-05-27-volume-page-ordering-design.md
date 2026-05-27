@@ -75,16 +75,16 @@ Existing `label` and `reference_code` are unchanged. New shape:
 
 ### `schema.py` (pure, no I/O)
 
-- New `canvas_page_key(canvas) -> str | None`: extract the Loris filename from
-  `images[0].resource["@id"]` by splitting on `/loris/` and taking the segment
-  before the next `/`. Returns `None` for a canvas without a parseable image.
+- Reuse the existing `parse_manifest(manifest) -> list[Page]` (already yields
+  ordered `Page`s with `page_key`, `canvas_id`, `canvas_label`) and
+  `loris_filename` helpers — no new canvas-parsing helper is needed.
 - New `detail_title(detail) -> str`: `(detail.get("preferredTitle") or {}).get("title") or ""`
   (the same extraction `normalize_record` uses).
 - `volume_info(manifest, *, title=None)` extends its returned dict:
-  - `pages`: one entry per canvas in `manifest["sequences"][0]["canvases"]`, in
-    sequence order, shaped `{"page_key", "label", "canvas_id"}`. Canvases where
-    `canvas_page_key` returns `None` are skipped defensively.
-    `label` is the canvas `label`; `canvas_id` is the canvas `@id`.
+  - `pages`: built from `parse_manifest(manifest)`, in sequence order, shaped
+    `{"page_key", "label", "canvas_id"}` (`label` = `Page.canvas_label`).
+    Pages with an empty `page_key` (canvas without a parseable image) are skipped
+    defensively.
   - `title`: the value of the `title` argument (omitted/`null` when not provided).
   - `label` and `reference_code` unchanged.
 
