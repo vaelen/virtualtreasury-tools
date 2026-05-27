@@ -41,3 +41,22 @@ def test_set_total_noun_is_configurable():
     reporter, buf = _reporter()
     reporter.set_total(3, noun="resources")
     assert "Found 3 resources." in buf.getvalue()
+
+
+def test_verify_summary_prints_counts_and_flagged_paths():
+    import io
+    from rich.console import Console
+    from vtextract.progress import Reporter
+
+    buf = io.StringIO()
+    reporter = Reporter(console=Console(file=buf, width=200), enabled=False)
+    reporter.verify_summary(
+        {"ok": 3, "mismatch": 1, "missing": 2, "unverified": 1},
+        ["pages/v/a.jpg", "pages/v/b.jpg"],
+    )
+    out = buf.getvalue()
+    assert "3 ok" in out
+    assert "1 re-downloaded" in out
+    assert "2 downloaded" in out
+    assert "1 unverified" in out
+    assert "pages/v/a.jpg" in out and "pages/v/b.jpg" in out
