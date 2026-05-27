@@ -134,6 +134,9 @@ class _SpyReporter:
     def finish(self, completed, failed):
         self.calls.append(("finish", completed, failed))
 
+    def verify_summary(self, counts, flagged):
+        self.calls.append(("verify_summary", counts, flagged))
+
 
 def test_extract_drives_reporter_for_skip_and_fetch(tmp_path, monkeypatch):
     from types import SimpleNamespace
@@ -390,6 +393,59 @@ def test_get_one_bad_identifier_does_not_abort_run(tmp_path, monkeypatch):
     )
     assert exit_code == 1  # the bad reference code is counted as a failure
     assert (tmp_path / "items" / "474234" / "metadata.json").exists()  # valid id still archived
+
+
+def _refresh_get_handler(request, *, item_calls=None, loris=None):
+    """Like _get_handler, plus a HEAD branch for /loris/ image verification."""
+    path = request.url.path
+    if path.startswith("/loris/") and request.method == "HEAD":
+        img = (EXAMPLES / "item" / "loris" / "response.jpg").read_bytes()
+        return httpx.Response(200, headers={"content-length": str(len(img))})
+    if path.startswith("/loris/") and loris is not None:
+        loris.append(path)
+    if path == "/rest/isadg-identity-statements/474234" and item_calls is not None:
+        item_calls.append(path)
+    return _get_handler(request)
+
+
+def test_get_refresh_reprocesses_completed_resource(tmp_path, monkeypatch):
+    config = _write_config(tmp_path)
+    item_calls: list[str] = []
+    monkeypatch.setattr(
+        cli, "_make_transport",
+        lambda: httpx.MockTransport(lambda r: _refresh_get_handler(r, item_calls=item_calls)),
+    )
+    # --context-pages 0: these tests don't mock the volume manifest, so no context fetch.
+    base = ["get", "474234", "--out", str(tmp_path), "--config", str(config),
+            "--context-pages", "0"]
+    assert cli.run(base) == 0
+    item_calls.clear()
+    # without --refresh it would be skipped; with --refresh the detail is re-fetched
+    assert cli.run(base + ["--refresh"]) == 0
+    assert item_calls == ["/rest/isadg-identity-statements/474234"]
+
+
+def test_get_refresh_verifies_image_with_head_not_get(tmp_path, monkeypatch):
+    config = _write_config(tmp_path)
+    loris: list[str] = []
+    monkeypatch.setattr(
+        cli, "_make_transport",
+        lambda: httpx.MockTransport(lambda r: _refresh_get_handler(r, loris=loris)),
+    )
+    base = ["get", "474234", "--out", str(tmp_path), "--config", str(config),
+            "--context-pages", "0"]
+    assert cli.run(base) == 0
+    loris.clear()  # GET-only list (HEAD requests are not appended)
+    assert cli.run(base + ["--refresh"]) == 0
+    assert loris == []  # size matched on HEAD -> no image GET
+
+
+def test_search_refresh_parses_as_global_flag():
+    from vtextract.cli import build_parser, split_and_group
+    globals_, criteria = split_and_group(["houston", "--refresh"], build_parser())
+    assert "--refresh" in globals_
+    assert build_parser().parse_args(globals_).refresh is True
+    assert [f.keywords for f in criteria.filters] == [["houston"]]
 
 
 def test_get_twice_skips_completed_resource(tmp_path, monkeypatch):
