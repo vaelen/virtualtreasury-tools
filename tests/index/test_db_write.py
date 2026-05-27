@@ -149,6 +149,21 @@ def test_upsert_volume_shrink_keeps_transcribed_page(tmp_path):
         assert (row["ordinal"], row["has_text"]) == (None, 1)  # ordering cleared, text kept
 
 
+def test_delete_transcription_source_keeps_volume_owned_page(tmp_path):
+    with _db(tmp_path) as db:
+        db.upsert_volume(_vol(), fingerprint=("pages/volA/volume.json", 1.0, 5))
+        db.upsert_transcription("volA", "volA_p1.jpg", "Houston",
+                                fingerprint=("pages/volA/volA_p1.jpg.txt", 1.0, 7))
+        db.delete_source("pages/volA/volA_p1.jpg.txt")
+        row = db._conn.execute(
+            "SELECT ordinal, has_text FROM page WHERE root_id='volA' AND page_key='volA_p1.jpg'"
+        ).fetchone()
+        assert row is not None, "volume-owned page must survive transcription deletion"
+        assert row["ordinal"] == 2   # ordinal preserved
+        assert row["has_text"] == 0  # text flag cleared
+        assert list(db._conn.execute("SELECT * FROM transcription_map")) == []
+
+
 def test_delete_volume_source_clears_ordinals_and_drops_volume_only(tmp_path):
     with _db(tmp_path) as db:
         db.upsert_volume(_vol(), fingerprint=("pages/volA/volume.json", 1.0, 5))

@@ -295,7 +295,7 @@ class IndexDB:
                 (root_id, page_key),
             )
             self._conn.execute(
-                "UPDATE page SET has_text=0 WHERE root_id=? AND page_key=?",
+                "UPDATE page SET has_text=0 WHERE root_id=? AND page_key=? AND ordinal IS NOT NULL",
                 (root_id, page_key),
             )
         elif kind == "volume":
