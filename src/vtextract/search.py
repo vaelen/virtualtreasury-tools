@@ -54,6 +54,7 @@ def build_body(
         "searchThematicCollectionList": [],
         "searchSourceFormatList": [],
         "searchSourceGradeList": [],
+        "searchHasImages": "true",
         "resultSorting": "relevance",
         **params,
     }

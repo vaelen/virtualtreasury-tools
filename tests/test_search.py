@@ -109,6 +109,8 @@ def test_build_body_includes_scaffolding_and_list_values():
     assert body["searchDocumentRepositoryNameList"] == []
     assert body["searchSourceGradeList"] == []
     assert body["resultSorting"] == "relevance"
+    # only image-bearing results are wanted
+    assert body["searchHasImages"] == "true"
 
 
 def test_build_body_params_override_scaffolding_defaults():
