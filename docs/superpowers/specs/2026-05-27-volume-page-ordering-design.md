@@ -155,12 +155,13 @@ touching only their own columns:
 - Parse the argument as `root_id/page_key`. Look up the page's `ordinal`, then
   fetch `ordinal - 1` and `ordinal + 1` within the same `root_id`.
 - Default output: a small table with rows prev / current / next, columns
-  ordinal, page_key, label, and resolved file paths (reusing `_page_dict` for
-  image/metadata/transcription paths). The volume's `title` is shown in the
-  header.
+  position, ordinal, label, and the resolved image path (falling back to the
+  page_key when the image file is absent). The volume's `title` is shown in the
+  table header. The full image/metadata/transcription paths are reserved for the
+  `--json` form (a terminal table with three path columns is unwieldy).
 - `--json`: structured `{volume: {root_id, title}, previous, current, next}`
-  where each page is the `_page_dict` shape plus `ordinal` and `label`; absent
-  neighbours are `null`.
+  where each page is the `_page_dict` shape (image/metadata/transcription paths)
+  plus `ordinal` and `label`; absent neighbours are `null`.
 - Exit codes:
   - `0` — page found (including boundary pages with one neighbour).
   - `1` — page not in the index (mirrors `search`'s "no match").
@@ -172,8 +173,8 @@ touching only their own columns:
 ## Testing (TDD, against committed fixtures only — no network)
 
 - **`schema`:** `volume_info` produces the ordered `pages` list from the manifest
-  fixture and passes `title` through; `canvas_page_key` parsing and `None` on a
-  canvas without an image; `detail_title` from an identity-statement fixture.
+  fixture (reusing `parse_manifest`) and passes `title` through; skips a canvas
+  without a parseable image; `detail_title` from an identity-statement fixture.
 - **`fetcher`:** the root-detail fetch feeds `title` into the written
   `volume.json`; graceful fallback (manifest + `pages` still written, `title`
   null) when the identity-statement call fails.
@@ -187,8 +188,8 @@ touching only their own columns:
 
 ## Files touched
 
-- `src/vtextract/schema.py` — `canvas_page_key`, `detail_title`, extend
-  `volume_info`.
+- `src/vtextract/schema.py` — `detail_title`, extend `volume_info` (reusing the
+  existing `parse_manifest`/`loris_filename`).
 - `src/vtextract/fetcher.py` — fetch root detail, pass `title` to `volume_info`.
 - `src/vtextract/index/db.py` — schema, version bump, `page`/`volume` upsert and
   delete logic.
