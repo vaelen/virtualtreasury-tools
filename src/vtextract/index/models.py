@@ -28,6 +28,9 @@ class ItemRow:
     content_end: str | None = None
     created_begin: str | None = None
     created_end: str | None = None
+    estimated_begin: str | None = None
+    estimated_end: str | None = None
+    estimated_source: str | None = None  # "volume" | "item_title" | None
     volumes: list[str] = field(default_factory=list)
     pages: list[PageLink] = field(default_factory=list)
 
@@ -63,6 +66,7 @@ class SearchQuery:
     date_type: str = "content"    # "content" | "created"
     volume: str | None = None
     limit: int = 50
+    offset: int = 0
 
 
 @dataclass
@@ -77,6 +81,8 @@ class SearchResult:
     matched_pages: list[tuple[str, str]]  # (root_id, page_key)
     score: float
     path: str
+    estimated_date: str | None = None
+    estimated_source: str | None = None
 
 
 @dataclass

@@ -59,13 +59,16 @@ def search(db: IndexDB, q: SearchQuery) -> list[SearchResult]:
                 matched_pages=matched_pages.get(isadg_id, []),
                 score=scores.get(isadg_id, 0.0),
                 path=row["path"],
+                estimated_date=_fmt_date(row["estimated_begin"], row["estimated_end"]),
+                estimated_source=row["estimated_source"],
             )
         )
 
     if q.text:
         # best (most negative) bm25 first; ties keep filter order (date asc)
         results.sort(key=lambda r: r.score)
-    return results[: q.limit]
+    start = max(q.offset, 0)
+    return results[start : start + q.limit]
 
 
 def _record_score(scores: dict[int, float], isadg_id: int, score: float) -> None:

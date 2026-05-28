@@ -78,3 +78,106 @@ def test_rebuild_flag_starts_fresh(tmp_path):
     build(archive)
     stats = build(archive, rebuild=True)
     assert stats.added > 0 and stats.unchanged == 0
+
+
+# --- estimated_date fallback ---
+
+def _write_estimated_fixture(archive: Path) -> None:
+    """Lay out an archive with three items exercising the estimated_date paths.
+
+    - item 400: no isadgDates, title without a year, linked to a volume whose
+      title contains a year   → estimated_source == "volume".
+    - item 500: no isadgDates, year in item title, linked to a volume with no
+      year in title             → estimated_source == "item_title".
+    - item 600: no isadgDates, title is purely a catalogue path, linked to the
+      same year-less volume      → estimated_begin/end is None.
+    """
+    import json
+
+    pages = archive / "pages"
+    items = archive / "items"
+    (pages / "volX").mkdir(parents=True)
+    (pages / "volY").mkdir(parents=True)
+    # volX has a year in title; volY does not.
+    (pages / "volX" / "volume.json").write_text(json.dumps({
+        "label": "Test Book X",
+        "reference_code": "TEST 1/A/X",
+        "title": "Test Book X: memorials 1737",
+        "pages": [{"page_key": "volX_p0.jpg", "label": "p0"}],
+    }))
+    (pages / "volY" / "volume.json").write_text(json.dumps({
+        "label": "Test Book Y",
+        "reference_code": "TEST 1/A/Y",
+        "title": "Test Book Y (no year)",
+        "pages": [{"page_key": "volY_p0.jpg", "label": "p0"}],
+    }))
+    for isadg_id, ref, title, root_id in (
+        (400, "TEST 1/A/X/1", "Untitled record", "volX"),
+        (500, "TEST 1/A/Y/1", "Patent letters 1801", "volY"),
+        (600, "IMC 1954/RoD/1", "IMC 1954/RoD/1", "volY"),
+    ):
+        (items / str(isadg_id)).mkdir(parents=True)
+        (items / str(isadg_id) / "metadata.json").write_text(json.dumps({
+            "isadgID": isadg_id,
+            "referenceCode": ref,
+            "title": title,
+            "pages": [{"page_key": f"{root_id}_p0.jpg", "root_id": root_id,
+                       "role": "primary"}],
+            "detail": {"id": isadg_id, "isadgDates": []},
+        }))
+
+
+def _estimated_row(archive: Path, isadg_id: int) -> dict:
+    with IndexDB(archive / "index" / "vtindex.sqlite3") as db:
+        row = db._conn.execute(
+            "SELECT estimated_begin, estimated_end, estimated_source "
+            "FROM item WHERE isadg_id=?",
+            (isadg_id,),
+        ).fetchone()
+    return dict(row)
+
+
+def test_estimated_date_from_volume_title(tmp_path):
+    archive = tmp_path / "archive"
+    archive.mkdir()
+    _write_estimated_fixture(archive)
+    build(archive)
+    row = _estimated_row(archive, 400)
+    assert row["estimated_begin"] == "1737-01-01"
+    assert row["estimated_end"] == "1737-12-31"
+    assert row["estimated_source"] == "volume"
+
+
+def test_estimated_date_from_item_title_when_volume_has_none(tmp_path):
+    archive = tmp_path / "archive"
+    archive.mkdir()
+    _write_estimated_fixture(archive)
+    build(archive)
+    row = _estimated_row(archive, 500)
+    assert row["estimated_begin"] == "1801-01-01"
+    assert row["estimated_end"] == "1801-12-31"
+    assert row["estimated_source"] == "item_title"
+
+
+def test_estimated_date_ignores_reference_code_in_title(tmp_path):
+    archive = tmp_path / "archive"
+    archive.mkdir()
+    _write_estimated_fixture(archive)
+    build(archive)
+    row = _estimated_row(archive, 600)
+    assert row["estimated_begin"] is None
+    assert row["estimated_end"] is None
+    assert row["estimated_source"] is None
+
+
+def test_estimated_date_computed_even_when_metadata_dates_present(tmp_path):
+    """Items that already have content_date still get an estimated_date stored,
+    so display layers can compare provenance later."""
+    archive = _copy_archive(tmp_path)
+    build(archive)
+    # Item 300 has a content date AND its volume (volB) title is "PRONI Deeds
+    # Volume 25: 1689" — both should populate.
+    row = _estimated_row(archive, 300)
+    assert row["estimated_begin"] == "1689-01-01"
+    assert row["estimated_end"] == "1689-12-31"
+    assert row["estimated_source"] == "volume"

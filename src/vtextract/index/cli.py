@@ -96,6 +96,7 @@ def _cmd_search(args) -> int:
         date_type=args.date_type,
         volume=args.volume,
         limit=args.limit,
+        offset=args.offset,
     )
     with _open_for_read(archive) as db:
         if is_stale(db, archive):
@@ -202,6 +203,8 @@ def _result_dict(r, archive: Path) -> dict:
         "repository": r.repository,
         "content_date": r.content_date,
         "created_date": r.created_date,
+        "estimated_date": r.estimated_date,
+        "estimated_source": r.estimated_source,
         "matched_fields": r.matched_fields,
         "matched_pages": [_page_dict(archive, rt, pk) for rt, pk in r.matched_pages],
         "score": r.score,
@@ -344,12 +347,14 @@ def _build_results_table(results, *, theme: Theme, query: str | None) -> Table:
     )
     table.add_column("ID", no_wrap=True)
     table.add_column("Date", no_wrap=True)
+    table.add_column("Est.", no_wrap=True)
     table.add_column("Reference", no_wrap=True)
     table.add_column("Title")
     for r in results:
         table.add_row(
             str(r.isadg_id),
             r.content_date or "-",
+            r.estimated_date or "-",
             r.reference_code,
             _highlight_title(r.title, query, theme.match_style),
         )
@@ -410,6 +415,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p_search.add_argument("--date-type", choices=("content", "created"), default="content")
     p_search.add_argument("--volume", help="restrict to items referencing this volume root id")
     p_search.add_argument("--limit", type=int, default=50)
+    p_search.add_argument("--offset", type=int, default=0,
+                          help="skip the first N results (for pagination)")
     p_search.add_argument("--json", action="store_true")
     _add_theme_args(p_search)
     p_search.set_defaults(func=_cmd_search)

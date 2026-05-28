@@ -45,6 +45,9 @@ def test_build_then_search_json_match(tmp_path, capsys):
     assert code == 0
     assert [r["isadg_id"] for r in payload] == [100]
     assert payload[0]["matched_fields"] == ["title"]
+    # estimated_date keys are always present in JSON output for shape stability.
+    assert "estimated_date" in payload[0]
+    assert "estimated_source" in payload[0]
 
 
 def test_json_matched_pages_include_file_paths(tmp_path, capsys):
@@ -174,7 +177,7 @@ def test_search_table_prints_header(tmp_path, capsys):
     code = main(["search", "Houston", "--in", "title", "--archive", str(archive)])
     out = capsys.readouterr().out
     assert code == 0
-    for header in ("ID", "Date", "Reference", "Title"):
+    for header in ("ID", "Date", "Est.", "Reference", "Title"):
         assert header in out
     assert "Fields" not in out
     assert "100" in out
@@ -215,7 +218,7 @@ def test_dark_theme_renders_ansi_color():
 
 def test_title_cell_is_highlighted_text():
     table = _build_results_table([_sample_result()], theme=THEMES["dark"], query="houston")
-    title_cell = list(table.columns[3].cells)[0]
+    title_cell = list(table.columns[4].cells)[0]
     assert isinstance(title_cell, Text)
     assert title_cell.spans  # HOUSTON highlighted
 

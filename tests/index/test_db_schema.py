@@ -59,3 +59,18 @@ def test_page_and_volume_tables_have_new_columns(tmp_path):
         assert {"ordinal", "label"} <= page_cols
         vol_cols = {r[1] for r in db._conn.execute("PRAGMA table_info(volume)")}
         assert "title" in vol_cols
+
+
+def test_item_table_has_estimated_date_columns(tmp_path):
+    with IndexDB(tmp_path / "index" / "vtindex.sqlite3") as db:
+        item_cols = {r[1] for r in db._conn.execute("PRAGMA table_info(item)")}
+        assert {"estimated_begin", "estimated_end", "estimated_source"} <= item_cols
+
+
+def test_item_fts_does_not_include_dates(tmp_path):
+    """Dates filter via structured columns, not FTS."""
+    with IndexDB(tmp_path / "index" / "vtindex.sqlite3") as db:
+        fts_cols = {r[1] for r in db._conn.execute("PRAGMA table_info(item_fts)")}
+        assert "estimated_begin" not in fts_cols
+        assert "estimated_end" not in fts_cols
+        assert "estimated_source" not in fts_cols

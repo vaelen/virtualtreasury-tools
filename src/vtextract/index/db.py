@@ -8,7 +8,7 @@ from pathlib import Path
 
 from vtextract.index.models import VolumeInfo
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class Fts5Unavailable(RuntimeError):
@@ -53,6 +53,7 @@ CREATE TABLE item (
     repository TEXT,
     content_begin TEXT, content_end TEXT,
     created_begin TEXT, created_end TEXT,
+    estimated_begin TEXT, estimated_end TEXT, estimated_source TEXT,
     path TEXT
 );
 CREATE TABLE volume (root_id TEXT PRIMARY KEY, label TEXT, reference_code TEXT, title TEXT);
@@ -178,11 +179,14 @@ class IndexDB:
         self._delete_item_rows(item.isadg_id)
         self._conn.execute(
             "INSERT INTO item (isadg_id, reference_code, title, description, repository, "
-            "content_begin, content_end, created_begin, created_end, path) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "content_begin, content_end, created_begin, created_end, "
+            "estimated_begin, estimated_end, estimated_source, path) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (item.isadg_id, item.reference_code, item.title, item.description,
              item.repository, item.content_begin, item.content_end,
-             item.created_begin, item.created_end, item.path),
+             item.created_begin, item.created_end,
+             item.estimated_begin, item.estimated_end, item.estimated_source,
+             item.path),
         )
         self._conn.execute(
             "INSERT INTO item_fts (rowid, title, description) VALUES (?, ?, ?)",

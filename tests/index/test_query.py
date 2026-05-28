@@ -92,6 +92,29 @@ def test_limit(tmp_path):
     assert len(results) == 1
 
 
+def test_offset_skips_leading_results(tmp_path):
+    with _built(tmp_path) as db:
+        all_results = search(db, SearchQuery())
+        offset_results = search(db, SearchQuery(offset=1))
+    assert [r.isadg_id for r in offset_results] == [r.isadg_id for r in all_results[1:]]
+
+
+def test_offset_and_limit_paginate(tmp_path):
+    with _built(tmp_path) as db:
+        page1 = search(db, SearchQuery(limit=1, offset=0))
+        page2 = search(db, SearchQuery(limit=1, offset=1))
+        page3 = search(db, SearchQuery(limit=1, offset=2))
+    assert [r.isadg_id for r in page1] == [300]
+    assert [r.isadg_id for r in page2] == [100]
+    assert [r.isadg_id for r in page3] == [200]
+
+
+def test_offset_past_end_returns_empty(tmp_path):
+    with _built(tmp_path) as db:
+        results = search(db, SearchQuery(offset=999))
+    assert results == []
+
+
 def test_keyword_and_date_combine(tmp_path):
     with _built(tmp_path) as db:
         results = search(
@@ -111,3 +134,13 @@ def test_keyword_apostrophe_does_not_crash(tmp_path):
     with _built(tmp_path) as db:
         results = search(db, SearchQuery(text="O'Brien"))
     assert results == []
+
+
+def test_search_result_carries_estimated_date_from_volume_title(tmp_path):
+    # Item 300's volume volB has title "PRONI Deeds Volume 25: 1689",
+    # so estimated_date should be 1689-... regardless of metadata dates.
+    with _built(tmp_path) as db:
+        results = search(db, SearchQuery(volume="volB"))
+    r300 = next(r for r in results if r.isadg_id == 300)
+    assert r300.estimated_date == "1689-01-01/1689-12-31"
+    assert r300.estimated_source == "volume"
