@@ -25,14 +25,28 @@ class Archive:
 
     # --- resume state ---
 
-    def is_resource_complete(self, isadg_id: int) -> bool:
-        entry = self._state["resources"].get(str(isadg_id))
-        return bool(entry) and entry.get("status") == "complete"
+    def is_resource_complete(self, isadg_id: int, *, want_images: bool = False) -> bool:
+        """True if the resource was archived to completion.
 
-    def mark_resource_complete(self, isadg_id: int, *, pages: list, search_id: str) -> None:
+        With ``want_images=True``, a resource archived in metadata-only mode is
+        treated as incomplete (caller needs to backfill image bytes). Legacy
+        entries that predate the flag default to "images downloaded" since the
+        old behaviour was always-on.
+        """
+        entry = self._state["resources"].get(str(isadg_id))
+        if not entry or entry.get("status") != "complete":
+            return False
+        if want_images and not entry.get("images_downloaded", True):
+            return False
+        return True
+
+    def mark_resource_complete(
+        self, isadg_id: int, *, pages: list, search_id: str, images_downloaded: bool,
+    ) -> None:
         entry = self._state["resources"].setdefault(str(isadg_id), {"searches": []})
         entry["status"] = "complete"
         entry["pages"] = pages
+        entry["images_downloaded"] = images_downloaded
         if search_id and search_id not in entry["searches"]:
             entry["searches"].append(search_id)
 
@@ -41,7 +55,7 @@ class Archive:
         entry["status"] = "failed"
         entry["reason"] = reason
 
-    def has_page(self, root_id: str, page_key: str) -> bool:
+    def has_page_image(self, root_id: str, page_key: str) -> bool:
         entry = self._state["pages"].get(f"{root_id}/{page_key}")
         if not entry:
             return False
@@ -49,6 +63,9 @@ class Archive:
         if not path.exists():
             return False
         return hashlib.sha256(path.read_bytes()).hexdigest() == entry["sha256"]
+
+    def has_page_transcription(self, root_id: str, page_key: str) -> bool:
+        return (self.root / "pages" / root_id / f"{page_key}.txt").exists()
 
     def save_state(self) -> None:
         self._state_path.write_text(json.dumps(self._state, indent=2))
@@ -77,20 +94,21 @@ class Archive:
         *,
         root_id: str,
         page_key: str,
-        image_bytes: bytes,
+        image_bytes: bytes | None,
         text: str | None,
         annotations: dict | None,
     ) -> None:
         page_dir = self._page_dir(root_id)
-        (page_dir / page_key).write_bytes(image_bytes)
+        if image_bytes is not None:
+            (page_dir / page_key).write_bytes(image_bytes)
+            self._state["pages"][f"{root_id}/{page_key}"] = {
+                "sha256": hashlib.sha256(image_bytes).hexdigest(),
+                "bytes": len(image_bytes),
+            }
         if text is not None:
             (page_dir / f"{page_key}.txt").write_text(text)
         if annotations is not None:
             (page_dir / f"{page_key}.json").write_text(json.dumps(annotations, indent=2))
-        self._state["pages"][f"{root_id}/{page_key}"] = {
-            "sha256": hashlib.sha256(image_bytes).hexdigest(),
-            "bytes": len(image_bytes),
-        }
 
     def write_volume_info(self, root_id: str, info: dict) -> None:
         (self._page_dir(root_id) / "volume.json").write_text(json.dumps(info, indent=2))

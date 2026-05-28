@@ -8,12 +8,15 @@ import hashlib
 def test_new_archive_has_empty_state(tmp_path):
     archive = Archive(tmp_path)
     assert archive.is_resource_complete(474234) is False
-    assert archive.has_page("208925", "x.jpg") is False
+    assert archive.has_page_image("208925", "x.jpg") is False
+    assert archive.has_page_transcription("208925", "x.jpg") is False
 
 
 def test_state_persists_across_instances(tmp_path):
     archive = Archive(tmp_path)
-    archive.mark_resource_complete(474234, pages=[], search_id="houston")
+    archive.mark_resource_complete(
+        474234, pages=[], search_id="houston", images_downloaded=True,
+    )
     archive.save_state()
 
     reopened = Archive(tmp_path)
@@ -40,7 +43,26 @@ def test_store_page_writes_files_and_registers(tmp_path):
     assert (base / "p1.jpg").read_bytes() == b"\xff\xd8jpegbytes"
     assert (base / "p1.jpg.txt").read_text() == "hello world"
     assert "hello world" in (base / "p1.jpg.json").read_text()
-    assert archive.has_page("208925", "p1.jpg") is True
+    assert archive.has_page_image("208925", "p1.jpg") is True
+    assert archive.has_page_transcription("208925", "p1.jpg") is True
+
+
+def test_store_page_without_image_writes_transcription_only(tmp_path):
+    archive = Archive(tmp_path)
+    archive.store_page(
+        root_id="208925",
+        page_key="p1.jpg",
+        image_bytes=None,
+        text="hello world",
+        annotations={"resources": []},
+    )
+    base = tmp_path / "pages" / "208925"
+    assert not (base / "p1.jpg").exists()
+    assert (base / "p1.jpg.txt").read_text() == "hello world"
+    assert (base / "p1.jpg.json").exists()
+    assert archive.has_page_image("208925", "p1.jpg") is False
+    assert archive.has_page_transcription("208925", "p1.jpg") is True
+    assert archive.page_checksum("208925", "p1.jpg") is None  # no _state["pages"] entry
 
 
 def test_store_page_records_checksum(tmp_path):
@@ -101,9 +123,9 @@ def test_has_page_false_when_file_corrupted(tmp_path):
     archive = Archive(tmp_path)
     archive.store_page(root_id="208925", page_key="p1.jpg",
                        image_bytes=b"abc", text=None, annotations=None)
-    assert archive.has_page("208925", "p1.jpg") is True
+    assert archive.has_page_image("208925", "p1.jpg") is True
     (tmp_path / "pages" / "208925" / "p1.jpg").write_bytes(b"corrupted")
-    assert archive.has_page("208925", "p1.jpg") is False
+    assert archive.has_page_image("208925", "p1.jpg") is False
 
 
 def test_has_page_false_when_file_missing(tmp_path):
@@ -111,7 +133,7 @@ def test_has_page_false_when_file_missing(tmp_path):
     archive.store_page(root_id="208925", page_key="p1.jpg",
                        image_bytes=b"abc", text=None, annotations=None)
     (tmp_path / "pages" / "208925" / "p1.jpg").unlink()
-    assert archive.has_page("208925", "p1.jpg") is False
+    assert archive.has_page_image("208925", "p1.jpg") is False
 
 
 def test_page_size_returns_byte_size_for_existing_page(tmp_path):
@@ -128,3 +150,34 @@ def test_page_size_returns_none_when_missing(tmp_path):
     from vtextract.archive import Archive
     archive = Archive(tmp_path)
     assert archive.page_size("r1", "nope.jpg") is None
+
+
+def test_is_resource_complete_wants_images_detects_metadata_only(tmp_path):
+    archive = Archive(tmp_path)
+    archive.mark_resource_complete(
+        474234, pages=["208925/p1.jpg"], search_id="s",
+        images_downloaded=False,
+    )
+    # A want_images=True caller sees this as incomplete (needs image backfill).
+    assert archive.is_resource_complete(474234, want_images=True) is False
+    # A want_images=False caller is satisfied: metadata is here.
+    assert archive.is_resource_complete(474234, want_images=False) is True
+
+
+def test_is_resource_complete_legacy_entry_assumed_imaged(tmp_path):
+    """Pre-flag archives have no images_downloaded field; treat them as fully imaged."""
+    archive = Archive(tmp_path)
+    archive._state["resources"]["474234"] = {"status": "complete", "pages": [], "searches": []}
+    assert archive.is_resource_complete(474234, want_images=True) is True
+    assert archive.is_resource_complete(474234, want_images=False) is True
+
+
+def test_mark_resource_complete_persists_images_downloaded(tmp_path):
+    archive = Archive(tmp_path)
+    archive.mark_resource_complete(
+        474234, pages=[], search_id="s", images_downloaded=False,
+    )
+    archive.save_state()
+    reopened = Archive(tmp_path)
+    assert reopened.is_resource_complete(474234, want_images=True) is False
+    assert reopened.is_resource_complete(474234, want_images=False) is True

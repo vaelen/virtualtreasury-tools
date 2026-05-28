@@ -143,7 +143,7 @@ def test_extract_drives_reporter_for_skip_and_fetch(tmp_path, monkeypatch):
     from vtextract.archive import Archive
 
     archive = Archive(tmp_path)
-    archive.mark_resource_complete(100, pages=[], search_id="x")  # already done
+    archive.mark_resource_complete(100, pages=[], search_id="x", images_downloaded=True)  # already done
 
     monkeypatch.setattr(
         cli, "fetch_resource",
@@ -171,7 +171,7 @@ def test_extract_emits_verify_summary_when_refresh(tmp_path, monkeypatch):
 
     archive = Archive(tmp_path)
     # Mark one resource complete so we can also exercise the refresh-skips-nothing path.
-    archive.mark_resource_complete(100, pages=[], search_id="x")
+    archive.mark_resource_complete(100, pages=[], search_id="x", images_downloaded=True)
 
     monkeypatch.setattr(
         cli, "fetch_resource",
@@ -305,7 +305,7 @@ def test_run_archives_results_from_criteria_flags(tmp_path, monkeypatch):
 
     exit_code = cli.run(
         ["search", "--title", "--all", "houston", "--out", str(tmp_path),
-         "--context-pages", "0", "--config", str(config)],
+         "--images", "--context-pages", "0", "--config", str(config)],
     )
     assert exit_code == 0
     # The criteria flags reached the POST body as parallel arrays + scaffolding.
@@ -503,6 +503,178 @@ def test_search_refresh_parses_as_global_flag():
     assert [f.keywords for f in criteria.filters] == [["houston"]]
 
 
+def test_search_images_parses_as_global_flag():
+    """--images must route to argparse, not become a search keyword."""
+    from vtextract.cli import build_parser, split_and_group
+    globals_, criteria = split_and_group(["houston", "--images"], build_parser())
+    assert "--images" in globals_
+    assert build_parser().parse_args(globals_).images is True
+    assert [f.keywords for f in criteria.filters] == [["houston"]]
+
+
+def test_search_default_skips_image_download(tmp_path, monkeypatch):
+    """Without --images: metadata + transcription, no Loris GET."""
+    config = _write_config(tmp_path)
+    search_response = {
+        "generalInfo": {"totalDocs": 1, "docNumberPerPage": 100, "currentPage": 1},
+        "resultInfoList": [
+            {"isadgID": 474234, "displayReferenceCode": "X", "displayTitle": "Y"}
+        ],
+    }
+    counts = {"loris": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.startswith("/loris/"):
+            counts["loris"] += 1
+        return _item_handler(request, search_response)
+
+    monkeypatch.setattr(cli, "_make_transport", lambda: httpx.MockTransport(handler))
+    code = cli.run(["search", "houston", "--out", str(tmp_path),
+                    "--context-pages", "0", "--config", str(config)])
+    assert code == 0
+    assert counts["loris"] == 0
+    assert (tmp_path / "items" / "474234" / "metadata.json").exists()
+    txt = tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg.txt"
+    assert txt.exists()
+    assert not (tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg").exists()
+
+
+def test_search_backfills_image_on_second_run_with_images(tmp_path, monkeypatch):
+    """A metadata-only resource is re-fetched (image backfilled) when --images is added."""
+    config = _write_config(tmp_path)
+    search_response = {
+        "generalInfo": {"totalDocs": 1, "docNumberPerPage": 100, "currentPage": 1},
+        "resultInfoList": [
+            {"isadgID": 474234, "displayReferenceCode": "X", "displayTitle": "Y"}
+        ],
+    }
+    counts = {"loris": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.startswith("/loris/"):
+            counts["loris"] += 1
+        return _item_handler(request, search_response)
+
+    monkeypatch.setattr(cli, "_make_transport", lambda: httpx.MockTransport(handler))
+    base = ["search", "houston", "--out", str(tmp_path),
+            "--context-pages", "0", "--config", str(config)]
+    assert cli.run(base) == 0
+    assert counts["loris"] == 0  # no image on the metadata-only run
+
+    assert cli.run(base + ["--images"]) == 0
+    assert counts["loris"] == 1  # second run backfills the image
+    assert (tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg").exists()
+
+
+def test_search_with_imaged_resource_skips_on_metadata_only_rerun(tmp_path, monkeypatch):
+    """An imaged resource is treated as complete by a later metadata-only search."""
+    config = _write_config(tmp_path)
+    search_response = {
+        "generalInfo": {"totalDocs": 1, "docNumberPerPage": 100, "currentPage": 1},
+        "resultInfoList": [
+            {"isadgID": 474234, "displayReferenceCode": "X", "displayTitle": "Y"}
+        ],
+    }
+    item_calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/rest/isadg-identity-statements/474234":
+            item_calls["n"] += 1
+        return _item_handler(request, search_response)
+
+    monkeypatch.setattr(cli, "_make_transport", lambda: httpx.MockTransport(handler))
+    base = ["search", "houston", "--out", str(tmp_path),
+            "--context-pages", "0", "--config", str(config)]
+    assert cli.run(base + ["--images"]) == 0
+    assert item_calls["n"] == 1
+
+    item_calls["n"] = 0
+    assert cli.run(base) == 0  # no --images this time
+    assert item_calls["n"] == 0  # short-circuited: archive is more complete than requested
+
+
+def test_get_default_skips_image_download(tmp_path, monkeypatch):
+    config = _write_config(tmp_path)
+    counts = {"loris": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.startswith("/loris/"):
+            counts["loris"] += 1
+        return _get_handler(request)
+
+    monkeypatch.setattr(cli, "_make_transport", lambda: httpx.MockTransport(handler))
+    code = cli.run(["get", "474234", "--out", str(tmp_path),
+                    "--context-pages", "0", "--config", str(config)])
+    assert code == 0
+    assert counts["loris"] == 0
+    assert (tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg.txt").exists()
+
+
+def test_get_with_images_downloads_image(tmp_path, monkeypatch):
+    config = _write_config(tmp_path)
+    counts = {"loris": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.startswith("/loris/"):
+            counts["loris"] += 1
+        return _get_handler(request)
+
+    monkeypatch.setattr(cli, "_make_transport", lambda: httpx.MockTransport(handler))
+    code = cli.run(["get", "474234", "--images", "--out", str(tmp_path),
+                    "--context-pages", "0", "--config", str(config)])
+    assert code == 0
+    assert counts["loris"] == 1
+    assert (tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg").exists()
+
+
+def test_refresh_default_does_not_head_or_download_images(tmp_path, monkeypatch):
+    config = _seed_one_item(tmp_path, monkeypatch)
+    counts = {"head": 0, "get": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.startswith("/loris/"):
+            if request.method == "HEAD":
+                counts["head"] += 1
+            else:
+                counts["get"] += 1
+        return _refresh_get_handler(request)
+
+    monkeypatch.setattr(cli, "_make_transport", lambda: httpx.MockTransport(handler))
+    code = cli.run(["refresh", "--yes", "--out", str(tmp_path), "--config", str(config),
+                    "--context-pages", "0"])
+    assert code == 0
+    assert counts == {"head": 0, "get": 0}  # no Loris traffic without --images
+
+
+def test_refresh_with_images_head_verifies(tmp_path, monkeypatch):
+    """The original behaviour (HEAD-verify on refresh) is preserved behind --images."""
+    config = _write_config(tmp_path)
+    # Seed with --images so an image exists on disk for HEAD-verify.
+    monkeypatch.setattr(
+        cli, "_make_transport",
+        lambda: httpx.MockTransport(lambda r: _get_handler(r)),
+    )
+    assert cli.run(["get", "474234", "--images", "--out", str(tmp_path),
+                    "--config", str(config), "--context-pages", "0"]) == 0
+
+    counts = {"head": 0, "get": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.startswith("/loris/"):
+            if request.method == "HEAD":
+                counts["head"] += 1
+            else:
+                counts["get"] += 1
+        return _refresh_get_handler(request)
+
+    monkeypatch.setattr(cli, "_make_transport", lambda: httpx.MockTransport(handler))
+    code = cli.run(["refresh", "--yes", "--images", "--out", str(tmp_path),
+                    "--config", str(config), "--context-pages", "0"])
+    assert code == 0
+    assert counts["head"] == 1
+    assert counts["get"] == 0  # size matched -> no re-download
+
+
 def test_get_twice_skips_completed_resource(tmp_path, monkeypatch):
     config = _write_config(tmp_path)
     item_calls: list[str] = []
@@ -615,7 +787,7 @@ def test_run_twice_skips_completed_resource(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "_make_transport", lambda: httpx.MockTransport(handler))
 
     argv = ["search", "houston", "--out", str(tmp_path),
-            "--context-pages", "0", "--config", str(config)]
+            "--images", "--context-pages", "0", "--config", str(config)]
 
     assert cli.run(argv) == 0
     assert counts["item"] == 1

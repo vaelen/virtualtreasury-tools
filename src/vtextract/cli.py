@@ -48,7 +48,7 @@ _FIELD_FLAGS = {f"--{name}": name for name in FIELD_MAP}
 # Operand flags: "--all" -> "all" key into OPERANDS.
 _OPERAND_FLAGS = {f"--{name}": name for name in OPERANDS}
 # Zero-arg boolean global flags handled by argparse.
-_BOOL_FLAGS = {"--refresh"}
+_BOOL_FLAGS = {"--refresh", "--images"}
 
 _EPILOG = """\
 search criteria (parsed positionally, in order):
@@ -107,8 +107,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--refresh", action="store_true",
-        help="Re-fetch metadata and HEAD-verify images for matched resources, "
-        "even if already archived.",
+        help="Re-fetch metadata for matched resources (and HEAD-verify images "
+        "when --images is set), even if already archived.",
+    )
+    parser.add_argument(
+        "--images", action="store_true",
+        help="Download full-resolution page images (default: transcriptions "
+        "and metadata only).",
     )
     return parser
 
@@ -259,13 +264,13 @@ def _run_search(argv: list[str]) -> int:
     completed, failed = _extract(
         client, archive, hits, search_id=search_id,
         context_pages=args.context_pages, reporter=reporter,
-        refresh=args.refresh,
+        refresh=args.refresh, images=args.images,
     )
     return 1 if failed else 0
 
 
 def _extract(client, archive, hits, *, search_id: str, context_pages: int,
-             reporter=None, refresh: bool = False) -> tuple[int, int]:
+             reporter=None, refresh: bool = False, images: bool = False) -> tuple[int, int]:
     """Run the shared per-resource fetch loop, returning (completed, failed).
 
     Owns the root-manifest cache and the client's lifetime; one bad resource is
@@ -293,7 +298,7 @@ def _extract(client, archive, hits, *, search_id: str, context_pages: int,
                 # hit only learns its id once fetch_resource fetches the detail.
                 raw_id = hit.get("isadgID")
                 isadg_id = int(raw_id) if raw_id is not None and str(raw_id).isdigit() else None
-                if (not refresh) and isadg_id is not None and archive.is_resource_complete(isadg_id):
+                if (not refresh) and isadg_id is not None and archive.is_resource_complete(isadg_id, want_images=images):
                     reporter.skip(isadg_id)
                     continue
                 label = isadg_id if isadg_id is not None else hit.get("displayReferenceCode", "?")
@@ -303,6 +308,7 @@ def _extract(client, archive, hits, *, search_id: str, context_pages: int,
                         client, archive, hit,
                         search_id=search_id,
                         context_pages=context_pages,
+                        images=images,
                         on_item_start=reporter.item_pages,
                         on_page=reporter.page_done,
                         refresh=refresh,
@@ -344,8 +350,13 @@ def _run_get(argv: list[str]) -> int:
     )
     parser.add_argument(
         "--refresh", action="store_true",
-        help="Re-fetch metadata and HEAD-verify images for the given resources, "
-        "even if already archived.",
+        help="Re-fetch metadata for the given resources (and HEAD-verify images "
+        "when --images is set), even if already archived.",
+    )
+    parser.add_argument(
+        "--images", action="store_true",
+        help="Download full-resolution page images (default: transcriptions "
+        "and metadata only).",
     )
     args = parser.parse_args(argv)
 
@@ -376,7 +387,7 @@ def _run_get(argv: list[str]) -> int:
     completed, failed = _extract(
         client, archive, hits, search_id="get",
         context_pages=args.context_pages, reporter=reporter,
-        refresh=args.refresh,
+        refresh=args.refresh, images=args.images,
     )
     return 1 if failed else 0
 
@@ -395,7 +406,8 @@ def _prompt_yes_no(message: str) -> bool:
 def _run_refresh(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="vtextract refresh",
-        description="Re-fetch metadata and HEAD-verify images for every archived item.",
+        description="Re-fetch metadata for every archived item. With --images, "
+        "also HEAD-verifies every image against the server.",
     )
     parser.add_argument(
         "--out", help="Archive directory (defaults to the config file's archive)."
@@ -404,6 +416,11 @@ def _run_refresh(argv: list[str]) -> int:
     parser.add_argument(
         "--context-pages", type=_nonneg_int, default=1,
         help="Neighbouring physical pages to also consider per page (default 1).",
+    )
+    parser.add_argument(
+        "--images", action="store_true",
+        help="Also HEAD-verify and re-download images (default: metadata and "
+        "transcriptions only).",
     )
     parser.add_argument(
         "-y", "--yes", action="store_true",
@@ -434,9 +451,18 @@ def _run_refresh(argv: list[str]) -> int:
                 file=sys.stderr,
             )
             return 2
+        if args.images:
+            prompt_detail = (
+                "metadata and HEAD-verifies every image against the server"
+            )
+        else:
+            prompt_detail = (
+                "metadata and backfills any missing transcriptions; images on "
+                "disk are left untouched"
+            )
         if not _prompt_yes_no(
             f"Refresh {len(hits)} item(s) in {archive.root}? This re-fetches "
-            "metadata and HEAD-verifies every image against the server. [y/N] "
+            f"{prompt_detail}. [y/N] "
         ):
             print("aborted.", file=sys.stderr)
             return 0
@@ -454,6 +480,7 @@ def _run_refresh(argv: list[str]) -> int:
     completed, failed = _extract(
         client, archive, hits, search_id="refresh",
         context_pages=args.context_pages, reporter=reporter, refresh=True,
+        images=args.images,
     )
     return 1 if failed else 0
 

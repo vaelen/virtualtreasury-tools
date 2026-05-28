@@ -4,9 +4,9 @@
 > <andrew@vaelen.org>. All rights reserved. This is not open-source software;
 > see [LICENSE](LICENSE).
 
-Download resources from [virtualtreasury.ie](https://virtualtreasury.ie) — full
--resolution images, metadata, and transcriptions — into a resumable local
-archive. See the design spec in
+Download resources from [virtualtreasury.ie](https://virtualtreasury.ie) —
+metadata and transcriptions by default, optionally with full-resolution images
+(`--images`) — into a resumable local archive. See the design spec in
 `docs/superpowers/specs/2026-05-26-virtualtreasury-extractor-design.md`.
 
 ## Install
@@ -90,6 +90,20 @@ keyword search (downloads to the configured `archive` unless `--out` overrides):
 uv run vtextract search houston --context-pages 1
 ```
 
+By default this downloads each matching resource's metadata and per-page
+transcriptions only — the full-resolution image files dwarf the rest of the
+archive on disk and aren't always needed. Add `--images` to also download the
+images:
+
+```bash
+uv run vtextract search houston --images --context-pages 1
+```
+
+Resume is mode-aware: a resource archived without `--images` is treated as
+incomplete by a later `--images` run and gets its images backfilled, while a
+fully-imaged resource is considered complete by a later metadata-only run and
+skipped. Archives created before the flag existed are treated as fully imaged.
+
 Each **field flag** starts a search clause; the **operand flag** (default
 `--all`) sets how its keywords combine; bare words are the keywords. Clauses
 combine, and `--start`/`--end` filter by content date (`yyyy-mm-dd`):
@@ -122,18 +136,22 @@ already-downloaded pages are skipped.
 ### Refreshing already-archived resources
 
 `refresh` re-fetches each item's metadata (detail, manifest, `volume.json`) and
-issues a `HEAD` for every referenced image, comparing the server's
-`Content-Length` to the file on disk. Mismatched or missing images are
-re-downloaded; images whose size cannot be verified are reported as
-"unverified". The full-archive `refresh` asks for confirmation first (use
-`-y/--yes` to skip); `--refresh` on `search`/`get` does the same for just those
-resources.
+backfills any missing transcriptions. With `--images`, it also issues a `HEAD`
+for every referenced image, comparing the server's `Content-Length` to the file
+on disk; mismatched or missing images are re-downloaded and ones whose size
+cannot be verified are reported as "unverified". Without `--images`, existing
+image files on disk are left untouched. The full-archive `refresh` asks for
+confirmation first (use `-y/--yes` to skip); `--refresh` on `search`/`get` does
+the same for just those resources, and the same `--images` rule applies.
 
 ```bash
-# re-fetch metadata + verify image sizes for already-archived resources
+# re-fetch metadata + transcriptions for already-archived resources
 vtextract search --refresh houston            # scoped to search results
 vtextract get --refresh TNA-SP-63-356         # scoped to given resources
 vtextract refresh                             # the whole archive (asks to confirm; -y to skip)
+
+# include image verification (HEAD + re-download mismatches)
+vtextract refresh --images
 ```
 
 ### Fetching specific resources
@@ -145,6 +163,7 @@ skipping the search query. Everything downstream is identical to `search`
 
 ```bash
 uv run vtextract get "TNA SO 1/14" 474234 --out ./archive --context-pages 1
+uv run vtextract get "TNA SO 1/14" --images --out ./archive   # also pull images
 ```
 
 A reference code may be written with spaces or slashes (`TNA SO 1/14`); each is

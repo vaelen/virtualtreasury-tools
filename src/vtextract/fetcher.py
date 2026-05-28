@@ -47,6 +47,7 @@ def fetch_resource(
     *,
     search_id: str,
     context_pages: int = 1,
+    images: bool = False,
     on_item_start: Callable[[int], None] | None = None,
     on_page: Callable[[], None] | None = None,
     refresh: bool = False,
@@ -54,7 +55,12 @@ def fetch_resource(
     _root_manifest_cache: dict | None = None,
     _verified_pages: set[str] | None = None,
 ) -> Record:
-    """Fetch one resource: detail metadata, manifest, images, transcriptions.
+    """Fetch one resource: detail metadata, manifest, transcriptions, (optionally) images.
+
+    With ``images=False`` (the default), only the detail object, the manifest,
+    and per-page annotation lists are fetched; image bytes are skipped. The
+    resource state records the mode so a later ``images=True`` run can backfill
+    the images.
 
     Stores each physical page once in the shared per-volume page store and
     writes the resource record referencing its primary and context pages.
@@ -63,10 +69,12 @@ def fetch_resource(
     number of pages to process (primary + context), then ``on_page`` is called
     after each page.
 
-    When ``refresh=True``, existing pages are HEAD-verified against the server;
-    mismatched or missing pages are re-downloaded.  ``on_verify`` receives
-    ``(outcome, relative_path)`` for each page verified.  Pass a shared
-    ``_verified_pages`` set across calls to avoid re-HEADing the same page.
+    When ``refresh=True`` and ``images=True``, existing images are HEAD-verified
+    against the server; mismatched or missing images are re-downloaded.
+    ``on_verify`` receives ``(outcome, relative_path)`` for each page verified.
+    Pass a shared ``_verified_pages`` set across calls to avoid re-HEADing the
+    same page. ``refresh=True`` with ``images=False`` re-fetches metadata and
+    backfills any missing transcriptions, leaving images on disk untouched.
     """
     cache = _root_manifest_cache if _root_manifest_cache is not None else {}
     verified = _verified_pages if _verified_pages is not None else set()
@@ -91,7 +99,7 @@ def fetch_resource(
         for page, role in work:
             _ensure_page(
                 client, archive, page, role=role, refs=page_refs,
-                refresh=refresh, verified=verified, on_verify=on_verify,
+                images=images, refresh=refresh, verified=verified, on_verify=on_verify,
             )
             if on_page is not None:
                 on_page()
@@ -99,7 +107,10 @@ def fetch_resource(
         record = normalize_record(detail)
         record.pages = page_refs
         archive.write_resource(record, manifest=manifest)
-        archive.mark_resource_complete(isadg_id, pages=[r.page_key for r in page_refs], search_id=search_id)
+        archive.mark_resource_complete(
+            isadg_id, pages=[r.page_key for r in page_refs], search_id=search_id,
+            images_downloaded=images,
+        )
         archive.save_state()
         return record
     except Exception as exc:  # noqa: BLE001 - record failure and re-raise for the caller to log
@@ -128,9 +139,13 @@ def _context_for(client: Client, cache: dict, archive: Archive, page: Page, cont
     return neighbor_canvases(cache[page.root_id], page.canvas_id, context_pages)
 
 
-def _download_page(client: Client, archive: Archive, page: Page) -> None:
-    """Download a page's image (and its annotation text, if any) into the store."""
-    image_bytes = client.get_bytes(page.image_url)
+def _download_page(client: Client, archive: Archive, page: Page, *, want_image: bool) -> None:
+    """Download a page's transcription (if any) and, when requested, its image.
+
+    Annotations are always fetched when the manifest advertised an annotation
+    list; image bytes are fetched only when ``want_image`` is True.
+    """
+    image_bytes = client.get_bytes(page.image_url) if want_image else None
     text = None
     annotations = None
     if page.annotation_list_urls:
@@ -154,7 +169,7 @@ def _verify_or_redownload(client: Client, archive: Archive, page: Page) -> str:
     """
     disk_size = archive.page_size(page.root_id, page.page_key)
     if disk_size is None:
-        _download_page(client, archive, page)
+        _download_page(client, archive, page, want_image=True)
         return "missing"
     try:
         head_size = client.head(page.image_url)
@@ -164,7 +179,7 @@ def _verify_or_redownload(client: Client, archive: Archive, page: Page) -> str:
         return "unverified"
     if head_size == disk_size:
         return "ok"
-    _download_page(client, archive, page)
+    _download_page(client, archive, page, want_image=True)
     return "mismatch"
 
 
@@ -175,6 +190,7 @@ def _ensure_page(
     *,
     role: str,
     refs: list[PageRef],
+    images: bool = False,
     refresh: bool = False,
     verified: set[str] | None = None,
     on_verify: Callable[[str, str], None] | None = None,
@@ -195,13 +211,25 @@ def _ensure_page(
         return
     refs.append(ref)
 
+    has_image = archive.has_page_image(page.root_id, page.page_key)
+    has_text = archive.has_page_transcription(page.root_id, page.page_key)
+    expects_text = bool(page.annotation_list_urls)
+
     if not refresh:
-        if archive.has_page(page.root_id, page.page_key):
-            return
-        _download_page(client, archive, page)
+        need_image = images and not has_image
+        need_text = expects_text and not has_text
+        if need_image or need_text:
+            _download_page(client, archive, page, want_image=need_image)
         return
 
-    # refresh mode: verify (once per run) the image size against disk.
+    # refresh mode: always backfill any missing transcription; only HEAD-verify
+    # the image when the caller wants images.
+    if expects_text and not has_text:
+        _download_page(client, archive, page, want_image=False)
+
+    if not images:
+        return
+
     key = f"{page.root_id}/{page.page_key}"
     if verified is not None and key in verified:
         return

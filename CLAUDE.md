@@ -6,10 +6,11 @@ Guidance for working in this repository.
 
 `vtextract` — a Python CLI that runs searches against
 [virtualtreasury.ie](https://virtualtreasury.ie) (the Virtual Record Treasury
-of Ireland / "Beyond 2022" project) and downloads every matching resource's
-full-resolution images, metadata, and transcriptions into a resumable local
-archive. The public site is an Angular SPA over a DSpace backend with IIIF
-image delivery; this tool replicates the requests the browser makes.
+of Ireland / "Beyond 2022" project) and downloads each matching resource's
+metadata and transcriptions — and, with `--images`, full-resolution page
+images — into a resumable local archive. The public site is an Angular SPA
+over a DSpace backend with IIIF image delivery; this tool replicates the
+requests the browser makes.
 
 ## Where things are documented
 
@@ -33,11 +34,14 @@ each invocation, so prefer it over activating the venv manually.
   Keep it that way.
 - **CLI:** `uv run vtextract search --title --all <keywords> --out ./archive --context-pages 1`
   (subcommands: `search`, `get`, and `auth`; searches are built from flags, not a
-  URL; see `docs/search-query.md`). `get <refcodes/ids...>` pulls known resources
+  URL; see `docs/search-query.md`). Images are **opt-in** via `--images` on
+  `search`, `get`, and `refresh`; the default fetches metadata + manifest +
+  per-page transcriptions only. `get <refcodes/ids...>` pulls known resources
   directly (reference codes normalise ` `/`/` → `-`), reusing the same fetch flow.
   A `refresh` command (and `--refresh` on `search`/`get`) re-fetches metadata for
-  already-archived resources and HEAD-verifies image sizes against disk,
-  re-downloading mismatches; the full-archive `refresh` confirms first (`-y` to skip).
+  already-archived resources and backfills missing transcriptions; with
+  `--images` it also HEAD-verifies image sizes against disk and re-downloads
+  mismatches. The full-archive `refresh` confirms first (`-y` to skip).
 - **Index CLI:** `.venv/bin/vtindex build --archive ./archive` then
   `.venv/bin/vtindex search "<keyword>" --archive ./archive [--json]`, or
   `.venv/bin/vtindex page <rootID>/<page_key> --archive ./archive` for
@@ -92,6 +96,12 @@ under `uv run pytest`. `archive/`, `.venv/`, and `*.egg-info/` are gitignored;
 - Pages are therefore stored **once** in a shared store grouped by volume:
   `archive/pages/{rootID}/`. Resources live in `archive/items/{isadgID}/` and
   **reference** pages (deduped by Loris id + checksum).
+- **Images are opt-in (`--images`)**; transcriptions and metadata are always
+  fetched. Each resource's `_state.json` entry records `images_downloaded`, so
+  resume is mode-aware: a metadata-only resource gets its images backfilled on a
+  later `--images` run, and a fully-imaged resource is skipped by a later
+  metadata-only run. Legacy entries without the field are treated as fully
+  imaged.
 - The **IIIF manifest is the source of truth** for which images/transcriptions
   exist — do NOT trust the `hasImages` / `hasTranscriptions` flags (a sample had
   `hasTranscription: false` yet a populated annotation list).

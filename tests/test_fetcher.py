@@ -54,7 +54,7 @@ def test_fetch_resource_downloads_page_metadata_and_transcription(tmp_path):
         "displayTitle": "Will of MITCHELL, CALEB",
     }
     record = fetch_resource(
-        _client(), archive, search_hit, search_id="houston", context_pages=0
+        _client(), archive, search_hit, search_id="houston", context_pages=0, images=True
     )
 
     metadata = json.loads((tmp_path / "items" / "474234" / "metadata.json").read_text())
@@ -80,7 +80,7 @@ def test_fetch_resource_reports_page_progress(tmp_path):
 
     fetch_resource(
         _client(), archive, search_hit,
-        search_id="houston", context_pages=0,
+        search_id="houston", context_pages=0, images=True,
         on_item_start=started.append,
         on_page=lambda: pages.__setitem__("n", pages["n"] + 1),
     )
@@ -144,8 +144,8 @@ def test_fetch_resource_skips_already_stored_page(tmp_path):
             delay=0.0, sleep_func=lambda _s: None,
         )
 
-    fetch_resource(client(), archive, search_hit, search_id="s1", context_pages=0)
-    fetch_resource(client(), archive, dict(search_hit, isadgID=474234), search_id="s2", context_pages=0)
+    fetch_resource(client(), archive, search_hit, search_id="s1", context_pages=0, images=True)
+    fetch_resource(client(), archive, dict(search_hit, isadgID=474234), search_id="s2", context_pages=0, images=True)
     assert calls["loris"] == 1
 
 
@@ -188,7 +188,7 @@ def test_fetch_resource_pulls_context_pages_and_writes_volume_info(tmp_path):
     archive = Archive(tmp_path)
     search_hit = {"isadgID": 474234, "displayReferenceCode": "X", "displayTitle": "Y"}
 
-    record = fetch_resource(client, archive, search_hit, search_id="s", context_pages=1)
+    record = fetch_resource(client, archive, search_hit, search_id="s", context_pages=1, images=True)
 
     roles = {r.page_key: r.role for r in record.pages}
     assert roles["IMC_1954_RoD_1_Page_253.jpg"] == "primary"
@@ -236,7 +236,7 @@ def test_fetch_resource_writes_volume_title_from_root_detail(tmp_path):
     )
     archive = Archive(tmp_path)
     fetch_resource(client, archive, {"isadgID": 474234, "displayReferenceCode": "X", "displayTitle": "Y"},
-                   search_id="s", context_pages=1)
+                   search_id="s", context_pages=1, images=True)
 
     vol = json.loads((tmp_path / "pages" / "208925" / "volume.json").read_text())
     assert vol["title"] == "Will of MITCHELL, CALEB, Dublin, carpenter, created 18 January 1724"
@@ -268,12 +268,12 @@ def test_refresh_unverified_when_head_raises(tmp_path):
                       delay=0.0, max_retries=0, sleep_func=lambda _s: None)
 
     # seed the page on disk
-    fetch_resource(client(), archive, hit, search_id="s", context_pages=0)
+    fetch_resource(client(), archive, hit, search_id="s", context_pages=0, images=True)
     img_path = tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg"
     before = img_path.read_bytes()
 
     outcomes = []
-    fetch_resource(client(), archive, hit, search_id="s", context_pages=0, refresh=True,
+    fetch_resource(client(), archive, hit, search_id="s", context_pages=0, refresh=True, images=True,
                    on_verify=lambda o, p: outcomes.append(o))
     assert outcomes == ["unverified"]       # HEAD raised -> unverified
     assert img_path.read_bytes() == before  # file left untouched
@@ -318,18 +318,18 @@ def test_refresh_verifies_without_redownload_when_size_matches(tmp_path):
 
     calls = {"head": 0, "get": 0}
     fetch_resource(_refresh_client(calls, head_len=img_len), archive, hit,
-                   search_id="s", context_pages=0)
+                   search_id="s", context_pages=0, images=True)
     assert calls == {"head": 0, "get": 1}  # initial archive: one image GET, no HEAD
 
     calls = {"head": 0, "get": 0}
     fetch_resource(_refresh_client(calls, head_len=img_len), archive, hit,
-                   search_id="s", context_pages=0, refresh=True)
+                   search_id="s", context_pages=0, refresh=True, images=True)
     assert calls == {"head": 1, "get": 0}  # size matches: HEAD only, no re-download
 
     # Test B: confirm the matching-size path reports "ok" via on_verify
     ok_outcomes = []
     fetch_resource(_refresh_client(calls, head_len=img_len), archive, hit,
-                   search_id="s", context_pages=0, refresh=True,
+                   search_id="s", context_pages=0, refresh=True, images=True,
                    on_verify=lambda o, p: ok_outcomes.append(o))
     assert ok_outcomes == ["ok"]
 
@@ -339,12 +339,12 @@ def test_refresh_redownloads_on_size_mismatch(tmp_path):
     archive = Archive(tmp_path)
     hit = {"isadgID": 474234}
     fetch_resource(_refresh_client({"head": 0, "get": 0}, head_len=0), archive, hit,
-                   search_id="s", context_pages=0)
+                   search_id="s", context_pages=0, images=True)
 
     calls = {"head": 0, "get": 0}
     outcomes = []
     fetch_resource(_refresh_client(calls, head_len=len(_item_image()) + 1), archive, hit,
-                   search_id="s", context_pages=0, refresh=True,
+                   search_id="s", context_pages=0, refresh=True, images=True,
                    on_verify=lambda outcome, path: outcomes.append(outcome))
     assert calls == {"head": 1, "get": 1}  # HEAD said different size -> re-download
     assert outcomes == ["mismatch"]
@@ -355,14 +355,14 @@ def test_refresh_downloads_missing_image_without_head(tmp_path):
     archive = Archive(tmp_path)
     hit = {"isadgID": 474234}
     fetch_resource(_refresh_client({"head": 0, "get": 0}, head_len=0), archive, hit,
-                   search_id="s", context_pages=0)
+                   search_id="s", context_pages=0, images=True)
     # delete the image file on disk -> "missing"
     (tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg").unlink()
 
     calls = {"head": 0, "get": 0}
     outcomes = []
     fetch_resource(_refresh_client(calls, head_len=999), archive, hit,
-                   search_id="s", context_pages=0, refresh=True,
+                   search_id="s", context_pages=0, refresh=True, images=True,
                    on_verify=lambda o, p: outcomes.append(o))
     assert calls == {"head": 0, "get": 1}  # missing -> download, no HEAD
     assert outcomes == ["missing"]
@@ -373,12 +373,12 @@ def test_refresh_unverified_when_no_content_length(tmp_path):
     archive = Archive(tmp_path)
     hit = {"isadgID": 474234}
     fetch_resource(_refresh_client({"head": 0, "get": 0}, head_len=0), archive, hit,
-                   search_id="s", context_pages=0)
+                   search_id="s", context_pages=0, images=True)
 
     calls = {"head": 0, "get": 0}
     outcomes = []
     fetch_resource(_refresh_client(calls, head_len=None), archive, hit,
-                   search_id="s", context_pages=0, refresh=True,
+                   search_id="s", context_pages=0, refresh=True, images=True,
                    on_verify=lambda o, p: outcomes.append(o))
     assert calls == {"head": 1, "get": 0}  # no content-length -> unverified, file untouched
     assert outcomes == ["unverified"]
@@ -390,17 +390,182 @@ def test_refresh_dedupes_verified_pages_across_calls(tmp_path):
     hit = {"isadgID": 474234}
     img_len = len(_item_image())
     fetch_resource(_refresh_client({"head": 0, "get": 0}, head_len=img_len), archive, hit,
-                   search_id="s", context_pages=0)
+                   search_id="s", context_pages=0, images=True)
 
     verified: set[str] = set()
     calls = {"head": 0, "get": 0}
     fetch_resource(_refresh_client(calls, head_len=img_len), archive, hit,
-                   search_id="s", context_pages=0, refresh=True, _verified_pages=verified)
+                   search_id="s", context_pages=0, refresh=True, images=True, _verified_pages=verified)
     assert calls["head"] == 1
     calls = {"head": 0, "get": 0}
     fetch_resource(_refresh_client(calls, head_len=img_len), archive, hit,
-                   search_id="s", context_pages=0, refresh=True, _verified_pages=verified)
+                   search_id="s", context_pages=0, refresh=True, images=True, _verified_pages=verified)
     assert calls["head"] == 0  # page already verified this run -> not re-HEADed
+
+
+def test_fetch_resource_without_images_skips_image_bytes(tmp_path):
+    """images=False: transcription + metadata only; no Loris GET; state records the mode."""
+    from vtextract.archive import Archive
+
+    calls = {"loris_get": 0, "list": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/rest/isadg-identity-statements/474234":
+            return httpx.Response(200, content=_item_json("isadg-identity-statements"))
+        if path == "/iiif/v1/474234/manifest":
+            return httpx.Response(200, content=_item_json("manifest"))
+        if path == "/iiif/v1/208925/list/197350":
+            calls["list"] += 1
+            return httpx.Response(200, content=_item_json("list"))
+        if path.startswith("/loris/") and request.method == "GET":
+            calls["loris_get"] += 1
+            return httpx.Response(200, content=_item_image())
+        return httpx.Response(404, text=path)
+
+    client = Client(
+        base_url="https://by2022-prod.adaptcentre.ie", auth_header="Basic x",
+        user_agent="UA", transport=httpx.MockTransport(handler),
+        delay=0.0, sleep_func=lambda _s: None,
+    )
+    archive = Archive(tmp_path)
+    hit = {"isadgID": 474234}
+
+    fetch_resource(client, archive, hit, search_id="s", context_pages=0, images=False)
+
+    page_dir = tmp_path / "pages" / "208925"
+    assert not (page_dir / "IMC_1954_RoD_1_Page_253.jpg").exists()  # no image
+    assert (page_dir / "IMC_1954_RoD_1_Page_253.jpg.txt").exists()  # transcription written
+    assert calls["loris_get"] == 0
+    assert calls["list"] == 1  # annotation list still fetched
+    assert archive.is_resource_complete(474234, want_images=False) is True
+    assert archive.is_resource_complete(474234, want_images=True) is False
+
+
+def test_fetch_resource_backfills_image_on_second_run_with_images(tmp_path):
+    """First run images=False (no Loris); second run images=True downloads the image."""
+    from vtextract.archive import Archive
+
+    calls = {"loris_get": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.startswith("/loris/") and request.method == "GET":
+            calls["loris_get"] += 1
+            return httpx.Response(200, content=_item_image())
+        return _handler(request)
+
+    def client():
+        return Client(
+            base_url="https://by2022-prod.adaptcentre.ie", auth_header="Basic x",
+            user_agent="UA", transport=httpx.MockTransport(handler),
+            delay=0.0, sleep_func=lambda _s: None,
+        )
+
+    archive = Archive(tmp_path)
+    hit = {"isadgID": 474234}
+
+    fetch_resource(client(), archive, hit, search_id="s", context_pages=0, images=False)
+    assert calls["loris_get"] == 0
+
+    fetch_resource(client(), archive, hit, search_id="s", context_pages=0, images=True)
+    assert calls["loris_get"] == 1  # image now downloaded
+    img_path = tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg"
+    assert img_path.exists()
+    assert archive.is_resource_complete(474234, want_images=True) is True
+
+
+def test_fetch_resource_without_images_backfills_missing_transcription(tmp_path):
+    """If a transcription file is missing on disk, images=False still downloads it."""
+    from vtextract.archive import Archive
+
+    archive = Archive(tmp_path)
+    hit = {"isadgID": 474234}
+
+    # First run with images=True puts both on disk.
+    fetch_resource(_client(), archive, hit, search_id="s", context_pages=0, images=True)
+    txt_path = tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg.txt"
+    txt_path.unlink()
+    assert not txt_path.exists()
+
+    calls = {"loris_get": 0, "list": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/iiif/v1/208925/list/197350":
+            calls["list"] += 1
+            return httpx.Response(200, content=_item_json("list"))
+        if path.startswith("/loris/") and request.method == "GET":
+            calls["loris_get"] += 1
+            return httpx.Response(200, content=_item_image())
+        return _handler(request)
+
+    client = Client(
+        base_url="https://by2022-prod.adaptcentre.ie", auth_header="Basic x",
+        user_agent="UA", transport=httpx.MockTransport(handler),
+        delay=0.0, sleep_func=lambda _s: None,
+    )
+    fetch_resource(client, archive, hit, search_id="s", context_pages=0, images=False)
+    assert txt_path.exists()
+    assert calls["list"] == 1
+    assert calls["loris_get"] == 0  # transcription backfill must not pull the image
+
+
+def test_refresh_without_images_skips_head_and_image_download(tmp_path):
+    """refresh without --images: re-fetch manifests, leave images alone, no HEAD."""
+    from vtextract.archive import Archive
+
+    img_len = len(_item_image())
+    archive = Archive(tmp_path)
+    hit = {"isadgID": 474234}
+
+    # Seed an imaged archive.
+    fetch_resource(_refresh_client({"head": 0, "get": 0}, head_len=img_len), archive, hit,
+                   search_id="s", context_pages=0, images=True)
+    img_path = tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg"
+    before = img_path.read_bytes()
+
+    calls = {"head": 0, "get": 0}
+    outcomes = []
+    fetch_resource(_refresh_client(calls, head_len=img_len), archive, hit,
+                   search_id="s", context_pages=0, refresh=True, images=False,
+                   on_verify=lambda o, p: outcomes.append(o))
+    assert calls == {"head": 0, "get": 0}  # no HEAD, no GET on Loris
+    assert outcomes == []                  # nothing verified
+    assert img_path.read_bytes() == before  # image untouched
+
+
+def test_refresh_without_images_backfills_missing_transcription(tmp_path):
+    from vtextract.archive import Archive
+
+    archive = Archive(tmp_path)
+    hit = {"isadgID": 474234}
+    fetch_resource(_client(), archive, hit, search_id="s", context_pages=0, images=False)
+    txt_path = tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg.txt"
+    txt_path.unlink()
+
+    calls = {"loris_get": 0, "list": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/iiif/v1/208925/list/197350":
+            calls["list"] += 1
+            return httpx.Response(200, content=_item_json("list"))
+        if path.startswith("/loris/"):
+            calls["loris_get"] += 1
+            return httpx.Response(200, content=_item_image())
+        return _handler(request)
+
+    client = Client(
+        base_url="https://by2022-prod.adaptcentre.ie", auth_header="Basic x",
+        user_agent="UA", transport=httpx.MockTransport(handler),
+        delay=0.0, sleep_func=lambda _s: None,
+    )
+    fetch_resource(client, archive, hit, search_id="s", context_pages=0,
+                   refresh=True, images=False)
+    assert txt_path.exists()
+    assert calls["loris_get"] == 0
+    assert calls["list"] == 1
 
 
 def test_fetch_resource_empty_manifest_completes_with_no_pages(tmp_path):
@@ -428,7 +593,7 @@ def test_fetch_resource_empty_manifest_completes_with_no_pages(tmp_path):
     archive = Archive(tmp_path)
     search_hit = {"isadgID": 474234, "displayReferenceCode": "X", "displayTitle": "Y"}
 
-    record = fetch_resource(client, archive, search_hit, search_id="s", context_pages=1)
+    record = fetch_resource(client, archive, search_hit, search_id="s", context_pages=1, images=True)
 
     assert record.pages == []
     assert calls["loris"] == 0
