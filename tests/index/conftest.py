@@ -32,3 +32,13 @@ def built_archive(tmp_path) -> dict:
     )
     assert result.returncode == 0, result.stderr
     return {"path": archive, "root_id": "volA", "isadg_id": 100}
+
+
+@pytest.fixture
+def built_archive_with_search_hit(built_archive) -> dict:
+    """Extends ``built_archive`` with a ``query`` known to match an item with
+    at least one matched page. "memorial" appears in ``volA_p1.jpg.txt`` (a
+    page referenced by item 100), so a transcription search returns at least
+    one ``matched_pages`` entry.
+    """
+    return {**built_archive, "query": "memorial"}

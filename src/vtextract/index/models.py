@@ -78,7 +78,7 @@ class SearchResult:
     content_date: str | None
     created_date: str | None
     matched_fields: list[str]
-    matched_pages: list[tuple[str, str]]  # (root_id, page_key)
+    matched_pages: list[tuple[str, str, str]]  # (root_id, page_key, role)
     score: float
     path: str
     estimated_date: str | None = None

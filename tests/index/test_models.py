@@ -38,7 +38,7 @@ def test_search_result_roundtrip_fields():
     r = SearchResult(
         isadg_id=1, title="T", reference_code="R", repository="Repo",
         content_date="1737-05-06", created_date=None,
-        matched_fields=["title"], matched_pages=[("208925", "p.jpg")],
+        matched_fields=["title"], matched_pages=[("208925", "p.jpg", "primary")],
         score=1.5, path="items/1",
     )
-    assert r.matched_pages == [("208925", "p.jpg")]
+    assert r.matched_pages == [("208925", "p.jpg", "primary")]

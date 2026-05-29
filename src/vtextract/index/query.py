@@ -12,7 +12,7 @@ def search(db: IndexDB, q: SearchQuery) -> list[SearchResult]:
     candidate_ids: set[int] | None = None
     scores: dict[int, float] = {}
     matched_fields: dict[int, set[str]] = {}
-    matched_pages: dict[int, list[tuple[str, str]]] = {}
+    matched_pages: dict[int, list[tuple[str, str, str]]] = {}
 
     if q.text:
         candidate_ids = set()
@@ -33,8 +33,8 @@ def search(db: IndexDB, q: SearchQuery) -> list[SearchResult]:
                 candidate_ids.add(isadg_id)
                 matched_fields.setdefault(isadg_id, set()).add("transcription")
                 matched_pages.setdefault(isadg_id, []).extend(pgs)
-                for pg in pgs:
-                    _record_score(scores, isadg_id, best_page_score[pg])
+                for rt, pk, _role in pgs:
+                    _record_score(scores, isadg_id, best_page_score[(rt, pk)])
 
     rows = db.filter_items(
         candidate_ids,

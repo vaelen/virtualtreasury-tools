@@ -204,7 +204,10 @@ def _result_dict(r, archive: Path) -> dict:
         "estimated_date": r.estimated_date,
         "estimated_source": r.estimated_source,
         "matched_fields": r.matched_fields,
-        "matched_pages": [_page_dict(archive, rt, pk) for rt, pk in r.matched_pages],
+        "matched_pages": [
+            {**_page_dict(archive, rt, pk), "role": role}
+            for rt, pk, role in r.matched_pages
+        ],
         "score": r.score,
         "path": r.path,
     }

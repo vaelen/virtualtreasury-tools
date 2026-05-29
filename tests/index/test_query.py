@@ -41,7 +41,7 @@ def test_keyword_in_transcription_resolves_to_items(tmp_path):
     ids = sorted(r.isadg_id for r in results)
     assert ids == [100, 200]
     r100 = next(r for r in results if r.isadg_id == 100)
-    assert ("volA", "volA_p1.jpg") in r100.matched_pages
+    assert ("volA", "volA_p1.jpg", "primary") in r100.matched_pages
     assert "transcription" in r100.matched_fields
 
 

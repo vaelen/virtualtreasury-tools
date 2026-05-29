@@ -359,15 +359,21 @@ class IndexDB:
         )
         return [(r["root_id"], r["page_key"], r["score"]) for r in rows]
 
-    def items_for_pages(self, pages: list[tuple[str, str]]) -> dict[int, list[tuple[str, str]]]:
-        """Map matched (root_id,page_key) pages to the items that reference them."""
-        out: dict[int, list[tuple[str, str]]] = {}
+    def items_for_pages(
+        self, pages: list[tuple[str, str]]
+    ) -> dict[int, list[tuple[str, str, str]]]:
+        """Map matched (root_id,page_key) pages to the items that reference them.
+
+        Each value is a list of ``(root_id, page_key, role)`` tuples; ``role``
+        comes straight from ``item_page.role`` (``"primary"`` or ``"context"``).
+        """
+        out: dict[int, list[tuple[str, str, str]]] = {}
         for root_id, page_key in pages:
             for r in self._conn.execute(
-                "SELECT isadg_id FROM item_page WHERE root_id=? AND page_key=?",
+                "SELECT isadg_id, role FROM item_page WHERE root_id=? AND page_key=?",
                 (root_id, page_key),
             ):
-                out.setdefault(r["isadg_id"], []).append((root_id, page_key))
+                out.setdefault(r["isadg_id"], []).append((root_id, page_key, r["role"]))
         return out
 
     def filter_items(
