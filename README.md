@@ -255,6 +255,10 @@ uv run vtbrowse --archive ./archive    # or point it at a specific archive
 
 ### Basic flow
 
+The main pane's title shows what it's listing — `Volumes`, the volume title
+when viewing its pages, or `Search Results` — and its bottom border shows the
+visible row range, e.g. `12-37 of 100`, updating as you scroll.
+
 - **Home** — a list of indexed volumes. Press `Enter` to drill into one.
 - **Volume** — pages in order. Press `Enter` to open a page.
 - **Page** — metadata on the left, transcription on the right. Press `Space` to

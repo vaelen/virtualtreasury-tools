@@ -7,10 +7,11 @@ from textual.binding import Binding
 from textual.widgets import DataTable
 
 from vtextract.tui.bundle import Bundle, PageRef
+from vtextract.tui.count_footer import CountFooterMixin
 from vtextract.tui.index_client import IndexClient
 
 
-class PagesScreen(DataTable):
+class PagesScreen(CountFooterMixin, DataTable):
     BINDINGS = [
         Binding("enter", "view_page", "view"),
         Binding("space", "toggle_select", "select"),
@@ -31,6 +32,7 @@ class PagesScreen(DataTable):
             self._add(p)
         if self._pages:
             self.move_cursor(row=0)
+        self._wire_count_footer()
 
     def _add(self, p: dict) -> None:
         ref = PageRef(self.root_id, p["page_key"])

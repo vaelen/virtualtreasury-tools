@@ -105,6 +105,7 @@ class VtBrowseApp(App):
         self.last_results: list[dict] = []
         self.last_query: str | None = None
         self.current_root_id: str | None = None
+        self.current_volume_title: str | None = None
         self._stale_chip_visible: bool = False
         self._bundle_dirty: bool = False
 
@@ -165,6 +166,8 @@ class VtBrowseApp(App):
     def _show_no_index_screen(self) -> None:
         pane = self.query_one(DocumentPane)
         pane.remove_children()
+        self.set_pane_title("No index")
+        self.set_pane_count("")
         pane.mount(NoIndexScreen(index_path=self._index_path()))
         self.call_after_refresh(self.query_one(DocumentPane).children[0].focus)
 
@@ -189,34 +192,54 @@ class VtBrowseApp(App):
             if self._stale_chip_visible else ""
         )
 
-    def open_volumes(self) -> None:
-        self.current_root_id = None
+    # ---------- document-pane title / count footer ----------
+
+    def set_pane_title(self, text: str) -> None:
+        self.query_one(DocumentPane).border_title = text
+
+    def set_pane_count(self, text: str) -> None:
+        # Rendered right-aligned in the pane's bottom border (border_subtitle).
+        self.query_one(DocumentPane).border_subtitle = text
+
+    def _mount_screen(self, screen, *, title: str) -> None:
         pane = self.query_one(DocumentPane)
         pane.remove_children()
-        screen = VolumesScreen(self.index)
+        self.set_pane_title(title)
+        self.set_pane_count("")  # list screens republish after layout
         pane.mount(screen)
         self.call_after_refresh(screen.focus)
 
-    def open_pages(self, root_id: str) -> None:
+    def open_volumes(self) -> None:
+        self.current_root_id = None
+        self.current_volume_title = None
+        self._mount_screen(VolumesScreen(self.index), title="Volumes")
+
+    def open_pages(self, root_id: str, *, title: str | None = None) -> None:
+        # Back-navigation (esc from a transcription) re-opens pages without a
+        # title; reuse the one we remembered for this volume rather than
+        # falling back to the bare root id.
+        if title is None and self.current_root_id == root_id:
+            title = self.current_volume_title
         self.current_root_id = root_id
-        pane = self.query_one(DocumentPane)
-        pane.remove_children()
-        screen = PagesScreen(index=self.index, bundle=self.bundle, root_id=root_id)
-        pane.mount(screen)
-        self.call_after_refresh(screen.focus)
+        self.current_volume_title = title
+        self._mount_screen(
+            PagesScreen(index=self.index, bundle=self.bundle, root_id=root_id),
+            title=title or root_id,
+        )
 
     def open_transcription(self, root_id: str, page_key: str,
                            *, query: str | None = None,
                            origin: str = "pages") -> None:
-        pane = self.query_one(DocumentPane)
-        pane.remove_children()
         screen = TranscriptionScreen(
             index=self.index, reader=ArchiveReader(self.archive),
             bundle=self.bundle, root_id=root_id, page_key=page_key,
             query=query, origin=origin,
         )
-        pane.mount(screen)
-        self.call_after_refresh(screen.focus)
+        vol = (self.current_volume_title
+               if self.current_root_id == root_id else None)
+        title = f"{vol} — {page_key}" if vol else page_key
+        # Transcription is a single document, not a list — no count footer.
+        self._mount_screen(screen, title=title)
 
     def bundle_changed(self) -> None:
         self._bundle_dirty = True
@@ -277,15 +300,12 @@ class VtBrowseApp(App):
     def action_open_results(self) -> None:
         if not self.last_results:
             return
-        pane = self.query_one(DocumentPane)
-        pane.remove_children()
         screen = ResultsScreen(
             bundle=self.bundle,
             results=self.last_results,
             query=self.last_query or "",
         )
-        pane.mount(screen)
-        self.call_after_refresh(screen.focus)
+        self._mount_screen(screen, title="Search Results")
 
     def action_open_volumes(self) -> None:
         self.open_volumes()

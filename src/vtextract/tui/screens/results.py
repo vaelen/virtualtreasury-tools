@@ -7,9 +7,10 @@ from textual.binding import Binding
 from textual.widgets import DataTable
 
 from vtextract.tui.bundle import Bundle, PageRef
+from vtextract.tui.count_footer import CountFooterMixin
 
 
-class ResultsScreen(DataTable):
+class ResultsScreen(CountFooterMixin, DataTable):
     BINDINGS = [
         Binding("enter", "view_first_match", "view"),
         Binding("space", "toggle_item", "toggle"),
@@ -36,6 +37,7 @@ class ResultsScreen(DataTable):
             )
         if self.results:
             self.move_cursor(row=0)
+        self._wire_count_footer()
 
     def action_view_first_match(self) -> None:
         if not self.results:
