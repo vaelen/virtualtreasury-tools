@@ -28,11 +28,16 @@ to exit to wherever the view was opened from (search results or the page list).
 
 ## Rendering library
 
-Use **`textual-image[textual]>=0.13`** — a purpose-built Textual `Image`
+Use **`textual-image[textual]>=0.11,<0.13`** — a purpose-built Textual `Image`
 widget that renders via terminal graphics protocols (Kitty / iTerm2 / Sixel)
 with automatic fallback to Unicode half-blocks on terminals without protocol
 support. Chosen over `rich-pixels` (half-blocks only) because manuscript scans
 need the protocol-level fidelity to be legible.
+
+> **Version pin:** the `0.13.x` wheels are broken (they ship no Python
+> modules — `import textual_image.widget` fails), so the dependency is pinned
+> `<0.13`; `0.12.0` is the working release. Revisit when a fixed `0.13.x`/later
+> wheel is published.
 
 Cost, accepted: `textual-image` requires **Python ≥3.12** and pulls in
 **Pillow** transitively. The project's `requires-python` is therefore bumped
