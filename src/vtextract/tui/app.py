@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -15,6 +16,7 @@ from vtextract.tui.bundle import Bundle
 from vtextract.tui.dialogs.build import ProgressModal
 from vtextract.tui.dialogs.extract import ExtractDialog
 from vtextract.tui.dialogs.file import FileDialog, FileResult
+from vtextract.tui.dialogs.index_prompt import IndexPromptDialog
 from vtextract.tui.dialogs.info import (
     ItemInfoDialog,
     PageInfoDialog,
@@ -23,10 +25,11 @@ from vtextract.tui.dialogs.info import (
 from vtextract.tui.dialogs.search import SearchDialog, SearchSpec
 from vtextract.tui.export import export_bundle
 from vtextract.tui.extract_client import ExtractClient
-from vtextract.tui.index_client import IndexClient
+from vtextract.tui.index_client import IndexClient, IndexError
 from vtextract.tui.progress_events import ErrorEvent
 from vtextract.tui.panes.bundle_pane import BundlePane
 from vtextract.tui.panes.document_pane import DocumentPane
+from vtextract.tui.screens.no_index import NoIndexScreen
 from vtextract.tui.screens.pages import PagesScreen
 from vtextract.tui.screens.results import ResultsScreen
 from vtextract.tui.screens.transcription import TranscriptionScreen
@@ -62,6 +65,7 @@ class VtBrowseApp(App):
         self.last_results: list[dict] = []
         self.last_query: str | None = None
         self.current_root_id: str | None = None
+        self._stale_chip_visible: bool = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
@@ -71,7 +75,78 @@ class VtBrowseApp(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        state = self._detect_index_state()
+        if state in ("missing", "stale"):
+            self.push_screen(
+                IndexPromptDialog(
+                    state=state, archive=self.archive,
+                    index_path=self._index_path()),
+                lambda ok, s=state: self._on_index_prompt_dismissed(ok, s),
+            )
+            return
+        self._finalize_startup(state)
+
+    def _on_index_prompt_dismissed(
+        self, ok: bool | None, state: Literal["missing", "stale"],
+    ) -> None:
+        if ok:
+            self.action_build_index()
+        elif state == "missing":
+            self._show_no_index_screen()
+            self._start_stale_poll()
+            return
+        self._finalize_startup(state)
+
+    def _finalize_startup(
+        self, state: Literal["missing", "stale", "ok"],
+    ) -> None:
         self.open_volumes()
+        if state == "stale":
+            self._stale_chip_visible = True
+            self._refresh_header_chip()
+        self._start_stale_poll()
+
+    # ---------- index state ----------
+
+    def _index_path(self) -> Path:
+        # Mirror ``vtextract.index.builder.INDEX_RELPATH``. We can't import it
+        # here per the boundary rule, so we duplicate the literal — acceptable
+        # because it's a stable on-disk layout fact.
+        return self.archive / "index" / "vtindex.sqlite3"
+
+    def _detect_index_state(self) -> Literal["missing", "stale", "ok"]:
+        try:
+            stats = self.index.stats()
+        except IndexError:
+            return "missing"
+        return "stale" if stats.get("stale") else "ok"
+
+    def _show_no_index_screen(self) -> None:
+        pane = self.query_one(DocumentPane)
+        pane.remove_children()
+        pane.mount(NoIndexScreen(index_path=self._index_path()))
+        self.call_after_refresh(self.query_one(DocumentPane).children[0].focus)
+
+    def _start_stale_poll(self) -> None:
+        self.set_interval(30.0, self._poll_stale)
+
+    def _poll_stale(self) -> None:
+        try:
+            stats = self.index.stats()
+        except IndexError:
+            return
+        is_stale = bool(stats.get("stale"))
+        if is_stale != self._stale_chip_visible:
+            self._stale_chip_visible = is_stale
+            self._refresh_header_chip()
+
+    def _refresh_header_chip(self) -> None:
+        # Stash chip text in ``App.sub_title`` — Textual's Header widget reads
+        # ``App.sub_title`` at mount and on refresh.
+        self.sub_title = (
+            "[stale: press Ctrl+B to rebuild]"
+            if self._stale_chip_visible else ""
+        )
 
     def open_volumes(self) -> None:
         self.current_root_id = None
