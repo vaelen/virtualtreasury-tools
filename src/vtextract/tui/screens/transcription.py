@@ -61,3 +61,6 @@ class TranscriptionScreen(ScrollableContainer):
 
     def action_back(self) -> None:
         self.app.open_pages(self.root_id)  # type: ignore[attr-defined]
+
+    def selected_context(self) -> tuple | None:
+        return ("page", self.root_id, self.page_key)

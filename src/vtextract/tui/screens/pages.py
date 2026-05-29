@@ -62,3 +62,9 @@ class PagesScreen(DataTable):
 
     def action_back(self) -> None:
         self.app.open_volumes()  # type: ignore[attr-defined]
+
+    def selected_context(self) -> tuple | None:
+        if not self._pages:
+            return None
+        p = self._pages[self.cursor_row]
+        return ("page", self.root_id, p["page_key"])

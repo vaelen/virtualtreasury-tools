@@ -12,6 +12,11 @@ from textual.widgets import Footer, Header
 
 from vtextract.tui.archive_reader import ArchiveReader
 from vtextract.tui.bundle import Bundle
+from vtextract.tui.dialogs.info import (
+    ItemInfoDialog,
+    PageInfoDialog,
+    VolumeInfoDialog,
+)
 from vtextract.tui.dialogs.search import SearchDialog, SearchSpec
 from vtextract.tui.index_client import IndexClient
 from vtextract.tui.panes.bundle_pane import BundlePane
@@ -34,6 +39,7 @@ class VtBrowseApp(App):
         Binding("ctrl+f", "open_search", "search"),
         Binding("ctrl+r", "open_results", "results"),
         Binding("ctrl+v", "open_volumes", "volumes"),
+        Binding("ctrl+i", "open_info", "info"),
         Binding("tab", "focus_next", "switch pane"),
     ]
 
@@ -124,3 +130,28 @@ class VtBrowseApp(App):
 
     def action_open_volumes(self) -> None:
         self.open_volumes()
+
+    # ---------- info dispatch ----------
+
+    def action_open_info(self) -> None:
+        pane = self.query_one(DocumentPane)
+        if not pane.children:
+            return
+        screen_widget = pane.children[0]
+        ctx = getattr(screen_widget, "selected_context", lambda: None)()
+        if ctx is None:
+            return
+        if ctx[0] == "volume":
+            dialog = VolumeInfoDialog(index=self.index, bundle=self.bundle,
+                                      root_id=ctx[1])
+        elif ctx[0] == "item":
+            dialog = ItemInfoDialog(index=self.index, bundle=self.bundle,
+                                    isadg_id=ctx[1])
+        elif ctx[0] == "page":
+            dialog = PageInfoDialog(index=self.index,
+                                    reader=ArchiveReader(self.archive),
+                                    bundle=self.bundle,
+                                    root_id=ctx[1], page_key=ctx[2])
+        else:
+            return
+        self.push_screen(dialog)

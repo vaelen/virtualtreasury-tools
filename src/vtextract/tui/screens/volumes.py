@@ -35,3 +35,8 @@ class VolumesScreen(DataTable):
             return
         root_id = self._row_root_ids[self.cursor_row]
         self.app.open_pages(root_id)  # type: ignore[attr-defined]
+
+    def selected_context(self) -> tuple | None:
+        if not self._row_root_ids:
+            return None
+        return ("volume", self._row_root_ids[self.cursor_row])

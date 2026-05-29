@@ -62,3 +62,8 @@ class ResultsScreen(DataTable):
 
     def action_back(self) -> None:
         self.app.open_volumes()  # type: ignore[attr-defined]
+
+    def selected_context(self) -> tuple | None:
+        if not self.results:
+            return None
+        return ("item", self.results[self.cursor_row]["isadg_id"])
