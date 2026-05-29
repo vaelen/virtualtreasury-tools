@@ -24,9 +24,9 @@ class PagesScreen(DataTable):
         self.root_id = root_id
         self._pages: list[dict] = []
 
-    def on_mount(self) -> None:
+    async def on_mount(self) -> None:
         self.add_columns("#", "Page key", "Txt", "Img", "Sel")
-        self._pages = self.index.pages(self.root_id)
+        self._pages = await self.index.pages(self.root_id)
         for p in self._pages:
             self._add(p)
         if self._pages:

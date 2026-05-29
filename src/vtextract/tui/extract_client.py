@@ -21,30 +21,70 @@ class ExtractClient:
     archive: Path
     binary: str = "vtextract"
 
-    async def search_stream(self, *, argv: list[str]) -> AsyncIterator[ProgressEvent]:
+    async def search_stream(
+        self, *, argv: list[str],
+        cancel_event: asyncio.Event | None = None,
+    ) -> AsyncIterator[ProgressEvent]:
         # argv comes from vtextract.search_spec.build_search_argv(...)
         # and starts with ["search", ...]; we tack on --json-progress and
         # --out <archive>.
         full = [self.binary, *argv, "--out", str(self.archive),
                 "--json-progress"]
-        async for event in self._stream(full):
-            yield event
+        inner = self._stream(full, cancel_event=cancel_event)
+        try:
+            async for event in inner:
+                yield event
+        finally:
+            # Forward GeneratorExit / cancellation to the inner generator so
+            # its finally block (which SIGTERMs the subprocess) runs.
+            await inner.aclose()
 
-    async def get_images_stream(self, isadg_ids: list[int]) -> AsyncIterator[ProgressEvent]:
+    async def get_images_stream(
+        self, isadg_ids: list[int],
+        cancel_event: asyncio.Event | None = None,
+    ) -> AsyncIterator[ProgressEvent]:
         full = [self.binary, "get", *map(str, isadg_ids),
                 "--refresh", "--images",
                 "--out", str(self.archive), "--json-progress"]
-        async for event in self._stream(full):
-            yield event
+        inner = self._stream(full, cancel_event=cancel_event)
+        try:
+            async for event in inner:
+                yield event
+        finally:
+            await inner.aclose()
 
-    async def _stream(self, full_argv: list[str]) -> AsyncIterator[ProgressEvent]:
+    async def _stream(
+        self, full_argv: list[str], *,
+        cancel_event: asyncio.Event | None = None,
+    ) -> AsyncIterator[ProgressEvent]:
         proc = await asyncio.create_subprocess_exec(
             *full_argv, stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
         assert proc.stdout is not None
-        async for line in proc.stdout:
-            text = line.decode().strip()
-            if text:
-                yield parse_event(text)
-        await proc.wait()
+        try:
+            async for line in proc.stdout:
+                text = line.decode().strip()
+                if text:
+                    yield parse_event(text)
+                if cancel_event is not None and cancel_event.is_set():
+                    break
+        finally:
+            # GeneratorExit lands here when the consumer aclose()s us
+            # (e.g. ProgressModal cancel). SIGTERM the child, then SIGKILL
+            # after a 2-second grace period.
+            if proc.returncode is None:
+                try:
+                    proc.terminate()
+                except ProcessLookupError:
+                    pass
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    try:
+                        proc.kill()
+                    except ProcessLookupError:
+                        pass
+                    await proc.wait()
+            else:
+                await proc.wait()

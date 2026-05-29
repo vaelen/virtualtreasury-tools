@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import subprocess
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,14 +30,14 @@ class IndexClient:
 
     # ---------- one-shot JSON queries ----------
 
-    def volumes(self) -> list[dict]:
-        return self._json(["volumes"])
+    async def volumes(self) -> list[dict]:
+        return await self._json(["volumes"])
 
-    def search(self, *, query: str | None = None,
-               fields: tuple[str, ...] | None = None,
-               date_from: str | None = None, date_to: str | None = None,
-               date_type: str = "content", volume: str | None = None,
-               limit: int = 50, offset: int = 0) -> list[dict]:
+    async def search(self, *, query: str | None = None,
+                     fields: tuple[str, ...] | None = None,
+                     date_from: str | None = None, date_to: str | None = None,
+                     date_type: str = "content", volume: str | None = None,
+                     limit: int = 50, offset: int = 0) -> list[dict]:
         argv = ["search"]
         if query:
             argv.append(query)
@@ -52,43 +51,47 @@ class IndexClient:
         if volume:
             argv += ["--volume", volume]
         argv += ["--limit", str(limit), "--offset", str(offset)]
-        return self._json(argv, empty_on_exit_1=True) or []
+        return await self._json(argv, empty_on_exit_1=True) or []
 
-    def page(self, root_id: str, page_key: str) -> dict | None:
-        return self._json(["page", f"{root_id}/{page_key}"],
-                          empty_on_exit_1=True)
+    async def page(self, root_id: str, page_key: str) -> dict | None:
+        return await self._json(["page", f"{root_id}/{page_key}"],
+                                empty_on_exit_1=True)
 
-    def pages(self, root_id: str) -> list[dict]:
-        return self._json(["pages", root_id], empty_on_exit_1=True) or []
+    async def pages(self, root_id: str) -> list[dict]:
+        return await self._json(["pages", root_id], empty_on_exit_1=True) or []
 
-    def item(self, isadg_id: int) -> dict | None:
-        return self._json(["item", str(isadg_id)], empty_on_exit_1=True)
+    async def item(self, isadg_id: int) -> dict | None:
+        return await self._json(["item", str(isadg_id)], empty_on_exit_1=True)
 
-    def stats(self) -> dict:
-        return self._json(["stats"])
+    async def stats(self) -> dict:
+        return await self._json(["stats"])
 
     # ---------- internal: one-shot subprocess + JSON parse ----------
 
-    def _json(self, sub_argv: list[str], *,
-              empty_on_exit_1: bool = False) -> Any:
+    async def _json(self, sub_argv: list[str], *,
+                    empty_on_exit_1: bool = False) -> Any:
         argv = [self.binary, *sub_argv,
                 "--archive", str(self.archive), "--json"]
-        result = subprocess.run(
-            argv, capture_output=True, text=True, check=False,
+        proc = await asyncio.create_subprocess_exec(
+            *argv, stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
-        if result.returncode == 0:
-            stdout = result.stdout.strip()
-            if not stdout:
+        stdout, stderr = await proc.communicate()
+        rc = proc.returncode
+        if rc == 0:
+            text = stdout.decode().strip()
+            if not text:
                 return None
-            return json.loads(stdout)
-        if result.returncode == 1 and empty_on_exit_1:
+            return json.loads(text)
+        if rc == 1 and empty_on_exit_1:
             return None
-        raise IndexError(result.stderr.strip() or f"vtindex exit {result.returncode}")
+        raise IndexError(stderr.decode().strip() or f"vtindex exit {rc}")
 
     # ---------- streaming build ----------
 
     async def build_stream(
         self, *, rebuild: bool = False,
+        cancel_event: asyncio.Event | None = None,
     ) -> AsyncIterator[ProgressEvent]:
         argv = [self.binary, "build", "--archive", str(self.archive),
                 "--json-progress"]
@@ -102,12 +105,37 @@ class IndexClient:
         try:
             async for line in proc.stdout:
                 text = line.decode().strip()
-                if not text:
-                    continue
-                yield parse_event(text)
+                if text:
+                    yield parse_event(text)
+                if cancel_event is not None and cancel_event.is_set():
+                    break
         finally:
-            rc = await proc.wait()
-            if rc not in (0, 1):
+            # GeneratorExit lands here when the consumer aclose()s us
+            # (e.g. ProgressModal cancel). SIGTERM the child, then SIGKILL
+            # after a 2-second grace period.
+            if proc.returncode is None:
+                try:
+                    proc.terminate()
+                except ProcessLookupError:
+                    pass
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    try:
+                        proc.kill()
+                    except ProcessLookupError:
+                        pass
+                    await proc.wait()
+            else:
+                await proc.wait()
+            rc = proc.returncode
+            # Only emit the synthetic error event on natural-EOF failures —
+            # cancellation (the consumer aclose'd us) and SIGTERM/SIGKILL
+            # exit codes should NOT yield, because yielding during
+            # GeneratorExit is a RuntimeError.
+            cancelled = bool(cancel_event and cancel_event.is_set())
+            terminated = rc is not None and rc < 0  # negative = killed by signal
+            if rc not in (0, 1) and not cancelled and not terminated:
                 stderr = (await proc.stderr.read()).decode() if proc.stderr else ""
                 yield parse_event(json.dumps({
                     "event": "error", "message": stderr or f"exit {rc}",

@@ -43,14 +43,14 @@ class TranscriptionScreen(ScrollableContainer):
     def _current_ref(self) -> PageRef:
         return PageRef(self.root_id, self.page_key)
 
-    def action_prev_page(self) -> None:
-        nav = self.index.page(self.root_id, self.page_key)
+    async def action_prev_page(self) -> None:
+        nav = await self.index.page(self.root_id, self.page_key)
         if nav and nav.get("previous"):
             self.app.open_transcription(  # type: ignore[attr-defined]
                 self.root_id, nav["previous"]["page_key"])
 
-    def action_next_page(self) -> None:
-        nav = self.index.page(self.root_id, self.page_key)
+    async def action_next_page(self) -> None:
+        nav = await self.index.page(self.root_id, self.page_key)
         if nav and nav.get("next"):
             self.app.open_transcription(  # type: ignore[attr-defined]
                 self.root_id, nav["next"]["page_key"])

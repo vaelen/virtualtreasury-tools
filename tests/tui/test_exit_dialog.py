@@ -8,7 +8,7 @@ def test_exit_dialog_when_dirty(snap_compare, tmp_archive):
     from vtextract.tui.bundle import PageRef
 
     class _DirtyApp(VtBrowseApp):
-        def on_mount(self) -> None:
+        async def on_mount(self) -> None:
             # Populate bundle with stub data so page/item counts are non-zero
             # and mark dirty so ⌃X triggers the confirm dialog.
             self.bundle.selected_items[1] = [
@@ -16,7 +16,7 @@ def test_exit_dialog_when_dirty(snap_compare, tmp_archive):
                 PageRef("stub-root", "stub-page-2"),
             ]
             self._bundle_dirty = True
-            super().on_mount()
+            await super().on_mount()
 
     async def before(pilot):
         await pilot.pause()

@@ -19,11 +19,15 @@ class _InfoBase(ModalScreen[None]):
     def compose(self):
         with Vertical(id="info-dialog"):
             yield Static(self._title(), id="info-title")
-            yield Static(self._body(), id="info-body")
+            yield Static("Loading…", id="info-body")
             yield Button("Close", id="close")
 
+    async def on_mount(self) -> None:
+        body = await self._body()
+        self.query_one("#info-body", Static).update(body)
+
     def _title(self) -> str: ...
-    def _body(self) -> str: ...
+    async def _body(self) -> str: ...
 
     def on_button_pressed(self, _: Button.Pressed) -> None:
         self.dismiss(None)
@@ -42,7 +46,7 @@ class PageInfoDialog(_InfoBase):
     def _title(self) -> str:
         return "Page info"
 
-    def _body(self) -> str:
+    async def _body(self) -> str:
         vol = self.reader.read_volume_meta(self.root_id) or {}
         ref = PageRef(self.root_id, self.page_key)
         state = self.bundle.page_state.get(ref, "default")
@@ -69,7 +73,7 @@ class PageInfoDialog(_InfoBase):
             "Contributing items",
         ]
         for iid in contributing:
-            item = self.index.item(iid) or {}
+            item = await self.index.item(iid) or {}
             lines.append(f"  {iid}  {item.get('title', '')}")
         lines += ["", f"Files on disk (under {archive_root.name}/)"]
         for label, path in files:
@@ -91,10 +95,10 @@ class VolumeInfoDialog(_InfoBase):
     def _title(self) -> str:
         return "Volume info"
 
-    def _body(self) -> str:
-        vols = {v["root_id"]: v for v in self.index.volumes()}
+    async def _body(self) -> str:
+        vols = {v["root_id"]: v for v in await self.index.volumes()}
         v = vols.get(self.root_id) or {}
-        pages = self.index.pages(self.root_id)
+        pages = await self.index.pages(self.root_id)
         in_bundle = sum(1 for p in self.bundle.effective_pages()
                         if p.root_id == self.root_id)
         return "\n".join([
@@ -118,8 +122,8 @@ class ItemInfoDialog(_InfoBase):
     def _title(self) -> str:
         return "Item info"
 
-    def _body(self) -> str:
-        item = self.index.item(self.isadg_id)
+    async def _body(self) -> str:
+        item = await self.index.item(self.isadg_id)
         if item is None:
             return f"item {self.isadg_id} not found"
         pages_block = "\n".join(

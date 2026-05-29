@@ -79,8 +79,8 @@ class VtBrowseApp(App):
             yield DocumentPane()
         yield Footer()
 
-    def on_mount(self) -> None:
-        state = self._detect_index_state()
+    async def on_mount(self) -> None:
+        state = await self._detect_index_state()
         if state in ("missing", "stale"):
             self.push_screen(
                 IndexPromptDialog(
@@ -119,9 +119,9 @@ class VtBrowseApp(App):
         # because it's a stable on-disk layout fact.
         return self.archive / "index" / "vtindex.sqlite3"
 
-    def _detect_index_state(self) -> Literal["missing", "stale", "ok"]:
+    async def _detect_index_state(self) -> Literal["missing", "stale", "ok"]:
         try:
-            stats = self.index.stats()
+            stats = await self.index.stats()
         except IndexError:
             return "missing"
         return "stale" if stats.get("stale") else "ok"
@@ -135,9 +135,9 @@ class VtBrowseApp(App):
     def _start_stale_poll(self) -> None:
         self.set_interval(30.0, self._poll_stale)
 
-    def _poll_stale(self) -> None:
+    async def _poll_stale(self) -> None:
         try:
-            stats = self.index.stats()
+            stats = await self.index.stats()
         except IndexError:
             return
         is_stale = bool(stats.get("stale"))
@@ -224,10 +224,10 @@ class VtBrowseApp(App):
         self.push_screen(SearchDialog(default_volume=self.current_root_id),
                          self._on_search_submitted)
 
-    def _on_search_submitted(self, spec: SearchSpec | None) -> None:
+    async def _on_search_submitted(self, spec: SearchSpec | None) -> None:
         if spec is None:
             return
-        rows = self.index.search(
+        rows = await self.index.search(
             query=spec.query, fields=spec.fields,
             date_from=spec.date_from, date_to=spec.date_to,
             date_type=spec.date_type, volume=spec.volume,
@@ -332,7 +332,11 @@ class VtBrowseApp(App):
                 self.push_screen(
                     ProgressModal(
                         title=f"vtextract get --images ({len(ids)} items)",
-                        stream_factory=lambda: extract.get_images_stream(ids),
+                        stream_factory=lambda cancel_event=None: (
+                            extract.get_images_stream(
+                                ids, cancel_event=cancel_event,
+                            )
+                        ),
                     ),
                     lambda ok: self._after_backfill(ok, result),
                 )
@@ -359,7 +363,9 @@ class VtBrowseApp(App):
     def action_build_index(self) -> None:
         self.push_screen(ProgressModal(
             title="vtindex build",
-            stream_factory=lambda: self.index.build_stream(),
+            stream_factory=lambda cancel_event=None: (
+                self.index.build_stream(cancel_event=cancel_event)
+            ),
         ))
 
     # ---------- extract (⌃E) ----------
@@ -374,18 +380,32 @@ class VtBrowseApp(App):
         extract = ExtractClient(archive=self.archive)
         index = self.index
 
-        async def chained():
+        async def chained(cancel_event=None):
             step1_ok = True
             # Step 1: vtextract search
-            async for ev in extract.search_stream(argv=argv):
-                yield ev
-                if isinstance(ev, ErrorEvent):
-                    step1_ok = False
-                    return
-            # Step 2: vtindex build (only if Step 1 finished cleanly)
-            if step1_ok:
-                async for ev in index.build_stream():
+            search_gen = extract.search_stream(
+                argv=argv, cancel_event=cancel_event,
+            )
+            try:
+                async for ev in search_gen:
                     yield ev
+                    if isinstance(ev, ErrorEvent):
+                        step1_ok = False
+                        return
+                    if cancel_event is not None and cancel_event.is_set():
+                        return
+            finally:
+                await search_gen.aclose()
+            # Step 2: vtindex build (only if Step 1 finished cleanly)
+            if step1_ok and not (cancel_event and cancel_event.is_set()):
+                build_gen = index.build_stream(cancel_event=cancel_event)
+                try:
+                    async for ev in build_gen:
+                        yield ev
+                        if cancel_event is not None and cancel_event.is_set():
+                            return
+                finally:
+                    await build_gen.aclose()
 
         self.push_screen(ProgressModal(
             title="vtextract search → vtindex build",

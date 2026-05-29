@@ -9,6 +9,8 @@ build."""
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 from collections.abc import AsyncIterator
 from typing import Callable
 
@@ -30,7 +32,16 @@ from vtextract.tui.progress_events import (
 class ProgressModal(ModalScreen[bool]):
     """Generic progress modal driven by an async iterator of ProgressEvent.
 
-    Backs ⌃B (single step) and ⌃E (two steps wired in Task 22)."""
+    Backs ⌃B (single step) and ⌃E (two steps wired in Task 22).
+
+    Cancellation: pressing Escape (or the Cancel button) sets
+    ``self._cancel_event``. The stream factory may accept a
+    ``cancel_event=`` keyword; when set, the underlying subprocess in
+    ``IndexClient.build_stream`` / ``ExtractClient._stream`` SIGTERMs the
+    child (then SIGKILLs after a 2s grace period) instead of waiting for
+    natural EOF. Stream factories without that keyword still get the
+    "stop reading" behaviour from the local break below.
+    """
 
     BINDINGS = [Binding("escape", "request_cancel", "cancel")]
 
@@ -38,11 +49,12 @@ class ProgressModal(ModalScreen[bool]):
         self,
         *,
         title: str,
-        stream_factory: Callable[[], AsyncIterator[ProgressEvent]],
+        stream_factory: Callable[..., AsyncIterator[ProgressEvent]],
     ) -> None:
         super().__init__()
         self._title = title
         self._stream_factory = stream_factory
+        self._cancel_event = asyncio.Event()
         self._cancel_requested = False
         self._done_ok: bool | None = None
 
@@ -58,7 +70,8 @@ class ProgressModal(ModalScreen[bool]):
         await self._drive()
 
     async def _drive(self) -> None:
-        async for ev in self._stream_factory():
+        stream = self._open_stream()
+        async for ev in stream:
             if self._cancel_requested:
                 break
             self._render_event(ev)
@@ -71,6 +84,24 @@ class ProgressModal(ModalScreen[bool]):
         btn = self.query_one("#cancel", Button)
         btn.label = "Close"
         btn.variant = "primary"
+
+    def _open_stream(self) -> AsyncIterator[ProgressEvent]:
+        """Call the stream factory, passing ``cancel_event`` when supported.
+
+        Factories built from ``IndexClient`` / ``ExtractClient`` accept a
+        ``cancel_event`` keyword; lambdas in tests typically don't. We
+        introspect to stay backwards-compatible with both.
+        """
+        try:
+            sig = inspect.signature(self._stream_factory)
+        except (TypeError, ValueError):
+            return self._stream_factory()
+        if "cancel_event" in sig.parameters or any(
+            p.kind == inspect.Parameter.VAR_KEYWORD
+            for p in sig.parameters.values()
+        ):
+            return self._stream_factory(cancel_event=self._cancel_event)
+        return self._stream_factory()
 
     def _render_event(self, ev: ProgressEvent) -> None:
         bar = self.query_one("#bar", ProgressBar)
@@ -97,6 +128,7 @@ class ProgressModal(ModalScreen[bool]):
 
     def action_request_cancel(self) -> None:
         self._cancel_requested = True
+        self._cancel_event.set()
 
     def on_button_pressed(self, _: Button.Pressed) -> None:
         if self._done_ok is None:

@@ -17,9 +17,9 @@ class VolumesScreen(DataTable):
         self.index = index
         self._row_root_ids: list[str] = []
 
-    def on_mount(self) -> None:
+    async def on_mount(self) -> None:
         self.add_columns("Root ID", "Items", "Title", "Reference")
-        for v in self.index.volumes():
+        for v in await self.index.volumes():
             self.add_row(
                 v["root_id"],
                 str(v["item_count"]),

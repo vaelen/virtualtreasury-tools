@@ -21,7 +21,7 @@ def test_index_prompt_dialog_missing(snap_compare, tmp_archive):
     from vtextract.tui.app import VtBrowseApp
 
     class _PromptApp(VtBrowseApp):
-        def _detect_index_state(self):
+        async def _detect_index_state(self):
             return "missing"
 
         def _index_path(self):
@@ -47,7 +47,7 @@ def test_no_index_screen(snap_compare, tmp_archive):
     from vtextract.tui.app import VtBrowseApp
 
     class _PromptApp(VtBrowseApp):
-        def _detect_index_state(self):
+        async def _detect_index_state(self):
             return "missing"
 
         def _index_path(self):
@@ -77,7 +77,7 @@ def test_stale_chip_visible(snap_compare, tmp_archive):
     from vtextract.tui.app import VtBrowseApp
 
     class _PromptApp(VtBrowseApp):
-        def _detect_index_state(self):
+        async def _detect_index_state(self):
             # OK so the prompt doesn't appear; we force the chip on after
             # mount via the run_before hook.
             return "ok"
