@@ -10,11 +10,13 @@ from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.widgets import Footer, Header
 
+from vtextract.tui.archive_reader import ArchiveReader
 from vtextract.tui.bundle import Bundle
 from vtextract.tui.index_client import IndexClient
 from vtextract.tui.panes.bundle_pane import BundlePane
 from vtextract.tui.panes.document_pane import DocumentPane
 from vtextract.tui.screens.pages import PagesScreen
+from vtextract.tui.screens.transcription import TranscriptionScreen
 from vtextract.tui.screens.volumes import VolumesScreen
 
 
@@ -62,9 +64,15 @@ class VtBrowseApp(App):
 
     def open_transcription(self, root_id: str, page_key: str,
                            *, query: str | None = None) -> None:
-        # Task 17 implements the real TranscriptionScreen. Stub for now.
-        self.notify(f"open_transcription({root_id!r}, {page_key!r}) — Task 17",
-                    severity="information")
+        pane = self.query_one(DocumentPane)
+        pane.remove_children()
+        screen = TranscriptionScreen(
+            index=self.index, reader=ArchiveReader(self.archive),
+            bundle=self.bundle, root_id=root_id, page_key=page_key,
+            query=query,
+        )
+        pane.mount(screen)
+        self.call_after_refresh(screen.focus)
 
     def bundle_changed(self) -> None:
         self.query_one(BundlePane).refresh_content()
