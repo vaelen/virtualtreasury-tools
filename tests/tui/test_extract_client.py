@@ -33,6 +33,6 @@ async def test_search_stream_yields_events(monkeypatch, tmp_path):
     monkeypatch.setattr("asyncio.create_subprocess_exec", fake_exec)
 
     client = ExtractClient(archive=tmp_path)
-    received = [e.raw["event"] async for e in client.search_stream(
+    received = [type(e).__name__ async for e in client.search_stream(
         argv=["search", "--all", "memorial"])]
-    assert received == ["start", "done"]
+    assert received == ["StartEvent", "DoneEvent"]
