@@ -257,23 +257,27 @@ uv run vtbrowse --archive ./archive    # or point it at a specific archive
 
 - **Home** — a list of indexed volumes. Press `Enter` to drill into one.
 - **Volume** — pages in order. Press `Enter` to open a page.
-- **Page** — metadata on the left, transcription on the right. Press `Space` (or
-  `b`) to toggle the page into / out of your Bundle.
-- **`Ctrl+S`** — save the Bundle to `~/.vt/bundle.json` (or the path in config).
-- **`Ctrl+W`** — export the Bundle to a folder (transcriptions + metadata
+- **Page** — metadata on the left, transcription on the right. Press `Space` to
+  toggle the page into / out of your Bundle.
+- **`s`** — save the Bundle to `~/.vt/bundle.json` (or the path in config).
+- **`x`** — export the Bundle to a folder (transcriptions + metadata
   JSON; optional images).
+- **`o`** — open a saved Bundle.
 
 ### Searching
 
-- **`Ctrl+F`** — search the local `vtindex` index. Results open as a page list;
+- **`f`** — search the local `vtindex` index. Results open as a page list;
   navigate and open pages just like in the volume view.
-- **`Ctrl+E`** — run a single-clause `vtextract search` against the live website.
+- **`e`** — run a single-clause `vtextract search` against the live website.
   Newly downloaded resources are automatically indexed afterward. Requires a
   stored credential (`vtextract auth`).
 
 ### Other bindings
 
-- **`Ctrl+B`** — build / rebuild the `vtindex` index in the background.
+- **`v`** / **`r`** — jump to the Volumes list / the last search results.
+- **`i`** — show the Info dialog for the current volume, page, or item.
+- **`b`** — build / rebuild the `vtindex` index in the background.
+- **`q`** — exit (confirms first if the Bundle has unsaved changes).
 - **`F1` / `?`** — show all key bindings.
 
 ### Bundle

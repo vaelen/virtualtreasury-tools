@@ -21,8 +21,8 @@ async def _open(pilot, *keys):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("open_key, box_id", [
-    ("ctrl+f", "#search-dialog"),
-    ("ctrl+e", "#extract-dialog"),
+    ("f", "#search-dialog"),
+    ("e", "#extract-dialog"),
 ])
 async def test_date_inputs_both_on_screen(tmp_archive, open_key, box_id):
     app = VtBrowseApp(archive=tmp_archive)
@@ -41,8 +41,8 @@ async def test_date_inputs_both_on_screen(tmp_archive, open_key, box_id):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("open_key, box_id", [
-    ("ctrl+f", "#search-dialog"),
-    ("ctrl+e", "#extract-dialog"),
+    ("f", "#search-dialog"),
+    ("e", "#extract-dialog"),
 ])
 async def test_dialog_is_a_centred_box_not_fullscreen(tmp_archive, open_key, box_id):
     app = VtBrowseApp(archive=tmp_archive)

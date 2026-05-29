@@ -23,13 +23,13 @@ class ExitDialog(ModalScreen[Choice]):
 
     def compose(self):
         with Vertical(id="exit-dialog"):
-            yield Static("Exit vtbrowse")
+            yield Static("Quit vtbrowse")
             yield Static(f"Bundle has {self.page_count} pages from "
                          f"{self.item_count} items.")
             yield Static("Unsaved changes will be lost.")
             with Horizontal():
-                yield Button("Save & exit", id="save_and_exit", variant="primary")
-                yield Button("Exit",        id="exit")
+                yield Button("Save & quit", id="save_and_exit", variant="primary")
+                yield Button("Quit",        id="exit")
                 yield Button("Cancel",      id="cancel")
 
     def on_button_pressed(self, ev: Button.Pressed) -> None:

@@ -78,20 +78,20 @@ class VtBrowseApp(App):
     #help-dialog DataTable { height: 1fr; }
     """
 
+    # Plain single-key bindings (no control modifiers). These fire only when no
+    # focused widget consumes the key first, so typing into a dialog Input is
+    # unaffected — Inputs swallow printable keys before they reach the app.
     BINDINGS = [
-        Binding("ctrl+x", "request_quit", "exit"),
-        Binding("ctrl+f", "open_search", "search"),
-        Binding("ctrl+r", "open_results", "results"),
-        Binding("ctrl+v", "open_volumes", "volumes"),
-        # ``i`` (not ctrl+i — that is byte-identical to Tab and never fires).
+        Binding("q", "request_quit", "quit"),
+        Binding("f", "open_search", "find"),
+        Binding("r", "open_results", "results"),
+        Binding("v", "open_volumes", "volumes"),
         Binding("i", "open_info", "info"),
-        Binding("ctrl+s", "save_bundle", "save"),
-        Binding("ctrl+o", "open_bundle", "open"),
-        # ``ctrl+w`` (not ctrl+shift+s — terminals strip Shift from control
-        # chars, so it arrived as ctrl+s and collided with Save).
-        Binding("ctrl+w", "export_bundle", "export"),
-        Binding("ctrl+b", "build_index", "build"),
-        Binding("ctrl+e", "extract", "extract"),
+        Binding("s", "save_bundle", "save"),
+        Binding("o", "open_bundle", "open"),
+        Binding("x", "export_bundle", "export"),
+        Binding("b", "build_index", "build"),
+        Binding("e", "extract", "extract"),
         Binding("f1", "open_help", "help"),
         Binding("question_mark", "open_help", "help"),
         Binding("tab", "focus_next", "switch pane"),
@@ -185,7 +185,7 @@ class VtBrowseApp(App):
         # Stash chip text in ``App.sub_title`` — Textual's Header widget reads
         # ``App.sub_title`` at mount and on refresh.
         self.sub_title = (
-            "[stale: press Ctrl+B to rebuild]"
+            "[stale: press b to rebuild]"
             if self._stale_chip_visible else ""
         )
 
@@ -406,7 +406,7 @@ class VtBrowseApp(App):
             ),
         ))
 
-    # ---------- extract (⌃E) ----------
+    # ---------- extract (e) ----------
 
     def action_extract(self) -> None:
         self.push_screen(ExtractDialog(), self._after_extract_form)

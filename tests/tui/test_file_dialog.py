@@ -34,31 +34,31 @@ def _make_app_subclass(tmp_archive, mode: str):
     return _DeterministicApp
 
 
-def test_save_dialog_opens_on_ctrl_s(snap_compare, tmp_archive):
+def test_save_dialog_opens_on_s(snap_compare, tmp_archive):
     cls = _make_app_subclass(tmp_archive, "save")
 
     async def before(pilot):
         await pilot.pause()
-        await pilot.press("ctrl+s")
+        await pilot.press("s")
         await pilot.pause()
     assert snap_compare(cls(archive=tmp_archive), run_before=before)
 
 
-def test_open_dialog_opens_on_ctrl_o(snap_compare, tmp_archive):
+def test_open_dialog_opens_on_o(snap_compare, tmp_archive):
     cls = _make_app_subclass(tmp_archive, "open")
 
     async def before(pilot):
         await pilot.pause()
-        await pilot.press("ctrl+o")
+        await pilot.press("o")
         await pilot.pause()
     assert snap_compare(cls(archive=tmp_archive), run_before=before)
 
 
-def test_export_dialog_opens_on_ctrl_w(snap_compare, tmp_archive):
+def test_export_dialog_opens_on_x(snap_compare, tmp_archive):
     cls = _make_app_subclass(tmp_archive, "export")
 
     async def before(pilot):
         await pilot.pause()
-        await pilot.press("ctrl+w")
+        await pilot.press("x")
         await pilot.pause()
     assert snap_compare(cls(archive=tmp_archive), run_before=before)

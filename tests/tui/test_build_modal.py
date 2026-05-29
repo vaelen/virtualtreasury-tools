@@ -3,7 +3,7 @@
 
 
 def test_build_modal_renders(snap_compare, tmp_archive):
-    """Ctrl+B opens ProgressModal; renders mid-progress + done counters."""
+    """Pressing b opens ProgressModal; renders mid-progress + done counters."""
     from vtextract.tui.app import VtBrowseApp
     from vtextract.tui.dialogs.build import ProgressModal
     from vtextract.tui.progress_events import (
@@ -29,7 +29,7 @@ def test_build_modal_renders(snap_compare, tmp_archive):
 
     async def before(pilot):
         await pilot.pause()
-        await pilot.press("ctrl+b")
+        await pilot.press("b")
         await pilot.pause()
     assert snap_compare(_DeterministicApp(archive=tmp_archive),
                         run_before=before)
@@ -58,7 +58,7 @@ def test_build_modal_failure(snap_compare, tmp_archive):
 
     async def before(pilot):
         await pilot.pause()
-        await pilot.press("ctrl+b")
+        await pilot.press("b")
         await pilot.pause()
     assert snap_compare(_DeterministicApp(archive=tmp_archive),
                         run_before=before)

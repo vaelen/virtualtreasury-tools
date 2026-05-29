@@ -1,28 +1,39 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
 # All rights reserved
 
-"""Key bindings avoid terminal-level collisions: export is not on ctrl+shift+s
-(delivered as ctrl+s, colliding with Save) and info is not on ctrl+i (byte-
-identical to Tab)."""
+"""Global bindings are plain single-key presses — no control modifiers — and
+map each action to its agreed mnemonic."""
 
 from __future__ import annotations
 
 from vtextract.tui.app import VtBrowseApp
+
+_EXPECTED = {
+    "q": "request_quit",
+    "f": "open_search",
+    "r": "open_results",
+    "v": "open_volumes",
+    "i": "open_info",
+    "s": "save_bundle",
+    "o": "open_bundle",
+    "x": "export_bundle",
+    "b": "build_index",
+    "e": "extract",
+}
 
 
 def _bindings() -> dict[str, str]:
     return {b.key: b.action for b in VtBrowseApp.BINDINGS}
 
 
-def test_export_rebound_off_ctrl_shift_s():
-    b = _bindings()
-    assert "ctrl+shift+s" not in b
-    assert b.get("ctrl+w") == "export_bundle"
-    # Save stays on ctrl+s.
-    assert b.get("ctrl+s") == "save_bundle"
+def test_no_control_modifier_bindings():
+    keys = _bindings()
+    assert not [k for k in keys if k.startswith("ctrl")], (
+        f"ctrl bindings remain: {[k for k in keys if k.startswith('ctrl')]}"
+    )
 
 
-def test_info_rebound_off_ctrl_i():
-    b = _bindings()
-    assert "ctrl+i" not in b
-    assert b.get("i") == "open_info"
+def test_action_mnemonics():
+    keys = _bindings()
+    for key, action in _EXPECTED.items():
+        assert keys.get(key) == action, f"{key!r} should run {action!r}"

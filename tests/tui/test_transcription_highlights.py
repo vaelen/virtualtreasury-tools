@@ -7,7 +7,7 @@ def test_transcription_highlights_query_terms(snap_compare, tmp_archive):
 
     async def before(pilot):
         await pilot.pause()
-        await pilot.press("ctrl+f")
+        await pilot.press("f")
         await pilot.pause()
         for ch in "houston":
             await pilot.press(ch)

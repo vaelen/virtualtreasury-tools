@@ -25,7 +25,7 @@ async def test_escape_from_transcription_returns_to_results(tmp_archive):
     app = VtBrowseApp(archive=tmp_archive)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await pilot.press("ctrl+f")
+        await pilot.press("f")
         await pilot.pause()
         for ch in "houston":
             await pilot.press(ch)

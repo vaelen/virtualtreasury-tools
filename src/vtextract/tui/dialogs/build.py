@@ -3,7 +3,7 @@
 
 """Generic progress modal driven by an async iterator of ProgressEvent.
 
-Backs ⌃B (single step) and the export-time image backfill (single step);
+Backs ``b`` (single step) and the export-time image backfill (single step);
 Task 22's Extract dialog reuses it to chain vtextract search → vtindex
 build."""
 
@@ -32,7 +32,7 @@ from vtextract.tui.progress_events import (
 class ProgressModal(ModalScreen[bool]):
     """Generic progress modal driven by an async iterator of ProgressEvent.
 
-    Backs ⌃B (single step) and ⌃E (two steps wired in Task 22).
+    Backs ``b`` (single step) and ``e`` (two steps wired in Task 22).
 
     Cancellation: pressing Escape (or the Cancel button) sets
     ``self._cancel_event``. The stream factory may accept a

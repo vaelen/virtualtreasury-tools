@@ -1,7 +1,7 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
 # All rights reserved
 
-"""⌃E Extract dialog — a single-clause ``vtextract search`` form.
+"""``e`` Extract dialog — a single-clause ``vtextract search`` form.
 
 Submit dismisses with the argv that ``vtextract.search_spec.build_search_argv``
 produced (a list starting with ``"search"``); cancel/Esc dismisses with
@@ -37,7 +37,7 @@ class ExtractDialog(ModalScreen[list[str] | None]):
 
     def compose(self):
         with Vertical(id="extract-dialog"):
-            yield Label("Extract from Virtual Treasury (Ctrl+E)")
+            yield Label("Extract from Virtual Treasury (e)")
             yield Input(placeholder="Keywords", id="keywords")
             yield Label("Match")
             with RadioSet(id="operand"):

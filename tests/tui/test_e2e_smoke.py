@@ -4,7 +4,7 @@
 """End-to-end smoke test for vtbrowse.
 
 Drives the real ``VtBrowseApp`` against the real fixture-built archive,
-covering: startup → ⌃F search dialog → query submission → real ``vtindex``
+covering: startup → f search dialog → query submission → real ``vtindex``
 subprocess → results screen → space-to-toggle item selection → bundle JSON
 round-trip.
 
@@ -42,7 +42,7 @@ async def test_smoke_open_search_select_save(tmp_archive, tmp_path):
         await pilot.pause()
 
         # Open the search dialog via the global binding.
-        await pilot.press("ctrl+f")
+        await pilot.press("f")
         await pilot.pause()
 
         # The dialog's first focusable widget is the query Input. Type a
