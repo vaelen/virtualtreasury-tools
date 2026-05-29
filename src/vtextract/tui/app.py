@@ -12,12 +12,14 @@ from textual.widgets import Footer, Header
 
 from vtextract.tui.archive_reader import ArchiveReader
 from vtextract.tui.bundle import Bundle
+from vtextract.tui.dialogs.file import FileDialog, FileResult
 from vtextract.tui.dialogs.info import (
     ItemInfoDialog,
     PageInfoDialog,
     VolumeInfoDialog,
 )
 from vtextract.tui.dialogs.search import SearchDialog, SearchSpec
+from vtextract.tui.export import export_bundle
 from vtextract.tui.index_client import IndexClient
 from vtextract.tui.panes.bundle_pane import BundlePane
 from vtextract.tui.panes.document_pane import DocumentPane
@@ -40,6 +42,9 @@ class VtBrowseApp(App):
         Binding("ctrl+r", "open_results", "results"),
         Binding("ctrl+v", "open_volumes", "volumes"),
         Binding("ctrl+i", "open_info", "info"),
+        Binding("ctrl+s", "save_bundle", "save"),
+        Binding("ctrl+o", "open_bundle", "open"),
+        Binding("ctrl+shift+s", "export_bundle", "export"),
         Binding("tab", "focus_next", "switch pane"),
     ]
 
@@ -155,3 +160,53 @@ class VtBrowseApp(App):
         else:
             return
         self.push_screen(dialog)
+
+    # ---------- save / open / export ----------
+
+    def action_save_bundle(self) -> None:
+        self.push_screen(
+            FileDialog(mode="save", start_dir=Path.home()),
+            self._on_save_chosen,
+        )
+
+    def _on_save_chosen(self, result: FileResult | None) -> None:
+        if result is None:
+            return
+        result.path.write_text(self.bundle.to_json())
+        self.notify(f"Saved to {result.path}")
+
+    def action_open_bundle(self) -> None:
+        self.push_screen(
+            FileDialog(mode="open", start_dir=Path.home()),
+            self._on_open_chosen,
+        )
+
+    def _on_open_chosen(self, result: FileResult | None) -> None:
+        if result is None or not result.path.exists():
+            return
+        self.bundle = Bundle.from_json(result.path.read_text())
+        self.bundle_changed()
+        self.notify(f"Opened {result.path}")
+
+    def action_export_bundle(self) -> None:
+        self.push_screen(
+            FileDialog(mode="export", start_dir=Path.home()),
+            self._on_export_chosen,
+        )
+
+    def _on_export_chosen(self, result: FileResult | None) -> None:
+        if result is None:
+            return
+        # Image backfill via ProgressModal is Task 21. For now: ignore
+        # include_images flag and warn.
+        if result.include_images:
+            self.notify(
+                "Image backfill lands in Task 21; exporting metadata only.",
+                severity="warning",
+            )
+        out = export_bundle(
+            bundle=self.bundle, archive=self.archive,
+            destination=result.path, include_images=False,
+            fmt=result.fmt,
+        )
+        self.notify(f"Exported to {out}")
