@@ -1,0 +1,528 @@
+# vtbrowse — a TUI for `vtindex` + `vtextract`
+
+Status: design, agreed in brainstorm 2026-05-29.
+
+## What this is
+
+A terminal GUI built with [Textual](https://textual.textualize.io/) that sits
+on top of an existing `vtextract` archive and its `vtindex` index. The user
+browses volumes, drills into pages, searches across the index, curates a
+**bundle** of pages they care about, and exports that bundle (transcriptions
++ per-page metadata + optional images) to a folder or compressed archive for
+sharing with other applications.
+
+It is read-only with respect to the archive store on disk. It calls out to
+the existing `vtextract` CLI when the user opts into images during export
+(to backfill anything missing); otherwise it talks to the archive and the
+SQLite index through the same Python modules `vtindex` already uses.
+
+## Why Textual
+
+The existing CLI already renders with `rich` (`Console`, `Table`, themes).
+Textual builds on `rich`, so the same styling primitives carry over and we
+get keyboard-driven navigation, focus, modal dialogs, and async I/O without
+a custom event loop. App name: **`vtbrowse`**.
+
+## Out of scope (deferred)
+
+- Editing/rewriting transcriptions or metadata.
+- Triggering `vtextract search` / `vtextract get` from inside the TUI.
+  (Images are the one exception — fetched on demand during export.)
+- Rebuilding the `vtindex` SQLite index from inside the TUI. We surface the
+  staleness warning the same way `vtindex search` does, but the user runs
+  `vtindex build` themselves.
+- Mouse interactions. Keyboard only.
+
+## Layout
+
+The screen is two panes side by side, with a one-line header above and a
+one-line footer below — both spanning the full width.
+
+```
+ vtbrowse — <context line>                                <right-aligned counter>
+┌─ Bundle ──────────┐┌─ <document-pane title> ──────────────────────────────────────────┐
+│                   ││                                                                  │
+│                   ││                                                                  │
+│   (content)       ││   (content)                                                      │
+│                   ││                                                                  │
+│                   ││                                                                  │
+└───────────────────┘└──────────────────────────────────────────────────────────────────┘
+ <context-relevant key hints>
+```
+
+- **Bundle pane** (left, fixed ~20 cols): the user's curated set of pages,
+  grouped by volume. Only volumes that have selected pages appear. Empty
+  state shows `(no selections)`.
+- **Document pane** (right, ~80%): everything else — volume list, page
+  list, transcription, search results. The pane's title changes with
+  context (`Volumes`, `<Volume title> (<root_id>)`, `<Volume title> —
+  p.<N> — <page_key>`, `Search results`).
+- **Header**: app name, current context, right-aligned counter (e.g.
+  `247 volumes`, `9 pages`, `27 results`).
+- **Footer**: context-aware shortcut hints. A full key map lives on `F1` /
+  `?` help.
+
+Focus moves between panes with `tab`. The focused pane shows a `▸` cursor
+on the active row.
+
+### Modal dialogs (overlays)
+
+Search, Save bundle, Open bundle, Export bundle, Info, Exit confirm.
+All centred over the document pane; `esc` cancels, `tab` cycles fields,
+`⏎` submits the default button.
+
+## Screens
+
+### 1. Volumes (home)
+
+```
+ vtbrowse — Virtual Record Treasury browser                                   247 volumes
+┌─ Bundle ──────────┐┌─ Volumes ──────────────────────────────────────────────────────────┐
+│ (no selections)   ││   Root ID    Items   Title                                Reference │
+│                   ││  ────────  ──────── ────────────────────────────────── ──────────── │
+│                   ││   0001          42   Calendar of Patent Rolls            IRE/PR/01  │
+│                   ││   0002          17   State Papers Ireland 1641           SPI/1641   │
+│                   ││  ▸0007           9   Council Book of Dublin              CB/DUB/164 │
+│                   ││  ...                                                                │
+│                   ││  row 7 of 247                                                       │
+└───────────────────┘└────────────────────────────────────────────────────────────────────┘
+ ↑↓ move   ⏎ open volume   ⌃F search   ⌃O open bundle   ⌃S save   ⌃I info   ⌃X exit
+```
+
+Columns mirror `vtindex volumes`: Root ID, Items, Title, Reference. Data
+source: `IndexDB.volumes()`.
+
+### 2. Page list (inside a volume)
+
+```
+ vtbrowse — Council Book of Dublin (0007)                                       9 pages
+┌─ Bundle ──────────┐┌─ Council Book of Dublin (0007) ─ CB/DUB/1640 ─────────────────────┐
+│ (no selections)   ││   #   Page key                              Txt   Img   Sel       │
+│                   ││ ─── ───────────────────────────────────── ───── ───── ─────       │
+│                   ││    1  cb_dub_001.jpg                        ·     ·               │
+│                   ││    2  cb_dub_002.jpg                        ·     ·     *         │
+│                   ││ ▸  4  cb_dub_004.jpg                        ·     ·               │
+│                   ││  ...                                                              │
+│                   ││ page 4 of 9                                                       │
+└───────────────────┘└───────────────────────────────────────────────────────────────────┘
+ ↑↓ move   ⏎ view   space select   esc back   ⌃F search   ⌃I info   ⌃X exit
+```
+
+Rows: ordinal, page key (Loris image filename), `Txt`/`Img` markers from
+on-disk file presence (`.txt`, image), `Sel = *` if the page is in the
+effective bundle. `space` toggles the page's user state (see selection
+model below). Data source: `IndexDB` page iteration for the volume.
+
+### 3. Transcription view
+
+```
+ vtbrowse — Council Book of Dublin — p.4                                page 4 of 9
+┌─ Bundle (4) ──────┐┌─ Council Book of Dublin — p.4 — cb_dub_004.jpg ─[in bundle]──────┐
+│ ▾ 0007 Council Bo ││ At the assemblie holden in the Tholsell of the said citie        │
+│   p.2  cb_dub_002 ││ uppon Friday the second day of November in the yeare of our      │
+│ ▸ p.4  cb_dub_004 ││ Lord God 1640, and in the sixteenth yeare of the raigne of       │
+│ ▾ 0001 Calendar.. ││ our soveraigne Lord Charles by the grace of God of England,      │
+│   p.13 pr_1605_01 ││ Scotland, France and Ireland King, Defender of the Faith.        │
+│   p.14 pr_1605_01 ││ ...                                                              │
+│                   ││ lines 1–14 of 87                                                 │
+└───────────────────┘└──────────────────────────────────────────────────────────────────┘
+ ←→ prev/next page   ↑↓ scroll   space deselect   esc back   tab → Bundle   ⌃I info
+```
+
+Transcription is the contents of `archive/pages/{root_id}/{page_key}.txt`
+word-wrapped to the pane width. `←` / `→` move to the previous/next page
+in the *volume* by ordinal (using `IndexDB.page_at_ordinal`). `[in bundle]`
+in the title reflects the page's effective state. `tab` swaps focus to the
+Bundle pane.
+
+### 4. Search dialog (`⌃F`)
+
+```
+┌────────────────────── Search ─────────────────────────────┐
+│                                                           │
+│  Query       [ pirate Dublin                          ]   │
+│  Search in   [x] Title   [x] Description  [x] Transcr.    │
+│  Date type   (•) Content     ( ) Created                  │
+│  From        [ 1640      ]  To  [ 1660    ]               │
+│  Volume      [                                        ]   │
+│  Limit       [   50 ]                                     │
+│                                                           │
+│              [ Search ]   [ Cancel ]                      │
+└───────────────────────────────────────────────────────────┘
+```
+
+Fields map 1:1 to `vtindex search` flags. If invoked from inside a volume
+or from a search-results-derived page, **Volume** pre-fills with that
+volume's root id; clearing it widens to all volumes.
+
+### 5. Search results
+
+```
+ vtbrowse — Search: "pirate Dublin" 1640–1660 content                27 results
+┌─ Bundle (7) ──────┐┌─ Search results ──────────────────────────────────────────────────┐
+│ ▾ 0007 Council Bo ││  Sel   ID      Date     Est.    Reference         Title          │
+│   p.4  cb_dub_004 ││ ───── ──────  ────────  ──────  ────────────────  ─────────────  │
+│   p.5  cb_dub_005 ││  [x]   18421  1641-03    —       CB/DUB/164.1      Petition conc.│
+│   p.6  cb_dub_006 ││ ▸[x]   18425  1641-05    —       CB/DUB/164.5      Pirate sightin│
+│ ▾ 0001 Calendar.. ││  [ ]   18532    —        1644    APC/IRE/01.7      Letter re Dub.│
+│   p.13 pr_1605_01 ││  [x]   19014  1647-09    —       PR/HEN/3.18       Pirate prize .│
+│   p.14 pr_1605_01 ││  ...                                                              │
+│                   ││ result 2 of 27   matches: title + transcription   pages: 3        │
+└───────────────────┘└───────────────────────────────────────────────────────────────────┘
+ ↑↓ move   space toggle item   ⏎ view first match   ⌃F refine   esc clear   ⌃R results
+```
+
+- `space` on a row toggles the **item** in/out of the *selected items* set
+  (see selection model below). The `[x]` checkbox column reflects that.
+- `⏎` opens the item's primary matched page in the transcription view.
+  From there, `←`/`→` move between physical pages in the volume (not
+  between search matches).
+- `esc` returns to the volumes screen but does **not** discard the
+  results; `⌃R` re-opens them. They are only discarded when a new search
+  is executed.
+
+### 6. Transcription with search highlights
+
+```
+ vtbrowse — Council Book of Dublin — p.5     match 2 of 27          page 5 of 9
+┌─ Bundle (4) ──────┐┌─ Council Book of Dublin — p.5 — cb_dub_005.jpg ──────────────────┐
+│ ▾ 0007 Council Bo ││ Whereas there hath beene divers complaints made unto this        │
+│   p.2  cb_dub_002 ││ assembly touching the depredations committed by certaine         │
+│ ▸ p.4  cb_dub_004 ││ «pirate»s lurking aboute the porte of «Dublin» and along the     │
+│ ▾ 0001 Calendar.. ││ coastes of Leinster, to the great damage of the marchants of     │
+│   p.13 pr_1605_01 ││ this citie...                                                    │
+│   p.14 pr_1605_01 ││ It is therefore agreed that a watch be sett upon the harbour     │
+│                   ││ to give warninge of any such «pirate» vessels approachinge from  │
+│                   ││ the seaward, that the citizens may be in readinesse...           │
+│                   ││ lines 1–14 of 62   3 hits on this page                           │
+└───────────────────┘└──────────────────────────────────────────────────────────────────┘
+ ←→ prev/next page   ↑↓ scroll   space select   esc back to results   ⌃I info
+```
+
+When opened from a search, the page viewer remembers the active query and
+highlights matches using the same rich `match_style` `vtindex search`
+already uses for title highlights. The header's `match N of M` annotation
+only appears when the current page is itself in the result set; if the
+user `←`/`→`s onto an off-result neighbour, only `page X of Y` shows.
+`esc` returns to the search results list.
+
+### 7. Export dialog (`⌃⇧S`)
+
+```
+┌─────────────────────────── Export bundle ─────────────────────────────────┐
+│                                                                           │
+│  Location  /Users/andrew/Documents/research                          [..] │
+│  ───────────────────────────────────────────────────────────────────────  │
+│    ../                                                                    │
+│    papers/                                                                │
+│  ▸ vt-exports/                                                            │
+│    notes.md                                                               │
+│    bundle_20260415_104530.zip                                             │
+│                                                                           │
+│  Name      [ bundle_20260529_184523                                   ]   │
+│  Format    (•) Folder   ( ) .zip   ( ) .tar.gz                            │
+│  Include   [ ] Images (downloads any missing via vtextract --images)      │
+│                                                                           │
+│            [ Export ]   [ Cancel ]                                        │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+When `Include Images` is on and any selected page lacks its image on disk,
+the TUI shells out to `vtextract get --refresh --images <isadg_ids>` for
+the items contributing those pages before writing the bundle. Progress is
+reported in a modal progress dialog reusing `BuildReporter`-style line
+counters. If the user cancels mid-fetch, the dialog falls back to
+"Continue without missing images / Cancel export".
+
+### 8. Save / Open dialogs (`⌃S` / `⌃O`)
+
+Same chrome as Export, minus the Format and Include rows. Default file
+name on save: `bundle_yyyymmdd_hhmmss.json`. `⌃O` filters the listing to
+`*.json` and shows a one-line summary on hover (`27 selected items, 84
+pages`).
+
+### 9. Info dialog (`⌃I`)
+
+Content depends on focus context.
+
+**Page info** (focus is on a page row, transcription view, or a
+search-result row that's been opened):
+
+```
+┌─────────────────────────── Page info ─────────────────────────────────────┐
+│                                                                           │
+│  Volume        0007 — Council Book of Dublin (CB/DUB/1640)                │
+│  Page          p.5 of 9   cb_dub_005.jpg                                  │
+│  In bundle     yes                                                        │
+│  User state    default                                                    │
+│                                                                           │
+│  Contributing items                                                       │
+│   ✓ 18421  Petition concerning pirate raids        (selected)             │
+│   ✓ 18425  Pirate sightings off Dublin             (selected)             │
+│                                                                           │
+│  Records on this page                                                     │
+│   • 18421  Petition concerning pirate raids        1641-03                │
+│   • 18425  Pirate sightings off Dublin             1641-05                │
+│   • 18437  Petition of merchants re shipping loss  1641-05                │
+│                                                                           │
+│  Files on disk                                                            │
+│   image  archive/pages/0007/cb_dub_005.jpg                                │
+│   text   archive/pages/0007/cb_dub_005.jpg.txt                            │
+│   meta   archive/pages/0007/cb_dub_005.jpg.json                           │
+│                                                                           │
+│            [ Close ]                                                      │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+A page with an explicit user toggle would show `User state    exclude`
+(or `include`) and the `In bundle` line would reflect the override.
+
+**Volume info** (focus is on a volume row):
+
+```
+┌─────────────────────────── Volume info ───────────────────────────────────┐
+│                                                                           │
+│  Root ID       0007                                                       │
+│  Title         Council Book of Dublin                                     │
+│  Reference     CB/DUB/1640                                                │
+│  Label         CB/DUB/1640                                                │
+│  Items         9                                                          │
+│  Pages indexed 9                                                          │
+│  In bundle     2 pages from this volume                                   │
+│                                                                           │
+│            [ Close ]                                                      │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+**Item info** (focus is on a search-result row):
+
+```
+┌─────────────────────────── Item info ─────────────────────────────────────┐
+│                                                                           │
+│  ISADG ID      18425                                                      │
+│  Title         Pirate sightings off Dublin                                │
+│  Reference     CB/DUB/164.5                                               │
+│  Repository    Dublin City Archives                                       │
+│  Content date  1641-05                                                    │
+│  Estimated     —                                                          │
+│  Volume        0007 — Council Book of Dublin                              │
+│  Matched in    title + transcription                                      │
+│                                                                           │
+│  Matched pages (3)                                                        │
+│   • p.4  cb_dub_004.jpg                                                   │
+│   • p.5  cb_dub_005.jpg   ← primary match                                 │
+│   • p.6  cb_dub_006.jpg                                                   │
+│                                                                           │
+│  In bundle     yes (item selected)                                        │
+│                                                                           │
+│            [ Close ]                                                      │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+### 10. Exit confirm (`⌃X`)
+
+```
+┌──────────────── Exit vtbrowse ────────────────┐
+│                                               │
+│  Bundle has 7 pages from 3 items.             │
+│  Unsaved changes will be lost.                │
+│                                               │
+│      [ Save & exit ]  [ Exit ]  [ Cancel ]    │
+└───────────────────────────────────────────────┘
+```
+
+If the bundle is empty or unchanged since last save, exit is silent (no
+dialog). `Save & exit` opens the Save dialog first; `Exit` quits
+immediately; `Cancel` dismisses.
+
+### 11. Bundle pane focused
+
+```
+ vtbrowse — Council Book of Dublin — p.5                              page 5 of 9
+┌─ Bundle (7) ──────┐┌─ Council Book of Dublin — p.5 — cb_dub_005.jpg ──────────────────┐
+│ ▾ 0007 Council Bo ││ Whereas there hath beene divers complaints made unto this        │
+│   p.4  cb_dub_004 ││ assembly touching the depredations committed by certaine         │
+│ ▸ p.5  cb_dub_005 ││ pirates lurking aboute the porte of Dublin and along the         │
+│   p.6  cb_dub_006 ││ coastes of Leinster, to the great damage of the marchants of     │
+│ ▾ 0001 Calendar.. ││ this citie...                                                    │
+│   p.13 pr_1605_01 ││ ...                                                              │
+│   p.14 pr_1605_01 ││ lines 1–14 of 62                                                 │
+└───────────────────┘└──────────────────────────────────────────────────────────────────┘
+ ↑↓ move   ⏎ jump to page   space remove   ← collapse vol   tab → Document   ⌃X exit
+```
+
+When focus is on the Bundle pane:
+- `↑` / `↓` move between rows (volume headers and pages).
+- `←` / `→` collapse / expand a volume node.
+- `⏎` on a page jumps the document pane to that page's transcription
+  view; `esc` from there returns to whatever the document pane was
+  showing before (volume page list or search results).
+- `space` removes the focused page (or all pages of a focused volume) by
+  setting `state = exclude` on each.
+
+## Selection model
+
+The Bundle keeps three things separately. The effective bundle is derived
+from them.
+
+```
+selected_items   : { isadg_id → {matched_pages: [page_ref, ...]} }
+page_state       : { page_ref → "include" | "exclude" }
+```
+
+- `page_ref` = `(root_id, page_key)`.
+- `matched_pages` is **snapshotted at selection time** so re-running the
+  search later doesn't quietly change what's in the bundle.
+- A page with no `page_state` entry is in the "default" state.
+
+**Effective bundle**:
+
+```
+in_bundle(page) = (page ∈ ⋃ selected_items[*].matched_pages
+                   OR page_state[page] == "include")
+                 AND page_state[page] != "exclude"
+```
+
+### Toggle semantics
+
+| Action | Effect |
+|---|---|
+| `space` on a search-result row | toggle that item in/out of `selected_items` |
+| `space` on a page that **is** in the bundle | set `page_state[page] = "exclude"` |
+| `space` on a page that **is not** in the bundle | set `page_state[page] = "include"` |
+
+A `page_state` entry is **sticky**: it survives deselection and re-selection
+of any contributing item. The user can clear it by toggling `space` again,
+which flips it to the other explicit state, or by clearing it from the
+Info dialog (`[ Clear override ]` button when state is not `default`).
+
+### Why three components, not a flat page set
+
+Two adjacent items in a volume often share context pages (the `vtindex`
+search already returns up to 3 pages per match: the matched page plus
+optional context pages before/after). With a flat page set, deselecting
+one item would clobber pages still wanted by another item.
+
+Tracking selected *items* lets us correctly reference-count those shared
+pages. Tracking explicit `include`/`exclude` per page lets the user drill
+in and override the default for any single page (e.g. drop an irrelevant
+context page from an otherwise-wanted item) without losing the override
+across item churn.
+
+## Bundle file format (`⌃S` / `⌃O`)
+
+JSON, one file per saved bundle. The schema mirrors the in-memory state:
+
+```json
+{
+  "version": 1,
+  "created_at": "2026-05-29T18:45:23Z",
+  "selected_items": [
+    {
+      "isadg_id": 18425,
+      "matched_pages": [
+        {"root_id": "0007", "page_key": "cb_dub_004.jpg"},
+        {"root_id": "0007", "page_key": "cb_dub_005.jpg"},
+        {"root_id": "0007", "page_key": "cb_dub_006.jpg"}
+      ]
+    }
+  ],
+  "page_state": [
+    {"root_id": "0007", "page_key": "cb_dub_009.jpg", "state": "include"},
+    {"root_id": "0007", "page_key": "cb_dub_005.jpg", "state": "exclude"}
+  ]
+}
+```
+
+Default filename: `bundle_yyyymmdd_hhmmss.json` (local time). On `⌃O`,
+unknown `version` values are rejected with a dialog explaining the
+mismatch.
+
+## Export layout
+
+Default folder name: `bundle_yyyymmdd_hhmmss/` (or `.zip` / `.tar.gz` if a
+compressed format is chosen).
+
+```
+bundle_20260529_184523/
+  0007/                          # volume root id
+    volume.json                  # snapshot of IndexDB.volume(root_id)
+    cb_dub_004.jpg.json          # per-page metadata (copy of archive page meta)
+    cb_dub_004.jpg.txt           # transcription
+    cb_dub_004.jpg               # image (only if --images was chosen)
+    cb_dub_005.jpg.json
+    cb_dub_005.jpg.txt
+    cb_dub_005.jpg
+  0001/
+    volume.json
+    pr_1605_013.jpg.json
+    pr_1605_013.jpg.txt
+  bundle.json                    # the same JSON ⌃S writes, copied in
+```
+
+`bundle.json` at the top lets the receiver re-open the export folder in
+`vtbrowse` later without losing the item/state structure.
+
+## Keyboard shortcuts
+
+| Key | Context | Action |
+|---|---|---|
+| `↑` / `↓` | any list | move row cursor |
+| `←` / `→` | transcription view | previous / next page in volume |
+| `←` / `→` | Bundle pane | collapse / expand volume node |
+| `⏎` | volume row | open page list |
+| `⏎` | page row | open transcription |
+| `⏎` | search-result row | open first matched page |
+| `⏎` | Bundle page row | jump document pane to that page |
+| `space` | page row, transcription view | toggle page user state |
+| `space` | search-result row | toggle item in `selected_items` |
+| `space` | Bundle row | remove page (or volume's pages) |
+| `esc` | any | back one level (transcription → list → home; results → home) |
+| `tab` | any | swap focus between Bundle and Document panes |
+| `⌃F` | any | open Search dialog |
+| `⌃O` | any | Open bundle |
+| `⌃S` | any | Save bundle |
+| `⌃⇧S` | any | Export bundle |
+| `⌃I` | any | Info on focused context |
+| `⌃V` | any | jump to Volumes |
+| `⌃R` | any | jump to last search results |
+| `⌃X` | any | Exit (confirm if unsaved) |
+| `F1` / `?` | any | full key map |
+
+## Module sketch
+
+Under `src/vtextract/tui/`:
+
+- `app.py` — the Textual `App` subclass and global keymap.
+- `panes/bundle.py`, `panes/document.py` — the two persistent panes.
+- `screens/volumes.py`, `screens/pages.py`, `screens/transcription.py`,
+  `screens/results.py` — document-pane content widgets.
+- `dialogs/search.py`, `dialogs/file.py`, `dialogs/info.py`,
+  `dialogs/exit.py` — modal screens.
+- `bundle.py` — the selection model (in-memory `Bundle` dataclass with
+  `selected_items`, `page_state`, and `effective_pages()` /
+  `is_in_bundle(page)` derivations) plus JSON load/save.
+- `export.py` — write `bundle_*` folders / archives; orchestrate the
+  optional `vtextract refresh --images` subprocess for missing images.
+
+`vtindex.index.db.IndexDB` and `vtindex.index.query.search` are the
+only data sources; the TUI never touches the archive HTTP client.
+
+Tests:
+- `bundle.py` — pure unit tests covering all the toggle and corner-case
+  rules from the selection model.
+- `export.py` — round-trip an export through a temp directory; verify
+  layout and that `bundle.json` re-opens.
+- Textual app: rendering snapshots for each of the screens above, driven
+  by a fixture index built from the same `docs/examples/` data the rest
+  of the project uses.
+
+## Open / deferred questions
+
+- Whether selecting a whole volume (some shortcut on a volume row in the
+  page list?) should be a thing. For now, no — the user selects items
+  from search results or individual pages from the page list.
+- Index staleness: shown as a `[stale: run vtindex build]` chip in the
+  right side of the header whenever `is_stale(db, archive)` is true.
+  Whether to also block searches or show a modal nag — deferred.
+- A "recent bundles" picker on `⌃O`. Deferred; just the file dialog for v1.
