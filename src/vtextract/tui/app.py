@@ -13,6 +13,7 @@ from textual.widgets import Footer, Header
 from vtextract.tui.archive_reader import ArchiveReader
 from vtextract.tui.bundle import Bundle
 from vtextract.tui.dialogs.build import ProgressModal
+from vtextract.tui.dialogs.extract import ExtractDialog
 from vtextract.tui.dialogs.file import FileDialog, FileResult
 from vtextract.tui.dialogs.info import (
     ItemInfoDialog,
@@ -23,6 +24,7 @@ from vtextract.tui.dialogs.search import SearchDialog, SearchSpec
 from vtextract.tui.export import export_bundle
 from vtextract.tui.extract_client import ExtractClient
 from vtextract.tui.index_client import IndexClient
+from vtextract.tui.progress_events import ErrorEvent
 from vtextract.tui.panes.bundle_pane import BundlePane
 from vtextract.tui.panes.document_pane import DocumentPane
 from vtextract.tui.screens.pages import PagesScreen
@@ -48,6 +50,7 @@ class VtBrowseApp(App):
         Binding("ctrl+o", "open_bundle", "open"),
         Binding("ctrl+shift+s", "export_bundle", "export"),
         Binding("ctrl+b", "build_index", "build"),
+        Binding("ctrl+e", "extract", "extract"),
         Binding("tab", "focus_next", "switch pane"),
     ]
 
@@ -243,4 +246,34 @@ class VtBrowseApp(App):
         self.push_screen(ProgressModal(
             title="vtindex build",
             stream_factory=lambda: self.index.build_stream(),
+        ))
+
+    # ---------- extract (⌃E) ----------
+
+    def action_extract(self) -> None:
+        self.push_screen(ExtractDialog(), self._after_extract_form)
+
+    def _after_extract_form(self, argv: list[str] | None) -> None:
+        if argv is None:
+            return
+
+        extract = ExtractClient(archive=self.archive)
+        index = self.index
+
+        async def chained():
+            step1_ok = True
+            # Step 1: vtextract search
+            async for ev in extract.search_stream(argv=argv):
+                yield ev
+                if isinstance(ev, ErrorEvent):
+                    step1_ok = False
+                    return
+            # Step 2: vtindex build (only if Step 1 finished cleanly)
+            if step1_ok:
+                async for ev in index.build_stream():
+                    yield ev
+
+        self.push_screen(ProgressModal(
+            title="vtextract search → vtindex build",
+            stream_factory=chained,
         ))
