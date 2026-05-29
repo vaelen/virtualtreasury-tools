@@ -26,8 +26,11 @@ a custom event loop. App name: **`vtbrowse`**.
 ## Out of scope (deferred)
 
 - Editing/rewriting transcriptions or metadata.
-- Triggering `vtextract search` / `vtextract get` from inside the TUI.
-  (Images are the one exception — fetched on demand during export.)
+- `vtextract get` from inside the TUI. (Images during export are the one
+  exception — fetched on demand via `vtextract get --refresh --images`.)
+- Multi-clause `vtextract search` from inside the TUI. The in-app extract
+  dialog (`⌃E`) supports a single clause only; the CLI remains the place
+  to build complex multi-clause searches.
 - Mouse interactions. Keyboard only.
 
 ## Layout
@@ -468,7 +471,116 @@ Does not auto-rebuild and does not show a modal — the user presses
 `⌃B` if and when they want to rebuild. Staleness *at startup* is
 handled by screen 12, not this banner.
 
-### 15. Empty-archive / no-index screen
+### 15. Extract dialog (`⌃E`)
+
+A single-clause front end for `vtextract search`. The CLI supports
+multi-clause searches by repeating field+operand+keywords; this dialog
+deliberately exposes only one clause to keep the UI simple. For complex
+queries the user drops to the CLI.
+
+```
+┌──────────────────── Extract from Virtual Treasury (⌃E) ──────────────────┐
+│                                                                          │
+│  Keywords    [ pirate Dublin                                         ]   │
+│                                                                          │
+│  Match       (•) all      ( ) any      ( ) exact                         │
+│                                                                          │
+│  Field       (•) all (keyword)      ( ) title         ( ) transcription  │
+│              ( ) creator            ( ) reference     ( ) person         │
+│              ( ) place                                                   │
+│                                                                          │
+│  From        [ 1640-01-01 ]    To    [ 1660-12-31 ]                      │
+│                                                                          │
+│  Will run: vtextract search --all pirate Dublin                          │
+│            --start 1640-01-01 --end 1660-12-31                           │
+│                                                                          │
+│            [ Extract ]   [ Cancel ]                                      │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+Behaviour:
+
+- Match excludes `none` — it's meaningful only when combined with other
+  clauses (`A AND NOT B`).
+- Field default is `all (keyword)`, which maps to the CLI's bare
+  `--keyword` flag (`kwSearchFieldList = "all"`).
+- Fields map to CLI flags exactly as documented in
+  `docs/search-query.md` (`title`, `transcription` → `--transcription`,
+  `creator`, `reference` → `--ref`, `person`, `place`).
+- Dates are optional (`--start` / `--end` only emitted when set).
+- The "Will run:" preview live-updates as the form changes — same
+  command we'll exec.
+- Submitted runs **never** pass `--images`; image backfill stays an
+  explicit choice at Export time.
+- Other defaults stay implicit: `--out` = archive from config,
+  `--context-pages 1`, `--relevance` sort, no `--refresh`.
+
+### 15b. Extract + build progress modal
+
+Opens when the user submits screen 15. Runs `vtextract search` to
+completion, then automatically chains into `vtindex build` in the same
+modal so the new content is immediately searchable.
+
+```
+┌────────────────── vtextract search → vtindex build ───────────────────┐
+│                                                                       │
+│  Step 1/2: vtextract search --all pirate Dublin                       │
+│            --start 1640-01-01 --end 1660-12-31                        │
+│                                                                       │
+│  ────────────────────────────────────────────────────────────────     │
+│  searching…    page 3 / 12                                            │
+│  fetched:      47 items                                               │
+│  new:          12   updated: 5    skipped: 30                         │
+│  pages:        128 transcriptions   42 manifests                      │
+│  elapsed:      00:32                                                  │
+│                                                                       │
+│  ────────────────────────────────────────────────────────────────     │
+│  fetching items/0007/18472…                                           │
+│                                                                       │
+│            [ Cancel ]                                                 │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+After search finishes the title's step indicator flips and the build
+log starts streaming:
+
+```
+┌────────────────── vtextract search → vtindex build ───────────────────┐
+│                                                                       │
+│  Step 1/2: vtextract search ... (done — 47 items, 128 pages)          │
+│  Step 2/2: vtindex build --archive /…/archive                         │
+│                                                                       │
+│  ────────────────────────────────────────────────────────────────     │
+│  scanning items…   2,948 / 2,948                                      │
+│  indexed:    + 47 new       ~  5 updated    = 2,896 unchanged         │
+│  pages:      + 128          ~  0            = 4,212                   │
+│  elapsed:    00:08                                                    │
+│                                                                       │
+│            [ Close ]                                                  │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+Cancel behaviour:
+
+- During Step 1: signals the search transport to stop on the next
+  request boundary. Already-fetched items remain in the archive.
+  Step 2 is **not** auto-started — the user can press `⌃B` later
+  when they want.
+- During Step 2: same as the `⌃B` build modal — confirms once, then
+  signals the builder.
+
+Error behaviour: if Step 1 raises (auth, network, transport), the
+modal switches its title to `vtextract search — failed`, shows the
+exception, and offers `[ Close ]`. Step 2 is **not** auto-started in
+that case either.
+
+Both subprocesses are invoked via their Python entry points
+(`vtextract.fetcher` / `vtextract.search` for Step 1,
+`vtextract.index.builder.build()` for Step 2) inside an asyncio thread,
+so the modal stays responsive and the cancel button works without
+having to kill an OS process.
+
+### 16. Empty-archive / no-index screen
 
 Shown when the archive has no `vtindex` DB and the user declined the
 startup prompt (screen 12), or when the configured archive doesn't look
@@ -617,6 +729,7 @@ bundle_20260529_184523/
 | `⌃R` | any | jump to last search results |
 | `⌃X` | any | Exit (confirm if unsaved) |
 | `⌃B` | any | Build / rebuild the `vtindex` index (modal progress) |
+| `⌃E` | any | Extract from Virtual Treasury (single-clause `vtextract search`, then auto-build) |
 | `F1` / `?` | any | full key map |
 
 ## Module sketch
@@ -628,7 +741,10 @@ Under `src/vtextract/tui/`:
 - `screens/volumes.py`, `screens/pages.py`, `screens/transcription.py`,
   `screens/results.py` — document-pane content widgets.
 - `dialogs/search.py`, `dialogs/file.py`, `dialogs/info.py`,
-  `dialogs/exit.py`, `dialogs/build.py` — modal screens.
+  `dialogs/exit.py`, `dialogs/build.py`, `dialogs/extract.py` —
+  modal screens. `dialogs/extract.py` owns both the form (15) and the
+  chained progress modal (15b); the build modal (13) is the same widget
+  used by `⌃B` alone with Step 1 elided.
 - `bundle.py` — the selection model (in-memory `Bundle` dataclass with
   `selected_items`, `page_state`, and `effective_pages()` /
   `is_in_bundle(page)` derivations) plus JSON load/save.
