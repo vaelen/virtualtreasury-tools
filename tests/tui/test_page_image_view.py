@@ -101,3 +101,22 @@ async def test_escape_from_image_mode_returns_to_pages(tmp_archive):
         await pilot.press("escape")         # exit to origin
         await pilot.pause()
         assert isinstance(_active(app), PagesScreen)
+
+
+@pytest.mark.asyncio
+async def test_tall_image_is_not_stretched_to_full_width(tmp_archive):
+    # A portrait page scan should keep its aspect ratio: the image widget must
+    # be narrower than the pane, not stretched to fill the full width.
+    path = tmp_archive / "pages" / "volA" / "volA_p0.jpg"
+    PILImage.new("RGB", (100, 400), (60, 60, 200)).save(path, "JPEG")  # 1:4 portrait
+    app = VtBrowseApp(archive=tmp_archive)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        app.open_transcription("volA", "volA_p0.jpg", origin="pages")
+        await pilot.pause()
+        await pilot.press("enter")          # text -> image
+        await pilot.pause()
+        img = app.query_one("#page-image")
+        screen = _active(app)
+        assert img.content_size.height > 0
+        assert img.content_size.width < screen.content_size.width
