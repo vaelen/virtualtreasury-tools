@@ -15,6 +15,7 @@ _BINDINGS = (
     ("⏎",        "volume row",                "open page list"),
     ("⏎",        "page row",                  "open transcription"),
     ("⏎",        "search result row",         "open first matched page"),
+    ("⏎",        "transcription view",        "swap text ⇄ page image"),
     ("space",    "page row, transcription",   "toggle page user state"),
     ("space",    "search result row",         "toggle item in selection"),
     ("space",    "Bundle row",                "remove page or volume's pages"),

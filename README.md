@@ -262,7 +262,9 @@ visible row range, e.g. `12-37 of 100`, updating as you scroll.
 - **Home** — a list of indexed volumes. Press `Enter` to drill into one.
 - **Volume** — pages in order. Press `Enter` to open a page.
 - **Page** — metadata on the left, transcription on the right. Press `Space` to
-  toggle the page into / out of your Bundle.
+  toggle the page into / out of your Bundle. Press `Enter` in the transcription
+  pane to swap between the transcription text and the scanned page image; if no
+  image is on disk, a hint is shown to re-run `vtextract` with `--images`.
 - **`s`** — save the Bundle to `~/.vt/bundle.json` (or the path in config).
 - **`x`** — export the Bundle to a folder (transcriptions + metadata
   JSON; optional images).
