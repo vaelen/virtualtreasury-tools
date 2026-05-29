@@ -7,6 +7,7 @@ from textual.binding import Binding
 from textual.containers import ScrollableContainer
 from textual.widgets import Static
 
+from vtextract.theme import THEMES, highlight_terms
 from vtextract.tui.archive_reader import ArchiveReader
 from vtextract.tui.bundle import Bundle, PageRef
 from vtextract.tui.index_client import IndexClient
@@ -36,7 +37,8 @@ class TranscriptionScreen(ScrollableContainer):
     def compose(self):
         text = self.reader.read_transcription(self.root_id, self.page_key) or \
             "(no transcription available for this page)"
-        yield Static(text, id="transcription-body")
+        styled = highlight_terms(text, self.query, THEMES["dark"].match_style)
+        yield Static(styled, id="transcription-body")
 
     def _current_ref(self) -> PageRef:
         return PageRef(self.root_id, self.page_key)
