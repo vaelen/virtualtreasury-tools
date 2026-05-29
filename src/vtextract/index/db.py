@@ -456,3 +456,60 @@ class IndexDB:
             (root_id, ordinal),
         ).fetchone()
         return dict(row) if row else None
+
+    def pages(self, root_id: str) -> list[dict]:
+        """Return every indexed page in a volume, ordered by ordinal.
+
+        Pages whose ordinal is NULL (transcription-backed rows whose volume.json
+        no longer lists them) are excluded — the contract is "every page of
+        this volume" and a volumeless page has no volume position.
+        """
+        rows = self._conn.execute(
+            "SELECT page_key, ordinal, label FROM page "
+            "WHERE root_id=? AND ordinal IS NOT NULL ORDER BY ordinal",
+            (root_id,),
+        ).fetchall()
+        return [
+            {"root_id": root_id, "page_key": r["page_key"],
+             "ordinal": r["ordinal"], "label": r["label"]}
+            for r in rows
+        ]
+
+    def item(self, isadg_id: int) -> dict | None:
+        """Return one item's header + its matched-pages list (with role), or None."""
+        row = self._conn.execute(
+            "SELECT isadg_id, reference_code, title, description, repository, "
+            "content_begin, content_end, created_begin, created_end, "
+            "estimated_begin, estimated_end, estimated_source "
+            "FROM item WHERE isadg_id = ?",
+            (isadg_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        pages = [
+            {"root_id": pr["root_id"], "page_key": pr["page_key"], "role": pr["role"]}
+            for pr in self._conn.execute(
+                "SELECT ip.root_id AS root_id, ip.page_key AS page_key, "
+                "ip.role AS role FROM item_page ip "
+                "LEFT JOIN page p ON p.root_id = ip.root_id "
+                "AND p.page_key = ip.page_key "
+                "WHERE ip.isadg_id = ? "
+                "ORDER BY p.ordinal IS NULL, p.ordinal, ip.root_id, ip.page_key",
+                (isadg_id,),
+            )
+        ]
+        return {
+            "isadg_id": row["isadg_id"],
+            "reference_code": row["reference_code"],
+            "title": row["title"],
+            "description": row["description"],
+            "repository": row["repository"],
+            "content_begin": row["content_begin"],
+            "content_end": row["content_end"],
+            "created_begin": row["created_begin"],
+            "created_end": row["created_end"],
+            "estimated_begin": row["estimated_begin"],
+            "estimated_end": row["estimated_end"],
+            "estimated_source": row["estimated_source"],
+            "pages": pages,
+        }

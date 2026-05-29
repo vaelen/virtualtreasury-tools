@@ -262,6 +262,80 @@ def _cmd_page(args) -> int:
     return 0
 
 
+def _cmd_pages(args) -> int:
+    archive = _resolve_archive(args)
+    with _open_for_read(archive) as db:
+        if is_stale(db, archive):
+            print("warning: index is stale; run `vtindex build` to refresh.",
+                  file=sys.stderr)
+        rows = db.pages(args.root_id)
+    if not rows:
+        if args.json:
+            print(json.dumps([]))
+        else:
+            print(f"no pages for volume {args.root_id}")
+        return 1
+    enriched = [
+        {**_page_dict(archive, args.root_id, r["page_key"]),
+         "ordinal": r["ordinal"], "label": r["label"]}
+        for r in rows
+    ]
+    if args.json:
+        print(json.dumps(enriched, indent=2))
+    else:
+        _print_page_list(enriched, theme=THEMES[args.theme])
+    return 0
+
+
+def _print_page_list(rows, *, theme: Theme) -> None:
+    table = Table(
+        show_header=True,
+        header_style=theme.header_style,
+        border_style=theme.border_style,
+        row_styles=list(theme.row_styles),
+    )
+    table.add_column("#", no_wrap=True, justify="right")
+    table.add_column("Page key")
+    table.add_column("Label", no_wrap=True)
+    table.add_column("Txt", no_wrap=True)
+    table.add_column("Img", no_wrap=True)
+    for r in rows:
+        table.add_row(
+            str(r["ordinal"]) if r["ordinal"] is not None else "-",
+            r["page_key"],
+            r["label"] or "-",
+            "•" if r["transcription"] else "",
+            "•" if r["image"] else "",
+        )
+    Console(no_color=theme.no_color).print(table)
+
+
+def _cmd_item(args) -> int:
+    archive = _resolve_archive(args)
+    with _open_for_read(archive) as db:
+        if is_stale(db, archive):
+            print("warning: index is stale; run `vtindex build` to refresh.",
+                  file=sys.stderr)
+        item = db.item(args.isadg_id)
+    if item is None:
+        if args.json:
+            print(json.dumps(None))
+        else:
+            print(f"item not found: {args.isadg_id}")
+        return 1
+    if args.json:
+        print(json.dumps(item, indent=2))
+    else:
+        for k, v in item.items():
+            if k == "pages":
+                continue
+            print(f"{k}: {v if v is not None else '-'}")
+        print("pages:")
+        for p in item["pages"]:
+            print(f"  {p['role']:7s}  {p['root_id']}/{p['page_key']}")
+    return 0
+
+
 def _print_page_nav(nav: dict, title: str | None, *, theme: Theme) -> None:
     table = Table(
         show_header=True,
@@ -373,6 +447,20 @@ def _build_parser() -> argparse.ArgumentParser:
     p_page.add_argument("--json", action="store_true")
     _add_theme_args(p_page)
     p_page.set_defaults(func=_cmd_page, parser=p_page)
+
+    p_pages = sub.add_parser("pages", help="list every page of a volume")
+    p_pages.add_argument("root_id", help="volume root id")
+    _add_archive_args(p_pages)
+    p_pages.add_argument("--json", action="store_true")
+    _add_theme_args(p_pages)
+    p_pages.set_defaults(func=_cmd_pages)
+
+    p_item = sub.add_parser("item", help="show one item by isadg id")
+    p_item.add_argument("isadg_id", type=int, help="isadg id of the item")
+    _add_archive_args(p_item)
+    p_item.add_argument("--json", action="store_true")
+    _add_theme_args(p_item)
+    p_item.set_defaults(func=_cmd_item)
 
     return parser
 
