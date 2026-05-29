@@ -46,7 +46,8 @@ class ResultsScreen(DataTable):
             return
         target = next((p for p in pages if p.get("role") == "primary"), pages[0])
         self.app.open_transcription(  # type: ignore[attr-defined]
-            target["root_id"], target["page_key"], query=self.query)
+            target["root_id"], target["page_key"], query=self.query,
+            origin="results")
 
     def action_toggle_item(self) -> None:
         if not self.results:

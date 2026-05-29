@@ -42,7 +42,40 @@ class VtBrowseApp(App):
     TITLE = "vtbrowse"
     CSS = """
     Screen { layout: vertical; }
-    Horizontal { height: 1fr; }
+    /* The main Bundle | Document split fills the height between header and
+       footer. Scoped to #main so the rule does NOT leak into modal dialogs,
+       whose own Horizontals (button rows, the date row) must stay compact. */
+    #main { height: 1fr; }
+
+    /* Every modal dialog is a centred box over the main screen, not a
+       full-screen takeover. */
+    ModalScreen { align: center middle; }
+    /* Horizontal's own default height is 1fr; inside a dialog that fills the
+       box and forces it to max-height. Dialog rows (buttons, the date pair)
+       must be compact so the box sizes to its content. */
+    ModalScreen Horizontal { height: auto; }
+    #search-dialog, #extract-dialog, #file-dialog, #exit-dialog,
+    #progress-modal, #help-dialog, #info-dialog, #index-prompt {
+        width: 70%;
+        max-width: 92;
+        height: auto;
+        max-height: 90%;
+        padding: 1 2;
+        border: round $primary;
+        background: $surface;
+    }
+
+    /* The two date inputs share their row instead of the first filling it
+       and pushing the second off-screen. */
+    #search-dialog #from, #search-dialog #to,
+    #extract-dialog #from, #extract-dialog #to { width: 1fr; }
+
+    /* Dialogs holding a scrollable tree / table need a bounded body to
+       scroll within. */
+    #file-dialog { height: 85%; }
+    #file-dialog #tree { height: 1fr; }
+    #help-dialog { height: 85%; }
+    #help-dialog DataTable { height: 1fr; }
     """
 
     BINDINGS = [
@@ -50,10 +83,13 @@ class VtBrowseApp(App):
         Binding("ctrl+f", "open_search", "search"),
         Binding("ctrl+r", "open_results", "results"),
         Binding("ctrl+v", "open_volumes", "volumes"),
-        Binding("ctrl+i", "open_info", "info"),
+        # ``i`` (not ctrl+i — that is byte-identical to Tab and never fires).
+        Binding("i", "open_info", "info"),
         Binding("ctrl+s", "save_bundle", "save"),
         Binding("ctrl+o", "open_bundle", "open"),
-        Binding("ctrl+shift+s", "export_bundle", "export"),
+        # ``ctrl+w`` (not ctrl+shift+s — terminals strip Shift from control
+        # chars, so it arrived as ctrl+s and collided with Save).
+        Binding("ctrl+w", "export_bundle", "export"),
         Binding("ctrl+b", "build_index", "build"),
         Binding("ctrl+e", "extract", "extract"),
         Binding("f1", "open_help", "help"),
@@ -74,7 +110,7 @@ class VtBrowseApp(App):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
-        with Horizontal():
+        with Horizontal(id="main"):
             yield BundlePane(self.bundle)
             yield DocumentPane()
         yield Footer()
@@ -170,13 +206,14 @@ class VtBrowseApp(App):
         self.call_after_refresh(screen.focus)
 
     def open_transcription(self, root_id: str, page_key: str,
-                           *, query: str | None = None) -> None:
+                           *, query: str | None = None,
+                           origin: str = "pages") -> None:
         pane = self.query_one(DocumentPane)
         pane.remove_children()
         screen = TranscriptionScreen(
             index=self.index, reader=ArchiveReader(self.archive),
             bundle=self.bundle, root_id=root_id, page_key=page_key,
-            query=query,
+            query=query, origin=origin,
         )
         pane.mount(screen)
         self.call_after_refresh(screen.focus)

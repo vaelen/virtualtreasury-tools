@@ -25,7 +25,7 @@ class TranscriptionScreen(ScrollableContainer):
 
     def __init__(self, *, index: IndexClient, reader: ArchiveReader,
                  bundle: Bundle, root_id: str, page_key: str,
-                 query: str | None = None) -> None:
+                 query: str | None = None, origin: str = "pages") -> None:
         super().__init__()
         self.index = index
         self.reader = reader
@@ -33,6 +33,10 @@ class TranscriptionScreen(ScrollableContainer):
         self.root_id = root_id
         self.page_key = page_key
         self.query = query
+        # Where this view was opened from, so ``esc`` (action_back) returns
+        # there: "results" → the search results screen, "pages" → the volume's
+        # page list. Preserved across prev/next page navigation.
+        self.origin = origin
 
     def compose(self):
         text = self.reader.read_transcription(self.root_id, self.page_key) or \
@@ -47,20 +51,25 @@ class TranscriptionScreen(ScrollableContainer):
         nav = await self.index.page(self.root_id, self.page_key)
         if nav and nav.get("previous"):
             self.app.open_transcription(  # type: ignore[attr-defined]
-                self.root_id, nav["previous"]["page_key"])
+                self.root_id, nav["previous"]["page_key"],
+                query=self.query, origin=self.origin)
 
     async def action_next_page(self) -> None:
         nav = await self.index.page(self.root_id, self.page_key)
         if nav and nav.get("next"):
             self.app.open_transcription(  # type: ignore[attr-defined]
-                self.root_id, nav["next"]["page_key"])
+                self.root_id, nav["next"]["page_key"],
+                query=self.query, origin=self.origin)
 
     def action_toggle_select(self) -> None:
         self.bundle.toggle_page(self._current_ref())
         self.app.bundle_changed()  # type: ignore[attr-defined]
 
     def action_back(self) -> None:
-        self.app.open_pages(self.root_id)  # type: ignore[attr-defined]
+        if self.origin == "results":
+            self.app.action_open_results()  # type: ignore[attr-defined]
+        else:
+            self.app.open_pages(self.root_id)  # type: ignore[attr-defined]
 
     def selected_context(self) -> tuple | None:
         return ("page", self.root_id, self.page_key)

@@ -54,11 +54,11 @@ def test_open_dialog_opens_on_ctrl_o(snap_compare, tmp_archive):
     assert snap_compare(cls(archive=tmp_archive), run_before=before)
 
 
-def test_export_dialog_opens_on_ctrl_shift_s(snap_compare, tmp_archive):
+def test_export_dialog_opens_on_ctrl_w(snap_compare, tmp_archive):
     cls = _make_app_subclass(tmp_archive, "export")
 
     async def before(pilot):
         await pilot.pause()
-        await pilot.press("ctrl+shift+s")
+        await pilot.press("ctrl+w")
         await pilot.pause()
     assert snap_compare(cls(archive=tmp_archive), run_before=before)

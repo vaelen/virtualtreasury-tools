@@ -260,7 +260,7 @@ uv run vtbrowse --archive ./archive    # or point it at a specific archive
 - **Page** — metadata on the left, transcription on the right. Press `Space` (or
   `b`) to toggle the page into / out of your Bundle.
 - **`Ctrl+S`** — save the Bundle to `~/.vt/bundle.json` (or the path in config).
-- **`Ctrl+Shift+S`** — export the Bundle to a folder (transcriptions + metadata
+- **`Ctrl+W`** — export the Bundle to a folder (transcriptions + metadata
   JSON; optional images).
 
 ### Searching
