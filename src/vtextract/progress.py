@@ -59,9 +59,9 @@ class ProgressReporter:
         else:
             self.progress.update(self._overall, total=n)
 
-    def advance(self) -> None:
+    def advance(self, n: int = 1) -> None:
         if self._overall is not None:
-            self.progress.advance(self._overall)
+            self.progress.advance(self._overall, n)
 
 
 class Reporter(ProgressReporter):
