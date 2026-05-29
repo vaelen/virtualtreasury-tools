@@ -1,5 +1,7 @@
 # vtbrowse — a TUI for `vtindex` + `vtextract`
 
+Status: shipped on branch worktree-vtbrowse (commit history under docs/superpowers/plans/2026-05-29-vtbrowse.md).
+
 Status: design, agreed in brainstorm 2026-05-29.
 
 ## What this is

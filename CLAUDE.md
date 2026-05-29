@@ -46,6 +46,11 @@ each invocation, so prefer it over activating the venv manually.
   `.venv/bin/vtindex search "<keyword>" --archive ./archive [--json]`, or
   `.venv/bin/vtindex page <rootID>/<page_key> --archive ./archive` for
   previous/next page navigation within a volume.
+- **TUI:** `uv run vtbrowse [--archive PATH]` — interactive browser over an
+  existing archive + index. See `README.md` for key bindings and workflow.
+  TUI tests: `uv run pytest tests/tui/ -v`; snapshot baselines live in
+  `tests/tui/__snapshots__/`; regenerate with `--snapshot-update` after
+  intentional screen changes.
 - **Credentials** come only from the config file `~/.vt/vt.toml`
   (`[extract.auth].token`), written by `vtextract auth`. There are no `VT_*`
   env vars. Never hardcode the credential in source or tests; tests pass a
@@ -83,6 +88,27 @@ under `uv run pytest`. `archive/`, `.venv/`, and `*.egg-info/` are gitignored;
   incremental, stat-fingerprint build (analogous to `fetcher.py`). `query.py`
   composes a search from `db` primitives. `cli.py` wires `build`/`search`/
   `volumes`/`stats`. Build progress reuses `progress.BuildReporter`.
+- `tui/` (subpackage) — the `vtbrowse` TUI. **Architectural boundary:** `tui/`
+  never imports `vtextract.index.{db,query,builder}` or
+  `vtextract.{fetcher,client}` directly. Instead it shells out: `IndexClient`
+  wraps `vtindex` subprocess calls; `ExtractClient` wraps `vtextract` subprocess
+  calls; `ArchiveReader` does direct on-disk file reads. CI enforces this with
+  `tests/test_no_direct_db.py`. Module map:
+  - `bundle.py` — selection model (the curated page list + load/save/merge).
+  - `index_client.py` — subprocess wrapper for `vtindex` (`build`, `search`,
+    `page`, `volumes`).
+  - `extract_client.py` — subprocess wrapper for `vtextract` (`search` with a
+    single clause; triggers index rebuild on completion).
+  - `archive_reader.py` — direct file reads (metadata, page JSON, image paths).
+  - `progress_events.py` — typed JSONL event parser for progress streams.
+  - `export.py` — bundle folder / zip writer.
+  - `app.py` + `screens/` + `dialogs/` + `panes/` — the Textual application.
+- Three top-level shared modules added in Phase A of the TUI work:
+  - `theme.py` — shared colour constants and Rich/Textual theme helpers.
+  - `search_spec.py` — `SearchSpec` dataclass (single-clause search parameters
+    shared between `vtindex` and `vtbrowse`).
+  - `progress.py` — extended with `BuildReporter` and JSONL event emission
+    for the TUI progress pane.
 
 ## Domain model (important, non-obvious)
 

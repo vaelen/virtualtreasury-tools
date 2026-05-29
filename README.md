@@ -240,6 +240,51 @@ it only reads files whose size/mtime changed since the last build.
   during extraction with `--context-pages >= 1`; re-extract an existing archive
   to populate ordering for older volumes.
 
+## Browsing the archive interactively
+
+`vtbrowse` is a keyboard-driven TUI (built with [Textual](https://textual.textualize.io/))
+that sits on top of an existing archive + its `vtindex` index. After building the
+index once (`vtindex build`), you can browse volumes, read transcriptions, search
+locally, and curate a **Bundle** of pages you want to keep — without re-running
+`vtextract`.
+
+```bash
+uv run vtbrowse                        # uses archive from ~/.vt/vt.toml
+uv run vtbrowse --archive ./archive    # or point it at a specific archive
+```
+
+### Basic flow
+
+- **Home** — a list of indexed volumes. Press `Enter` to drill into one.
+- **Volume** — pages in order. Press `Enter` to open a page.
+- **Page** — metadata on the left, transcription on the right. Press `Space` (or
+  `b`) to toggle the page into / out of your Bundle.
+- **`Ctrl+S`** — save the Bundle to `~/.vt/bundle.json` (or the path in config).
+- **`Ctrl+Shift+S`** — export the Bundle to a folder (transcriptions + metadata
+  JSON; optional images).
+
+### Searching
+
+- **`Ctrl+F`** — search the local `vtindex` index. Results open as a page list;
+  navigate and open pages just like in the volume view.
+- **`Ctrl+E`** — run a single-clause `vtextract search` against the live website.
+  Newly downloaded resources are automatically indexed afterward. Requires a
+  stored credential (`vtextract auth`).
+
+### Other bindings
+
+- **`Ctrl+B`** — build / rebuild the `vtindex` index in the background.
+- **`F1` / `?`** — show all key bindings.
+
+### Bundle
+
+A Bundle is a curated list of physical pages (by volume + page key). It persists
+as a JSON file so you can save, reopen, and edit it across sessions. Exporting
+writes one subfolder per volume, with each page's transcription text, its
+`page.json` metadata, and (if the archive has them) the image file. See
+`docs/superpowers/specs/2026-05-29-vtbrowse-tui-design.md` for the full Bundle
+JSON format and export folder layout.
+
 ## Tests
 
 ```bash
