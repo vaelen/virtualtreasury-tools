@@ -69,6 +69,19 @@ def test_json_matched_pages_include_file_paths(tmp_path, capsys):
     assert pg["metadata"] is None
 
 
+def test_search_limit_zero_returns_all(tmp_path, capsys):
+    archive = _archive(tmp_path)
+    main(["build", "--archive", str(archive)])
+    capsys.readouterr()
+    capped = main(["search", "--archive", str(archive), "--limit", "1", "--json"])
+    capped_out = json.loads(capsys.readouterr().out)
+    unlimited = main(["search", "--archive", str(archive), "--limit", "0", "--json"])
+    unlimited_out = json.loads(capsys.readouterr().out)
+    assert capped == 0 and unlimited == 0
+    assert len(capped_out) == 1
+    assert [r["isadg_id"] for r in unlimited_out] == [300, 100, 200]
+
+
 def test_search_no_match_exit_1(tmp_path, capsys):
     archive = _archive(tmp_path)
     main(["build", "--archive", str(archive)])

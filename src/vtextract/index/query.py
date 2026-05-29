@@ -68,6 +68,9 @@ def search(db: IndexDB, q: SearchQuery) -> list[SearchResult]:
         # best (most negative) bm25 first; ties keep filter order (date asc)
         results.sort(key=lambda r: r.score)
     start = max(q.offset, 0)
+    # limit <= 0 means "no upper bound" (return everything from the offset on).
+    if q.limit <= 0:
+        return results[start:]
     return results[start : start + q.limit]
 
 

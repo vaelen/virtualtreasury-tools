@@ -92,6 +92,20 @@ def test_limit(tmp_path):
     assert len(results) == 1
 
 
+def test_limit_zero_returns_all(tmp_path):
+    with _built(tmp_path) as db:
+        all_results = search(db, SearchQuery())
+        unlimited = search(db, SearchQuery(limit=0))
+    assert [r.isadg_id for r in unlimited] == [r.isadg_id for r in all_results]
+
+
+def test_limit_zero_with_offset(tmp_path):
+    with _built(tmp_path) as db:
+        all_results = search(db, SearchQuery())
+        rest = search(db, SearchQuery(limit=0, offset=1))
+    assert [r.isadg_id for r in rest] == [r.isadg_id for r in all_results[1:]]
+
+
 def test_offset_skips_leading_results(tmp_path):
     with _built(tmp_path) as db:
         all_results = search(db, SearchQuery())

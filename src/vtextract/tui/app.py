@@ -268,6 +268,7 @@ class VtBrowseApp(App):
             query=spec.query, fields=spec.fields,
             date_from=spec.date_from, date_to=spec.date_to,
             date_type=spec.date_type, volume=spec.volume,
+            limit=0,  # the TUI renders the full result set, not a 50-row page
         )
         self.last_results = rows
         self.last_query = spec.query

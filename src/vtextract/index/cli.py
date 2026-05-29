@@ -433,7 +433,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p_search.add_argument("--to", dest="date_to", help="upper date bound (YEAR or ISO)")
     p_search.add_argument("--date-type", choices=("content", "created"), default="content")
     p_search.add_argument("--volume", help="restrict to items referencing this volume root id")
-    p_search.add_argument("--limit", type=int, default=50)
+    p_search.add_argument("--limit", type=int, default=50,
+                          help="max results (default 50; 0 or less = no limit)")
     p_search.add_argument("--offset", type=int, default=0,
                           help="skip the first N results (for pagination)")
     p_search.add_argument("--json", action="store_true")
