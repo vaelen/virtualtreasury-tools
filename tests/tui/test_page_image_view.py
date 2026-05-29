@@ -58,3 +58,25 @@ async def test_enter_on_page_without_image_shows_placeholder(tmp_archive):
         placeholder = app.query_one("#page-image-missing")
         assert "No image on disk" in str(placeholder.content)
         assert len(app.query("#page-image")) == 0
+
+
+@pytest.mark.asyncio
+async def test_image_mode_persists_across_next_page(tmp_archive):
+    _write_image(tmp_archive, "volA", "volA_p0.jpg")
+    _write_image(tmp_archive, "volA", "volA_p1.jpg")
+    app = VtBrowseApp(archive=tmp_archive)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.open_transcription("volA", "volA_p0.jpg", origin="pages")
+        await pilot.pause()
+
+        await pilot.press("enter")          # -> image mode
+        await pilot.pause()
+        assert _active(app).view == "image"
+
+        await pilot.press("right")          # next page, should stay in image mode
+        await pilot.pause()
+        screen = _active(app)
+        assert screen.page_key == "volA_p1.jpg"
+        assert screen.view == "image"
+        assert len(app.query("#page-image")) == 1

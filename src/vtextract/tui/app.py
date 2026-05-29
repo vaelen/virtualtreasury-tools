@@ -229,15 +229,17 @@ class VtBrowseApp(App):
 
     def open_transcription(self, root_id: str, page_key: str,
                            *, query: str | None = None,
-                           origin: str = "pages") -> None:
+                           origin: str = "pages",
+                           view: Literal["text", "image"] = "text") -> None:
+        vol = (self.current_volume_title
+               if self.current_root_id == root_id else None)
+        base_title = f"{vol} — {page_key}" if vol else page_key
         screen = TranscriptionScreen(
             index=self.index, reader=ArchiveReader(self.archive),
             bundle=self.bundle, root_id=root_id, page_key=page_key,
-            query=query, origin=origin,
+            query=query, origin=origin, view=view, base_title=base_title,
         )
-        vol = (self.current_volume_title
-               if self.current_root_id == root_id else None)
-        title = f"{vol} — {page_key}" if vol else page_key
+        title = base_title + (" [image]" if view == "image" else "")
         # Transcription is a single document, not a list — no count footer.
         self._mount_screen(screen, title=title)
 

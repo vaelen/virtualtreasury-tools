@@ -96,14 +96,14 @@ class TranscriptionScreen(ScrollableContainer):
         if nav and nav.get("previous"):
             self.app.open_transcription(  # type: ignore[attr-defined]
                 self.root_id, nav["previous"]["page_key"],
-                query=self.query, origin=self.origin)
+                query=self.query, origin=self.origin, view=self.view)
 
     async def action_next_page(self) -> None:
         nav = await self.index.page(self.root_id, self.page_key)
         if nav and nav.get("next"):
             self.app.open_transcription(  # type: ignore[attr-defined]
                 self.root_id, nav["next"]["page_key"],
-                query=self.query, origin=self.origin)
+                query=self.query, origin=self.origin, view=self.view)
 
     def action_toggle_select(self) -> None:
         self.bundle.toggle_page(self._current_ref())
