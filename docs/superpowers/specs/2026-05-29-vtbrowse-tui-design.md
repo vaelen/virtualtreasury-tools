@@ -485,7 +485,7 @@ queries the user drops to the CLI.
 │                                                                          │
 │  Match       (•) all      ( ) any      ( ) exact                         │
 │                                                                          │
-│  Field       (•) all (keyword)      ( ) title         ( ) transcription  │
+│  Field       (•) keyword (all fields)    ( ) title    ( ) transcription  │
 │              ( ) creator            ( ) reference     ( ) person         │
 │              ( ) place                                                   │
 │                                                                          │
@@ -502,7 +502,7 @@ Behaviour:
 
 - Match excludes `none` — it's meaningful only when combined with other
   clauses (`A AND NOT B`).
-- Field default is `all (keyword)`, which maps to the CLI's bare
+- Field default is `keyword (all fields)`, which maps to the CLI's bare
   `--keyword` flag (`kwSearchFieldList = "all"`).
 - Fields map to CLI flags exactly as documented in
   `docs/search-query.md` (`title`, `transcription` → `--transcription`,
