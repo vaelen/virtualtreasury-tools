@@ -16,7 +16,7 @@ from vtextract.client import Client
 from vtextract.config import default_config_path, load_config, make_token, set_token
 from vtextract.fetcher import fetch_resource
 from vtextract.models import BOOST_FOR_FIELD, FIELD_MAP, OPERANDS, Filter, SearchCriteria
-from vtextract.progress import Reporter
+from vtextract.progress import JsonFetchReporter, Reporter
 from vtextract.search import criteria_to_params, iter_results
 
 
@@ -48,7 +48,7 @@ _FIELD_FLAGS = {f"--{name}": name for name in FIELD_MAP}
 # Operand flags: "--all" -> "all" key into OPERANDS.
 _OPERAND_FLAGS = {f"--{name}": name for name in OPERANDS}
 # Zero-arg boolean global flags handled by argparse.
-_BOOL_FLAGS = {"--refresh", "--images"}
+_BOOL_FLAGS = {"--refresh", "--images", "--json-progress"}
 
 _EPILOG = """\
 search criteria (parsed positionally, in order):
@@ -114,6 +114,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--images", action="store_true",
         help="Download full-resolution page images (default: transcriptions "
         "and metadata only).",
+    )
+    parser.add_argument(
+        "--json-progress", action="store_true",
+        help="emit JSONL progress events on stdout instead of "
+        "rich progress on stderr",
     )
     return parser
 
@@ -256,7 +261,7 @@ def _run_search(argv: list[str]) -> int:
     params = criteria_to_params(criteria)
     search_id = json.dumps(params, sort_keys=True)  # stable id; dedupes re-runs
 
-    reporter = Reporter()
+    reporter = JsonFetchReporter() if args.json_progress else Reporter()
     hits = iter_results(
         client, params, index_db_name=config.index_db_name,
         page_size=args.page_size, on_total=reporter.set_total,
@@ -270,12 +275,14 @@ def _run_search(argv: list[str]) -> int:
 
 
 def _extract(client, archive, hits, *, search_id: str, context_pages: int,
-             reporter=None, refresh: bool = False, images: bool = False) -> tuple[int, int]:
+             reporter=None, refresh: bool = False, images: bool = False,
+             total: tuple[int, str] | None = None) -> tuple[int, int]:
     """Run the shared per-resource fetch loop, returning (completed, failed).
 
     Owns the root-manifest cache and the client's lifetime; one bad resource is
     logged and skipped so it never aborts the run. Progress and status output
-    go through ``reporter``.
+    go through ``reporter``. ``total=(n, noun)`` is announced from inside the
+    reporter's context so JSON reporters emit ``start`` before any other event.
     """
     if reporter is None:
         reporter = Reporter()
@@ -293,6 +300,8 @@ def _extract(client, archive, hits, *, search_id: str, context_pages: int,
     failed = 0
     try:
         with reporter:
+            if total is not None:
+                reporter.set_total(total[0], noun=total[1])
             for hit in hits:
                 # A numeric isadgID lets us dedupe before any request; a reference-code
                 # hit only learns its id once fetch_resource fetches the detail.
@@ -358,6 +367,11 @@ def _run_get(argv: list[str]) -> int:
         help="Download full-resolution page images (default: transcriptions "
         "and metadata only).",
     )
+    parser.add_argument(
+        "--json-progress", action="store_true",
+        help="emit JSONL progress events on stdout instead of "
+        "rich progress on stderr",
+    )
     args = parser.parse_args(argv)
 
     config = load_config(Path(args.config) if args.config else None)
@@ -382,12 +396,12 @@ def _run_get(argv: list[str]) -> int:
         {"isadgID": int(token)} if token.isdigit() else {"displayReferenceCode": token}
         for token in args.identifiers
     ]
-    reporter = Reporter()
-    reporter.set_total(len(hits), noun="resources")
+    reporter = JsonFetchReporter() if args.json_progress else Reporter()
     completed, failed = _extract(
         client, archive, hits, search_id="get",
         context_pages=args.context_pages, reporter=reporter,
         refresh=args.refresh, images=args.images,
+        total=(len(hits), "resources"),
     )
     return 1 if failed else 0
 
@@ -425,6 +439,11 @@ def _run_refresh(argv: list[str]) -> int:
     parser.add_argument(
         "-y", "--yes", action="store_true",
         help="Skip the confirmation prompt.",
+    )
+    parser.add_argument(
+        "--json-progress", action="store_true",
+        help="emit JSONL progress events on stdout instead of "
+        "rich progress on stderr",
     )
     args = parser.parse_args(argv)
 
@@ -475,12 +494,11 @@ def _run_refresh(argv: list[str]) -> int:
         delay=config.delay,
         max_retries=config.max_retries,
     )
-    reporter = Reporter()
-    reporter.set_total(len(hits), noun="items")
+    reporter = JsonFetchReporter() if args.json_progress else Reporter()
     completed, failed = _extract(
         client, archive, hits, search_id="refresh",
         context_pages=args.context_pages, reporter=reporter, refresh=True,
-        images=args.images,
+        images=args.images, total=(len(hits), "items"),
     )
     return 1 if failed else 0
 
