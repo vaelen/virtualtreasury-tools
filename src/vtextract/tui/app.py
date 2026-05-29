@@ -14,6 +14,7 @@ from vtextract.tui.bundle import Bundle
 from vtextract.tui.index_client import IndexClient
 from vtextract.tui.panes.bundle_pane import BundlePane
 from vtextract.tui.panes.document_pane import DocumentPane
+from vtextract.tui.screens.pages import PagesScreen
 from vtextract.tui.screens.volumes import VolumesScreen
 
 
@@ -48,11 +49,21 @@ class VtBrowseApp(App):
     def open_volumes(self) -> None:
         pane = self.query_one(DocumentPane)
         pane.remove_children()
-        pane.mount(VolumesScreen(self.index))
+        screen = VolumesScreen(self.index)
+        pane.mount(screen)
+        self.call_after_refresh(screen.focus)
 
     def open_pages(self, root_id: str) -> None:
-        # Task 16 implements the real PagesScreen. For now, log + no-op.
-        self.notify(f"open_pages({root_id!r}) — wired in Task 16",
+        pane = self.query_one(DocumentPane)
+        pane.remove_children()
+        screen = PagesScreen(index=self.index, bundle=self.bundle, root_id=root_id)
+        pane.mount(screen)
+        self.call_after_refresh(screen.focus)
+
+    def open_transcription(self, root_id: str, page_key: str,
+                           *, query: str | None = None) -> None:
+        # Task 17 implements the real TranscriptionScreen. Stub for now.
+        self.notify(f"open_transcription({root_id!r}, {page_key!r}) — Task 17",
                     severity="information")
 
     def bundle_changed(self) -> None:
