@@ -14,6 +14,7 @@ from vtextract.tui.bundle import Bundle
 from vtextract.tui.index_client import IndexClient
 from vtextract.tui.panes.bundle_pane import BundlePane
 from vtextract.tui.panes.document_pane import DocumentPane
+from vtextract.tui.screens.volumes import VolumesScreen
 
 
 class VtBrowseApp(App):
@@ -40,6 +41,22 @@ class VtBrowseApp(App):
             yield BundlePane(self.bundle)
             yield DocumentPane()
         yield Footer()
+
+    def on_mount(self) -> None:
+        self.open_volumes()
+
+    def open_volumes(self) -> None:
+        pane = self.query_one(DocumentPane)
+        pane.remove_children()
+        pane.mount(VolumesScreen(self.index))
+
+    def open_pages(self, root_id: str) -> None:
+        # Task 16 implements the real PagesScreen. For now, log + no-op.
+        self.notify(f"open_pages({root_id!r}) — wired in Task 16",
+                    severity="information")
+
+    def bundle_changed(self) -> None:
+        self.query_one(BundlePane).refresh_content()
 
     def action_request_quit(self) -> None:
         # Placeholder — Task 24 replaces this with the exit-confirm dialog.
