@@ -23,6 +23,50 @@ Textual builds on `rich`, so the same styling primitives carry over and we
 get keyboard-driven navigation, focus, modal dialogs, and async I/O without
 a custom event loop. App name: **`vtbrowse`**.
 
+## Architectural boundaries
+
+`vtbrowse` is deliberately constrained in how it touches the data.
+
+**Owns** — TUI rendering, the selection model, bundle JSON load/save,
+export folder/zip writing.
+
+**Shells out to `vtindex`** (subprocess, JSON output) for **every**
+interaction with the index database. `vtbrowse` never opens
+`archive/index/vtindex.sqlite3` itself — keeping the SQL schema and FTS5
+contract sealed inside `vtindex`. Uses:
+
+- `vtindex volumes --json` — volume list (screen 1)
+- `vtindex search --json …` — keyword search (screens 4–6)
+- `vtindex page <root>/<key> --json` — prev/next neighbour for the
+  transcription viewer (screen 3)
+- `vtindex stats --json` — initial staleness check (screen 12) and
+  in-session re-check that backs the stale chip (screen 14)
+- `vtindex build` — startup rebuild prompt and `⌃B` (screens 12, 13)
+- *(new, see "Required additions" below)* `vtindex pages <root> --json`
+  for the per-volume page list (screen 2) and `vtindex item <id> --json`
+  for the Info dialog (screen 9)
+
+**Shells out to `vtextract`** (subprocess) for:
+
+- `vtextract search …` — Step 1 of `⌃E` (screen 15b)
+- `vtextract get --refresh --images <isadg_ids>` — image backfill at
+  Export time (screen 7)
+
+**Reads directly from the archive on disk** for content the index doesn't
+hold:
+
+- per-page transcription `archive/pages/<root>/<page_key>.txt`
+- per-page metadata     `archive/pages/<root>/<page_key>.json`
+- per-page image        `archive/pages/<root>/<page_key>` (existence check
+  for the `Img` column; bytes only consulted by the export step)
+- per-volume snapshot   `archive/pages/<root>/volume.json` (for the
+  Export folder's `volume.json` copy)
+
+This split means a `vtindex` schema change is invisible to `vtbrowse` as
+long as the CLI's JSON contract holds, and the file-tree layout under
+`archive/` (already part of the public design spec) is the only other
+surface `vtbrowse` couples to.
+
 ## Out of scope (deferred)
 
 - Editing/rewriting transcriptions or metadata.
@@ -448,13 +492,13 @@ the no-index screen (screen 16).
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-Spawns `vtindex build` as an async subprocess (via the same
-`vtindex.index.builder.build()` Python entry point, not a shell call)
-and streams the `BuildReporter` output into the bottom log line and the
-counters above. On completion the modal switches its button to
-`[ Close ]` and the title to `vtindex build — done` (or `failed`).
-`Cancel` confirms once (`Stop the build? in-progress writes will be
-rolled back`) before signalling the builder.
+Spawns `vtindex build --json-progress` as an `asyncio.subprocess`
+child, reads stdout line-by-line and dispatches the JSON events
+(see F4) into the modal's log line and counter block. On completion
+the modal switches its button to `[ Close ]` and the title to
+`vtindex build — done` (or `failed`). `Cancel` confirms once
+(`Stop the build? in-progress writes will be rolled back`) before
+sending `SIGTERM` to the child.
 
 ### 14. Stale-index banner (in-session)
 
@@ -574,11 +618,12 @@ modal switches its title to `vtextract search — failed`, shows the
 exception, and offers `[ Close ]`. Step 2 is **not** auto-started in
 that case either.
 
-Both subprocesses are invoked via their Python entry points
-(`vtextract.fetcher` / `vtextract.search` for Step 1,
-`vtextract.index.builder.build()` for Step 2) inside an asyncio thread,
-so the modal stays responsive and the cancel button works without
-having to kill an OS process.
+Both steps run as `asyncio.subprocess` children of the TUI
+(`vtextract search --json-progress` then `vtindex build
+--json-progress`), with stdout drained line-by-line into the modal.
+Cancel sends `SIGTERM` to the active child. This keeps `vtbrowse` on
+the CLI-contract side of the architectural boundary — no in-process
+import of the fetcher or the builder.
 
 ### 16. Empty-archive / no-index screen
 
@@ -748,20 +793,96 @@ Under `src/vtextract/tui/`:
 - `bundle.py` — the selection model (in-memory `Bundle` dataclass with
   `selected_items`, `page_state`, and `effective_pages()` /
   `is_in_bundle(page)` derivations) plus JSON load/save.
-- `export.py` — write `bundle_*` folders / archives; orchestrate the
-  optional `vtextract refresh --images` subprocess for missing images.
+- `index_client.py` — the **single** subprocess choke point for
+  `vtindex` (analogous to `vtextract.client` for HTTP). Owns
+  `volumes()`, `search()`, `page()`, `pages()`, `item()`, `stats()`,
+  and `build()` (the last as an async generator yielding progress
+  events). Every other module that wants index data goes through here.
+- `extract_client.py` — same idea for `vtextract`: `search(...)` (Step
+  1 of `⌃E`) and `get_images(isadg_ids)` (Export image backfill).
+  Async generators that yield JSON progress events.
+- `archive_reader.py` — direct on-disk reads of transcription
+  (`<page_key>.txt`), per-page metadata (`<page_key>.json`), per-volume
+  snapshot (`volume.json`), and per-item identity. No HTTP, no SQL.
+- `export.py` — write `bundle_*` folders / archives by combining
+  `archive_reader` with the on-disk pages, calling `extract_client`
+  when image backfill is needed.
 
-`vtindex.index.db.IndexDB` and `vtindex.index.query.search` are the
-only data sources; the TUI never touches the archive HTTP client.
+`vtbrowse` does **not** import from `vtextract.index.db`,
+`vtextract.index.query`, `vtextract.index.builder`,
+`vtextract.fetcher`, or `vtextract.client`. The `vtindex` / `vtextract`
+subprocess CLI is the only contract.
 
 Tests:
 - `bundle.py` — pure unit tests covering all the toggle and corner-case
   rules from the selection model.
+- `index_client.py` / `extract_client.py` — driven against a fake
+  subprocess (`subprocess.run` monkeypatched) that returns canned JSON
+  matching the CLI contract; verifies argv construction and parsing.
 - `export.py` — round-trip an export through a temp directory; verify
   layout and that `bundle.json` re-opens.
-- Textual app: rendering snapshots for each of the screens above, driven
-  by a fixture index built from the same `docs/examples/` data the rest
-  of the project uses.
+- Textual app: rendering snapshots for each of the screens above,
+  driven by an integration fixture that pre-builds a real `vtindex`
+  archive from `docs/examples/` so the subprocess client tests hit a
+  real `vtindex` CLI in isolation.
+
+## Required additions to `vtindex` and `vtextract`
+
+These are the smallest set of upstream changes needed so `vtbrowse` can
+stay on the CLI-contract side of the architectural boundary without
+ugly workarounds (parsing TTY output, reading the SQLite file, etc.).
+Each lands as its own change with tests; `vtbrowse` work blocks on
+them.
+
+| # | Tool | Addition | Why `vtbrowse` needs it |
+|---|---|---|---|
+| F1 | `vtindex` | `vtindex pages <root_id> --json` listing every page of a volume (`ordinal`, `page_key`, `label`, `image`, `metadata`, `transcription` paths) | Powers the page-list screen (2). Without it, `vtbrowse` would have to either walk `vtindex page` once per ordinal or read `volume.json` directly (which loses the on-disk file-existence checks). |
+| F2 | `vtindex` | `vtindex item <id> --json` returning the item's title/reference/repository/dates plus its `PageLink`s with `role` (primary/context) | Powers the Item info dialog (9c) and the "context vs primary" annotation. Without it, `vtbrowse` would have to read `items/<id>/identity.json` directly *and* duplicate the schema-normalisation logic in `vtextract.schema`. |
+| F3 | `vtindex` | `--json` flag on `vtindex search` results includes `role` per matched page | Same need as F2 from the search-results side. Cheapest fix: extend `SearchResult.matched_pages` to `list[{root_id, page_key, role}]`. |
+| F4 | `vtindex` | `vtindex build --json-progress` emitting one JSON object per status update on stdout (replacing the human-readable `BuildReporter` output) | Powers the Build progress modal (13) and the chained Extract→Build modal (15b). Without it, `vtbrowse` parses `BuildReporter`'s text — fragile, and breaks any time a counter label changes. |
+| F5 | `vtextract` | `vtextract search --json-progress` (same structured stdout events) | Powers Step 1 of the Extract progress modal (15b). Same rationale as F4. |
+| F6 | `vtextract` | `vtextract get --json-progress` (same) | Powers the Export image-backfill progress dialog. Same rationale. |
+| F7 | `vtindex` | `vtindex stats --json` already returns `stale: bool`. **No change**, just confirming the contract `vtbrowse` depends on. | Initial staleness check (screen 12) and in-session re-check that drives the stale chip (screen 14). |
+
+F1–F3 are pure additions (new subcommand + extended JSON shape).
+F4–F6 are *additive* — the default text output stays the way it is for
+existing users; `--json-progress` opts into JSONL-on-stdout.
+
+### JSON progress event shape (F4–F6)
+
+A single shape works for all three tools; each emits one JSON object
+per line on stdout, terminated by `\n`. The TUI reads stdout in an
+async loop and updates the modal as events arrive.
+
+```json
+{"event": "start",    "tool": "vtindex build", "argv": [...]}
+{"event": "progress", "phase": "scanning items",   "current": 1842, "total": 2901, "counters": {...}}
+{"event": "log",      "level": "info",            "message": "scanning items/0007/18425"}
+{"event": "done",     "elapsed_seconds": 14.2,    "counters": {"added": 412, "updated": 87, "unchanged": 1343, "skipped": 3}}
+{"event": "error",    "message": "...", "exit_code": 2}
+```
+
+`counters` is tool-specific (the keys the existing `BuildReporter`
+already exposes for `vtindex build`; the equivalents for
+`vtextract search` / `vtextract get`). The modal's bottom log line
+binds to the most recent `log` event; the counter block above binds
+to the latest `progress.counters`.
+
+## Code shared across `vtindex` / `vtextract` / `vtbrowse`
+
+Pulling these out of where they currently live (mostly inside
+`vtextract.index.cli`) before adding a third consumer keeps each one
+single-source-of-truth.
+
+| Module (new) | What moves in | Current home | Consumers |
+|---|---|---|---|
+| `vtextract.theme` | `Theme` dataclass, `THEMES` dict, `_highlight_title`, `_WORD_RE`, `_add_theme_args` | `vtextract.index.cli` | `vtindex` CLI, `vtbrowse` (Rich rendering inside Textual widgets — same colour scheme as `vtindex search`) |
+| `vtextract.progress` | (already shared) `BuildReporter` — extend with a `JsonProgressReporter` sibling that emits the F4–F6 event shape | `vtextract.progress` | `vtindex build`, `vtextract search`, `vtextract get`, `vtbrowse` (parser only) |
+| `vtextract.search_spec` | `FIELD_MAP` / `OPERANDS` / argv-building helper for a single-clause search | inline in `vtextract.cli` | `vtextract` CLI (extracted), `vtbrowse` (Extract dialog's `Will run:` preview and the actual argv it execs) |
+
+Each move is a non-breaking refactor: `vtextract.index.cli` /
+`vtextract.cli` keep their public names by re-exporting from the new
+modules.
 
 ## Open / deferred questions
 
