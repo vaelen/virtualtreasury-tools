@@ -120,3 +120,24 @@ async def test_tall_image_is_not_stretched_to_full_width(tmp_archive):
         screen = _active(app)
         assert img.content_size.height > 0
         assert img.content_size.width < screen.content_size.width
+
+
+@pytest.mark.asyncio
+async def test_image_is_horizontally_centered_in_pane(tmp_archive):
+    # A page scan narrower than the pane should sit centered, with roughly
+    # equal margins on the left and right rather than hugging the left edge.
+    path = tmp_archive / "pages" / "volA" / "volA_p0.jpg"
+    PILImage.new("RGB", (100, 400), (60, 60, 200)).save(path, "JPEG")  # 1:4 portrait
+    app = VtBrowseApp(archive=tmp_archive)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        app.open_transcription("volA", "volA_p0.jpg", origin="pages")
+        await pilot.pause()
+        await pilot.press("enter")          # text -> image
+        await pilot.pause()
+        img = app.query_one("#page-image")
+        screen = _active(app)
+        left = img.region.x - screen.content_region.x
+        right = screen.content_region.right - img.region.right
+        assert left > 0                      # not flush against the left edge
+        assert abs(left - right) <= 1        # centered (within rounding)
