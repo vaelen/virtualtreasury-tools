@@ -28,8 +28,8 @@ _NO_IMAGE_MESSAGE = (
 class TranscriptionScreen(ScrollableContainer):
     DEFAULT_CSS = """
     TranscriptionScreen #page-image {
-        width: 100%;
-        height: 100%;
+        width: auto;
+        height: auto;
     }
     """
 
