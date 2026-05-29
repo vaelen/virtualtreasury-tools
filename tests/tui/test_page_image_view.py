@@ -80,3 +80,24 @@ async def test_image_mode_persists_across_next_page(tmp_archive):
         assert screen.page_key == "volA_p1.jpg"
         assert screen.view == "image"
         assert len(app.query("#page-image")) == 1
+
+
+@pytest.mark.asyncio
+async def test_escape_from_image_mode_returns_to_pages(tmp_archive):
+    from vtextract.tui.screens.pages import PagesScreen
+
+    _write_image(tmp_archive, "volA", "volA_p0.jpg")
+    app = VtBrowseApp(archive=tmp_archive)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("enter")          # volumes -> volA page list
+        await pilot.pause()
+        await pilot.press("enter")          # -> a page's transcription
+        await pilot.pause()
+        await pilot.press("enter")          # text -> image
+        await pilot.pause()
+        assert _active(app).view == "image"
+
+        await pilot.press("escape")         # exit to origin
+        await pilot.pause()
+        assert isinstance(_active(app), PagesScreen)
