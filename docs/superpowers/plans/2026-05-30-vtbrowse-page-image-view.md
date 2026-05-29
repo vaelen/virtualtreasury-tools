@@ -149,7 +149,8 @@ async def test_enter_on_page_without_image_shows_placeholder(tmp_archive):
         await pilot.press("enter")          # text -> (missing) image
         await pilot.pause()
         placeholder = app.query_one("#page-image-missing")
-        assert "No image on disk" in str(placeholder.renderable)
+        # Textual 8.x exposes a Static's text as ``.content`` (not ``.renderable``).
+        assert "No image on disk" in str(placeholder.content)
         assert len(app.query("#page-image")) == 0
 ```
 
