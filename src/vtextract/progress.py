@@ -3,6 +3,11 @@
 
 from __future__ import annotations
 
+import json
+import sys
+import time
+from typing import IO, Any
+
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -125,6 +130,10 @@ class BuildReporter(ProgressReporter):
         self._say(f"Indexing {total} files.")
         self._begin_overall(total, description="indexing")
 
+    def advance_overall(self, n: int = 1) -> None:
+        for _ in range(n):
+            self.advance()
+
     def finish(
         self, *, added: int, updated: int, removed: int, unchanged: int, skipped: int
     ) -> None:
@@ -132,3 +141,135 @@ class BuildReporter(ProgressReporter):
             f"indexed: {added} added, {updated} updated, {removed} removed, "
             f"{unchanged} unchanged, {skipped} skipped"
         )
+
+
+class JsonProgressReporter:
+    """Sibling of `ProgressReporter` that emits one JSON object per line on a
+    writable text stream (stdout by default). Used when callers pass
+    ``--json-progress`` to ``vtindex build`` / ``vtextract search`` /
+    ``vtextract get`` so a parent process (the vtbrowse TUI) can drain
+    structured events.
+
+    Subclasses override ``_tool_name`` and implement domain-specific methods
+    (``start``, ``finish``, etc.) by calling ``_emit({...})``. The base
+    provides a context-manager protocol and an ``emit_error`` helper that is
+    safe to call from outside ``with``."""
+
+    _tool_name: str = "unknown"
+
+    def __init__(self, *, stream: IO[str] | None = None) -> None:
+        self.stream = stream or sys.stdout
+        self._started_at: float | None = None
+
+    def __enter__(self):
+        self._started_at = time.monotonic()
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        if exc is not None:
+            self.emit_error(str(exc), exit_code=1)
+
+    def _emit(self, event: dict[str, Any]) -> None:
+        self.stream.write(json.dumps(event) + "\n")
+        self.stream.flush()
+
+    def _elapsed(self) -> float:
+        return 0.0 if self._started_at is None else time.monotonic() - self._started_at
+
+    def emit_start(self, argv: list[str] | None = None) -> None:
+        self._emit({"event": "start", "tool": self._tool_name,
+                    "argv": list(argv or [])})
+
+    def emit_progress(self, *, phase: str, current: int,
+                      total: int | None = None, **counters: int) -> None:
+        evt: dict[str, Any] = {"event": "progress", "phase": phase,
+                               "current": current, "total": total}
+        if counters:
+            evt["counters"] = counters
+        self._emit(evt)
+
+    def emit_log(self, message: str, *, level: str = "info") -> None:
+        self._emit({"event": "log", "level": level, "message": message})
+
+    def emit_done(self, **counters: int) -> None:
+        self._emit({"event": "done", "elapsed_seconds": round(self._elapsed(), 2),
+                    "counters": counters})
+
+    def emit_error(self, message: str, *, exit_code: int = 1) -> None:
+        self._emit({"event": "error", "message": message, "exit_code": exit_code})
+
+
+class JsonBuildReporter(JsonProgressReporter):
+    """JSON variant of ``BuildReporter`` — same call surface so
+    ``vtindex.index.builder.build()`` can swap in without code changes."""
+
+    _tool_name = "vtindex build"
+
+    def __init__(self, *, stream: IO[str] | None = None) -> None:
+        super().__init__(stream=stream)
+        self._total = 0
+        self._current = 0
+
+    def __enter__(self):
+        super().__enter__()
+        self.emit_start()
+        return self
+
+    def start(self, total: int) -> None:
+        self._total = total
+        self._current = 0
+        self.emit_log(f"Indexing {total} files.")
+        self.emit_progress(phase="indexing", current=0, total=total)
+
+    def advance_overall(self, n: int = 1) -> None:
+        self._current += n
+        self.emit_progress(phase="indexing", current=self._current,
+                           total=self._total)
+
+    def status(self, message: str) -> None:
+        self.emit_log(message)
+
+    def finish(self, *, added: int, updated: int, removed: int,
+               unchanged: int, skipped: int) -> None:
+        self.emit_done(added=added, updated=updated, removed=removed,
+                       unchanged=unchanged, skipped=skipped)
+
+
+class JsonFetchReporter(JsonProgressReporter):
+    """JSON variant of ``Reporter`` (vtextract fetch). Mirrors ``Reporter``'s
+    method names so the fetcher can use either by dependency injection."""
+
+    _tool_name = "vtextract fetch"
+
+    def __enter__(self):
+        super().__enter__()
+        self.emit_start()
+        return self
+
+    def set_total(self, n: int, noun: str = "matches") -> None:
+        self.emit_log(f"Found {n} {noun}.")
+        self.emit_progress(phase="fetching", current=0, total=n)
+
+    def start_item(self, label) -> None:
+        self.emit_log(f"fetching {label}...")
+
+    def item_pages(self, n: int) -> None:
+        self.emit_log(f"{n} pages")
+
+    def page_done(self) -> None:
+        pass
+
+    def item_done(self, isadg_id: int) -> None:
+        self.emit_log(f"done {isadg_id}")
+
+    def skip(self, isadg_id: int) -> None:
+        self.emit_log(f"skip {isadg_id}", level="debug")
+
+    def fail(self, label, exc: BaseException) -> None:
+        self.emit_log(f"failed {label}: {exc}", level="error")
+
+    def verify_summary(self, counts, flagged) -> None:
+        pass
+
+    def finish(self, completed: int, failed: int) -> None:
+        self.emit_done(completed=completed, failed=failed)

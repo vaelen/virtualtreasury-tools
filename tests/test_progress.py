@@ -60,3 +60,53 @@ def test_verify_summary_prints_counts_and_flagged_paths():
     assert "2 downloaded" in out
     assert "1 unverified" in out
     assert "pages/v/a.jpg" in out and "pages/v/b.jpg" in out
+
+
+import io
+import json
+
+from vtextract.progress import JsonBuildReporter, JsonFetchReporter
+
+
+def _events(stream: io.StringIO) -> list[dict]:
+    return [json.loads(line) for line in stream.getvalue().splitlines() if line]
+
+
+def test_json_build_reporter_emits_start_progress_finish():
+    out = io.StringIO()
+    with JsonBuildReporter(stream=out) as r:
+        r.start(total=10)
+        r.advance_overall(7)
+        r.finish(added=5, updated=2, removed=0, unchanged=3, skipped=0)
+    events = _events(out)
+    assert events[0]["event"] == "start"
+    assert events[0]["tool"] == "vtindex build"
+    assert any(e["event"] == "progress" and e["current"] == 7 for e in events)
+    done = [e for e in events if e["event"] == "done"][0]
+    assert done["counters"] == {"added": 5, "updated": 2, "removed": 0,
+                                "unchanged": 3, "skipped": 0}
+
+
+def test_json_fetch_reporter_emits_per_item_events():
+    out = io.StringIO()
+    with JsonFetchReporter(stream=out) as r:
+        r.set_total(2)
+        r.start_item("abc")
+        r.item_pages(3)
+        r.page_done()
+        r.page_done()
+        r.page_done()
+        r.item_done(123)
+        r.finish(completed=1, failed=0)
+    events = _events(out)
+    kinds = [e["event"] for e in events]
+    assert "start" in kinds and "done" in kinds
+    assert any(e["event"] == "log" and "abc" in e["message"] for e in events)
+
+
+def test_json_reporter_emit_error_terminates_with_error_event():
+    out = io.StringIO()
+    r = JsonBuildReporter(stream=out)
+    r.emit_error("boom", exit_code=2)
+    err = [e for e in _events(out) if e["event"] == "error"][0]
+    assert err == {"event": "error", "message": "boom", "exit_code": 2}
