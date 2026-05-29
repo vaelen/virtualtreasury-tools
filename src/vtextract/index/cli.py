@@ -5,17 +5,15 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sqlite3
 import sys
-from dataclasses import dataclass, field
 from pathlib import Path
 
 from rich.console import Console
 from rich.table import Table
-from rich.text import Text
 
 from vtextract.config import load_config
+from vtextract.theme import THEMES, Theme, add_theme_args as _add_theme_args, highlight_terms as _highlight_title
 from vtextract.index.builder import INDEX_RELPATH, build, is_stale
 from vtextract.index.db import Fts5Unavailable, IndexDB, SchemaMismatch
 from vtextract.index.models import SearchQuery
@@ -289,55 +287,6 @@ def _print_page_nav(nav: dict, title: str | None, *, theme: Theme) -> None:
     Console(no_color=theme.no_color).print(table)
 
 
-@dataclass(frozen=True)
-class Theme:
-    """A color scheme for the search results table."""
-
-    header_style: str
-    border_style: str
-    match_style: str  # applied to query keywords found in the Title
-    row_styles: tuple[str, ...] = field(default_factory=tuple)
-    no_color: bool = False
-
-
-# `--dark` is the default. Each adds a touch of color tuned for a terminal
-# background; `--bw` keeps a neutral no-color-fill scheme and `--plain` is
-# unstyled for piping or color-averse terminals.
-THEMES: dict[str, Theme] = {
-    "dark": Theme(
-        header_style="bold cyan", border_style="grey42",
-        match_style="bold yellow", row_styles=("", "on grey19"),
-    ),
-    "light": Theme(
-        header_style="bold blue", border_style="grey50",
-        match_style="black on yellow", row_styles=("", "on grey85"),
-    ),
-    "bw": Theme(header_style="bold", border_style="", match_style="reverse"),
-    "plain": Theme(header_style="none", border_style="", match_style="", no_color=True),
-}
-
-_WORD_RE = re.compile(r"\w+", re.UNICODE)
-
-
-def _highlight_title(title: str, query: str | None, style: str) -> Text:
-    """Return the title as rich Text with query keywords styled.
-
-    Keywords are the word tokens of the raw query (mirroring the whitespace
-    tokenization the FTS index uses); a title word is highlighted when it
-    equals one of them, case-insensitively. No query or no style → no spans.
-    """
-    text = Text(title)
-    if not query or not style:
-        return text
-    terms = {m.group(0).lower() for m in _WORD_RE.finditer(query)}
-    if not terms:
-        return text
-    for m in _WORD_RE.finditer(title):
-        if m.group(0).lower() in terms:
-            text.stylize(style, m.start(), m.end())
-    return text
-
-
 def _build_results_table(results, *, theme: Theme, query: str | None) -> Table:
     table = Table(
         show_header=True,
@@ -376,21 +325,6 @@ def _add_archive_args(parser: argparse.ArgumentParser) -> None:
     """Add the shared ``--archive`` / ``--config`` options to a subparser."""
     parser.add_argument("--archive", help=_ARCHIVE_HELP)
     parser.add_argument("--config", help="Config file path (default ~/.vt/vt.toml).")
-
-
-def _add_theme_args(parser: argparse.ArgumentParser) -> None:
-    """Add the shared ``--dark``/``--light``/``--bw``/``--plain`` color-scheme
-    flags (mutually exclusive) to a subparser; ``--dark`` is the default."""
-    theme = parser.add_mutually_exclusive_group()
-    theme.add_argument("--dark", dest="theme", action="store_const", const="dark",
-                       help="dark-mode color scheme (default)")
-    theme.add_argument("--light", dest="theme", action="store_const", const="light",
-                       help="light-mode color scheme")
-    theme.add_argument("--bw", dest="theme", action="store_const", const="bw",
-                       help="neutral black-and-white scheme (no color fills)")
-    theme.add_argument("--plain", dest="theme", action="store_const", const="plain",
-                       help="disable all colors")
-    parser.set_defaults(theme="dark")
 
 
 def _build_parser() -> argparse.ArgumentParser:
