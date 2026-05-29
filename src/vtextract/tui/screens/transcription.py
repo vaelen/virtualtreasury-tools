@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from textual.binding import Binding
 from textual.containers import ScrollableContainer
 from textual.widgets import Static
@@ -44,7 +46,7 @@ class TranscriptionScreen(ScrollableContainer):
     def __init__(self, *, index: IndexClient, reader: ArchiveReader,
                  bundle: Bundle, root_id: str, page_key: str,
                  query: str | None = None, origin: str = "pages",
-                 view: str = "text", base_title: str | None = None) -> None:
+                 view: Literal["text", "image"] = "text", base_title: str | None = None) -> None:
         super().__init__()
         self.index = index
         self.reader = reader
