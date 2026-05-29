@@ -241,12 +241,19 @@ class JsonFetchReporter(JsonProgressReporter):
 
     _tool_name = "vtextract fetch"
 
+    def __init__(self, *, stream: IO[str] | None = None) -> None:
+        super().__init__(stream=stream)
+        self._total: int = 0
+        self._current: int = 0
+
     def __enter__(self):
         super().__enter__()
         self.emit_start()
         return self
 
     def set_total(self, n: int, noun: str = "matches") -> None:
+        self._total = n
+        self._current = 0
         self.emit_log(f"Found {n} {noun}.")
         self.emit_progress(phase="fetching", current=0, total=n)
 
@@ -261,12 +268,18 @@ class JsonFetchReporter(JsonProgressReporter):
 
     def item_done(self, isadg_id: int) -> None:
         self.emit_log(f"done {isadg_id}")
+        self._current += 1
+        self.emit_progress(phase="fetching", current=self._current, total=self._total)
 
     def skip(self, isadg_id: int) -> None:
         self.emit_log(f"skip {isadg_id}", level="debug")
+        self._current += 1
+        self.emit_progress(phase="fetching", current=self._current, total=self._total)
 
     def fail(self, label, exc: BaseException) -> None:
         self.emit_log(f"failed {label}: {exc}", level="error")
+        self._current += 1
+        self.emit_progress(phase="fetching", current=self._current, total=self._total)
 
     def verify_summary(self, counts, flagged) -> None:
         pass

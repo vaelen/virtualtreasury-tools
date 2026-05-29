@@ -102,6 +102,11 @@ def test_json_fetch_reporter_emits_per_item_events():
     kinds = [e["event"] for e in events]
     assert "start" in kinds and "done" in kinds
     assert any(e["event"] == "log" and "abc" in e["message"] for e in events)
+    # item_done must have emitted a progress event with current >= 1
+    assert any(
+        e["event"] == "progress" and e.get("phase") == "fetching" and e.get("current", 0) >= 1
+        for e in events
+    )
 
 
 def test_json_reporter_emit_error_terminates_with_error_event():
