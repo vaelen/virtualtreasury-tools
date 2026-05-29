@@ -12,6 +12,7 @@ from textual.widgets import Footer, Header
 
 from vtextract.tui.archive_reader import ArchiveReader
 from vtextract.tui.bundle import Bundle
+from vtextract.tui.dialogs.build import ProgressModal
 from vtextract.tui.dialogs.file import FileDialog, FileResult
 from vtextract.tui.dialogs.info import (
     ItemInfoDialog,
@@ -20,6 +21,7 @@ from vtextract.tui.dialogs.info import (
 )
 from vtextract.tui.dialogs.search import SearchDialog, SearchSpec
 from vtextract.tui.export import export_bundle
+from vtextract.tui.extract_client import ExtractClient
 from vtextract.tui.index_client import IndexClient
 from vtextract.tui.panes.bundle_pane import BundlePane
 from vtextract.tui.panes.document_pane import DocumentPane
@@ -45,6 +47,7 @@ class VtBrowseApp(App):
         Binding("ctrl+s", "save_bundle", "save"),
         Binding("ctrl+o", "open_bundle", "open"),
         Binding("ctrl+shift+s", "export_bundle", "export"),
+        Binding("ctrl+b", "build_index", "build"),
         Binding("tab", "focus_next", "switch pane"),
     ]
 
@@ -197,16 +200,47 @@ class VtBrowseApp(App):
     def _on_export_chosen(self, result: FileResult | None) -> None:
         if result is None:
             return
-        # Image backfill via ProgressModal is Task 21. For now: ignore
-        # include_images flag and warn.
         if result.include_images:
-            self.notify(
-                "Image backfill lands in Task 21; exporting metadata only.",
-                severity="warning",
-            )
+            reader = ArchiveReader(self.archive)
+            missing_isadg_ids: set[int] = set()
+            for ref in self.bundle.effective_pages():
+                if reader.image_exists(ref.root_id, ref.page_key):
+                    continue
+                for iid, page_refs in self.bundle.selected_items.items():
+                    if ref in page_refs:
+                        missing_isadg_ids.add(iid)
+            if missing_isadg_ids:
+                extract = ExtractClient(archive=self.archive)
+                ids = sorted(missing_isadg_ids)
+                self.push_screen(
+                    ProgressModal(
+                        title=f"vtextract get --images ({len(ids)} items)",
+                        stream_factory=lambda: extract.get_images_stream(ids),
+                    ),
+                    lambda ok: self._after_backfill(ok, result),
+                )
+                return
+        self._do_export(result)
+
+    def _after_backfill(self, ok: bool | None, result: FileResult) -> None:
+        if ok:
+            self._do_export(result)
+        else:
+            self.notify("Image backfill failed; export aborted.",
+                        severity="error")
+
+    def _do_export(self, result: FileResult) -> None:
         out = export_bundle(
             bundle=self.bundle, archive=self.archive,
-            destination=result.path, include_images=False,
+            destination=result.path, include_images=result.include_images,
             fmt=result.fmt,
         )
         self.notify(f"Exported to {out}")
+
+    # ---------- index build ----------
+
+    def action_build_index(self) -> None:
+        self.push_screen(ProgressModal(
+            title="vtindex build",
+            stream_factory=lambda: self.index.build_stream(),
+        ))
