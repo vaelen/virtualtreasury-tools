@@ -14,8 +14,10 @@ from textual.widgets import Footer, Header
 from vtextract.tui.archive_reader import ArchiveReader
 from vtextract.tui.bundle import Bundle
 from vtextract.tui.dialogs.build import ProgressModal
+from vtextract.tui.dialogs.exit import ExitDialog
 from vtextract.tui.dialogs.extract import ExtractDialog
 from vtextract.tui.dialogs.file import FileDialog, FileResult
+from vtextract.tui.dialogs.help import HelpDialog
 from vtextract.tui.dialogs.index_prompt import IndexPromptDialog
 from vtextract.tui.dialogs.info import (
     ItemInfoDialog,
@@ -54,6 +56,8 @@ class VtBrowseApp(App):
         Binding("ctrl+shift+s", "export_bundle", "export"),
         Binding("ctrl+b", "build_index", "build"),
         Binding("ctrl+e", "extract", "extract"),
+        Binding("f1", "open_help", "help"),
+        Binding("question_mark", "open_help", "help"),
         Binding("tab", "focus_next", "switch pane"),
     ]
 
@@ -66,6 +70,7 @@ class VtBrowseApp(App):
         self.last_query: str | None = None
         self.current_root_id: str | None = None
         self._stale_chip_visible: bool = False
+        self._bundle_dirty: bool = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
@@ -177,11 +182,41 @@ class VtBrowseApp(App):
         self.call_after_refresh(screen.focus)
 
     def bundle_changed(self) -> None:
+        self._bundle_dirty = True
         self.query_one(BundlePane).refresh_content()
 
     def action_request_quit(self) -> None:
-        # Placeholder — Task 24 replaces this with the exit-confirm dialog.
+        if not self._bundle_dirty:
+            self.exit()
+            return
+        pages = len(self.bundle.effective_pages())
+        items = len(self.bundle.selected_items)
+        self.push_screen(
+            ExitDialog(page_count=pages, item_count=items),
+            self._on_exit_choice,
+        )
+
+    def _on_exit_choice(self, choice: str | None) -> None:
+        if choice == "cancel" or choice is None:
+            return
+        if choice == "save_and_exit":
+            self.push_screen(
+                FileDialog(mode="save", start_dir=Path.home()),
+                self._on_save_then_exit,
+            )
+            return
+        # choice == "exit"
         self.exit()
+
+    def _on_save_then_exit(self, result: FileResult | None) -> None:
+        if result is None:
+            return
+        result.path.write_text(self.bundle.to_json())
+        self._bundle_dirty = False
+        self.exit()
+
+    def action_open_help(self) -> None:
+        self.push_screen(HelpDialog())
 
     # ---------- search flow ----------
 
@@ -254,6 +289,7 @@ class VtBrowseApp(App):
         if result is None:
             return
         result.path.write_text(self.bundle.to_json())
+        self._bundle_dirty = False
         self.notify(f"Saved to {result.path}")
 
     def action_open_bundle(self) -> None:
@@ -267,6 +303,9 @@ class VtBrowseApp(App):
             return
         self.bundle = Bundle.from_json(result.path.read_text())
         self.bundle_changed()
+        # ``bundle_changed`` re-marks dirty for the load-side mutation; an
+        # Open is effectively a clean slate — the on-disk file IS the truth.
+        self._bundle_dirty = False
         self.notify(f"Opened {result.path}")
 
     def action_export_bundle(self) -> None:
