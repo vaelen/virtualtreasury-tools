@@ -27,6 +27,9 @@ _NO_IMAGE_MESSAGE = (
 
 class TranscriptionScreen(ScrollableContainer):
     DEFAULT_CSS = """
+    TranscriptionScreen {
+        align-horizontal: center;
+    }
     TranscriptionScreen #page-image {
         width: auto;
         height: auto;
