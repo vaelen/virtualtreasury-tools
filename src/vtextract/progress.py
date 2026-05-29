@@ -221,6 +221,10 @@ class JsonBuildReporter(JsonProgressReporter):
         self.emit_log(f"Indexing {total} files.")
         self.emit_progress(phase="indexing", current=0, total=total)
 
+    def advance(self, n: int = 1) -> None:
+        """Mirror of ``ProgressReporter.advance`` — called by builder.build()."""
+        self.advance_overall(n)
+
     def advance_overall(self, n: int = 1) -> None:
         self._current += n
         self.emit_progress(phase="indexing", current=self._current,

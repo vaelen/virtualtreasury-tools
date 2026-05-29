@@ -72,8 +72,13 @@ def _cmd_build(args) -> int:
             f"{archive} does not look like a vtextract archive "
             "(no items/ or pages/ directory); nothing to index."
         )
-    with BuildReporter() as reporter:
-        stats = build(archive, rebuild=args.rebuild, reporter=reporter)
+    if args.json_progress:
+        from vtextract.progress import JsonBuildReporter
+        with JsonBuildReporter() as reporter:
+            stats = build(archive, rebuild=args.rebuild, reporter=reporter)
+    else:
+        with BuildReporter() as reporter:
+            stats = build(archive, rebuild=args.rebuild, reporter=reporter)
     if stats.skipped and (stats.added + stats.updated + stats.unchanged) == 0:
         print(
             f"error: indexed nothing; {stats.skipped} source file(s) were skipped "
@@ -414,6 +419,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p_build = sub.add_parser("build", help="(re)build the index from the archive")
     _add_archive_args(p_build)
     p_build.add_argument("--rebuild", action="store_true", help="discard and rebuild fully")
+    p_build.add_argument("--json-progress", action="store_true",
+                         help="emit JSONL progress events on stdout instead of "
+                              "rich progress on stderr")
     p_build.set_defaults(func=_cmd_build)
 
     p_search = sub.add_parser("search", help="search the index")
