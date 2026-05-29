@@ -28,9 +28,6 @@ a custom event loop. App name: **`vtbrowse`**.
 - Editing/rewriting transcriptions or metadata.
 - Triggering `vtextract search` / `vtextract get` from inside the TUI.
   (Images are the one exception — fetched on demand during export.)
-- Rebuilding the `vtindex` SQLite index from inside the TUI. We surface the
-  staleness warning the same way `vtindex search` does, but the user runs
-  `vtindex build` themselves.
 - Mouse interactions. Keyboard only.
 
 ## Layout
@@ -234,12 +231,50 @@ reported in a modal progress dialog reusing `BuildReporter`-style line
 counters. If the user cancels mid-fetch, the dialog falls back to
 "Continue without missing images / Cancel export".
 
-### 8. Save / Open dialogs (`⌃S` / `⌃O`)
+### 8. Save dialog (`⌃S`)
 
-Same chrome as Export, minus the Format and Include rows. Default file
-name on save: `bundle_yyyymmdd_hhmmss.json`. `⌃O` filters the listing to
-`*.json` and shows a one-line summary on hover (`27 selected items, 84
-pages`).
+```
+┌──────────────────────────── Save bundle ──────────────────────────────────┐
+│                                                                           │
+│  Location  /Users/andrew/Documents/research                          [..] │
+│  ───────────────────────────────────────────────────────────────────────  │
+│    ../                                                                    │
+│  ▸ vt-bundles/                                                            │
+│    notes.md                                                               │
+│    bundle_20260415_104530.json                                            │
+│    bundle_20260520_191204.json                                            │
+│                                                                           │
+│  Name      [ bundle_20260529_184523                              ].json   │
+│                                                                           │
+│            [ Save ]   [ Cancel ]                                          │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+Default file name: `bundle_yyyymmdd_hhmmss.json` (local time). If the
+typed name already exists at the chosen location, the dialog asks
+`Overwrite "<name>.json"? [y/N]` inline above the buttons.
+
+### 8b. Open dialog (`⌃O`)
+
+```
+┌──────────────────────────── Open bundle ──────────────────────────────────┐
+│                                                                           │
+│  Location  /Users/andrew/Documents/research/vt-bundles                [..]│
+│  ───────────────────────────────────────────────────────────────────────  │
+│    ../                                                                    │
+│    bundle_20260301_093045.json     2 items, 7 pages                       │
+│    bundle_20260415_104530.json     5 items, 14 pages                      │
+│  ▸ bundle_20260520_191204.json    11 items, 31 pages                      │
+│                                                                           │
+│  Loading replaces the current Bundle (7 pages). Continue?                 │
+│                                                                           │
+│            [ Open ]   [ Cancel ]                                          │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+Filtered to `*.json`. The right-hand summary peeks `selected_items` and
+`page_state` counts on focus. The "Loading replaces..." confirm line only
+appears when the current bundle is non-empty and has unsaved changes.
 
 ### 9. Info dialog (`⌃I`)
 
@@ -359,6 +394,100 @@ When focus is on the Bundle pane:
   showing before (volume page list or search results).
 - `space` removes the focused page (or all pages of a focused volume) by
   setting `state = exclude` on each.
+
+### 12. Startup index prompt (missing or stale)
+
+Shown once, immediately after the splash, when either:
+- `vtindex` DB at `<archive>/.../index.db` is missing, or
+- `is_stale(db, archive)` is true at startup.
+
+```
+┌────────────────────────────── vtbrowse ──────────────────────────────┐
+│                                                                      │
+│  The search index for this archive is out of date.                   │
+│                                                                      │
+│  Archive    /Users/andrew/repos/virtualtreasury-extractor/archive    │
+│  Index      .../index/vtindex.sqlite3                                │
+│                                                                      │
+│  Rebuild it now? (recommended)                                       │
+│                                                                      │
+│            [ Yes (default) ]   [ No ]                                │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+Missing-index variant swaps the first line to
+`No search index exists for this archive yet.` and the question to
+`Build it now? (recommended)`.
+
+`⏎` accepts the default (`Yes`), launching the build modal (screen 13).
+`No` / `esc` dismisses and either lands on the home screen with the
+stale banner (screen 15) or — when the index doesn't exist at all — on
+the no-index screen (screen 16).
+
+### 13. Build progress modal (`⌃B`, or from screen 12)
+
+```
+┌────────────────────── vtindex build ──────────────────────────────────┐
+│                                                                       │
+│  Running: vtindex build --archive /…/archive                          │
+│                                                                       │
+│  ────────────────────────────────────────────────────────────────     │
+│  scanning items…   1842 / 2,901                                       │
+│  indexed:    + 412 new      ~  87 updated   = 1,343 unchanged         │
+│  pages:      + 1,127        ~  214          = 4,098                   │
+│  skipped:    3                                                        │
+│  elapsed:    00:14                                                    │
+│                                                                       │
+│  ────────────────────────────────────────────────────────────────     │
+│  scanning items/0007/18425…                                           │
+│                                                                       │
+│            [ Cancel ]                                                 │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+Spawns `vtindex build` as an async subprocess (via the same
+`vtindex.index.builder.build()` Python entry point, not a shell call)
+and streams the `BuildReporter` output into the bottom log line and the
+counters above. On completion the modal switches its button to
+`[ Close ]` and the title to `vtindex build — done` (or `failed`).
+`Cancel` confirms once (`Stop the build? in-progress writes will be
+rolled back`) before signalling the builder.
+
+### 14. Stale-index banner (in-session)
+
+```
+ vtbrowse — Virtual Record Treasury browser     [stale: press ⌃B to rebuild]  247 volumes
+┌─ Bundle ──────────┐┌─ Volumes ──────────────────────────────────────────────────────────┐
+│ (no selections)   ││   Root ID    Items   Title                                Reference │
+                    ...
+```
+
+A right-side chip in the header whenever `is_stale(db, archive)`
+becomes true *during* a session (archive files changed under us).
+Does not auto-rebuild and does not show a modal — the user presses
+`⌃B` if and when they want to rebuild. Staleness *at startup* is
+handled by screen 12, not this banner.
+
+### 15. Empty-archive / no-index screen
+
+Shown when the archive has no `vtindex` DB and the user declined the
+startup prompt (screen 12), or when the configured archive doesn't look
+like a `vtextract` archive at all.
+
+```
+ vtbrowse — no archive index found
+┌─ Bundle ──────────┐┌─ Volumes ──────────────────────────────────────────────────────────┐
+│ (no selections)   ││                                                                    │
+│                   ││  No index found at /Users/andrew/.../archive/index/vtindex.sqlite3 │
+│                   ││                                                                    │
+│                   ││  Press ⌃B to build the index for the current archive.              │
+│                   ││                                                                    │
+│                   ││  Or relaunch with --config <path> to point at a different          │
+│                   ││  vt.toml whose top-level `archive` key points elsewhere.           │
+│                   ││                                                                    │
+└───────────────────┘└────────────────────────────────────────────────────────────────────┘
+ ⌃B build   ⌃X exit
+```
 
 ## Selection model
 
@@ -487,6 +616,7 @@ bundle_20260529_184523/
 | `⌃V` | any | jump to Volumes |
 | `⌃R` | any | jump to last search results |
 | `⌃X` | any | Exit (confirm if unsaved) |
+| `⌃B` | any | Build / rebuild the `vtindex` index (modal progress) |
 | `F1` / `?` | any | full key map |
 
 ## Module sketch
@@ -498,7 +628,7 @@ Under `src/vtextract/tui/`:
 - `screens/volumes.py`, `screens/pages.py`, `screens/transcription.py`,
   `screens/results.py` — document-pane content widgets.
 - `dialogs/search.py`, `dialogs/file.py`, `dialogs/info.py`,
-  `dialogs/exit.py` — modal screens.
+  `dialogs/exit.py`, `dialogs/build.py` — modal screens.
 - `bundle.py` — the selection model (in-memory `Bundle` dataclass with
   `selected_items`, `page_state`, and `effective_pages()` /
   `is_in_bundle(page)` derivations) plus JSON load/save.
@@ -522,7 +652,7 @@ Tests:
 - Whether selecting a whole volume (some shortcut on a volume row in the
   page list?) should be a thing. For now, no — the user selects items
   from search results or individual pages from the page list.
-- Index staleness: shown as a `[stale: run vtindex build]` chip in the
-  right side of the header whenever `is_stale(db, archive)` is true.
-  Whether to also block searches or show a modal nag — deferred.
+- Whether the in-session stale-index chip should ever escalate to a
+  blocking dialog (e.g. if the user tries to search while stale).
+  Deferred — chip only for now.
 - A "recent bundles" picker on `⌃O`. Deferred; just the file dialog for v1.
