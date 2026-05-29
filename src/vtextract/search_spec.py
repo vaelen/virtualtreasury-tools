@@ -15,6 +15,11 @@ from vtextract.models import FIELD_MAP, OPERANDS
 # when combined with other clauses ("A AND NOT B").
 OPERANDS_FOR_SINGLE_CLAUSE: tuple[str, ...] = ("all", "any", "exact")
 
+# Guard against drift: every operand we expose must still be a known operand
+# in vtextract.cli's parsing tables. Catches a future rename in models.OPERANDS
+# at import time rather than via a confusing CLI failure.
+assert set(OPERANDS_FOR_SINGLE_CLAUSE) <= set(OPERANDS)
+
 
 def build_search_argv(
     *,
