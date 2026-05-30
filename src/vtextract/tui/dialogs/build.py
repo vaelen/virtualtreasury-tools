@@ -66,8 +66,15 @@ class ProgressModal(ModalScreen[bool]):
             yield Static("", id="logline")
             yield Button("Cancel", id="cancel")
 
-    async def on_mount(self) -> None:
-        await self._drive()
+    def on_mount(self) -> None:
+        # Drive the stream in a worker, NOT inline: awaiting the whole stream
+        # here would keep the on_mount message handler running for the entire
+        # (potentially minutes-long) subprocess, blocking this screen's message
+        # pump. The modal would then never repaint or process Cancel/Escape and
+        # would look locked up — exactly what a slow `vtextract get --images`
+        # backfill caused. As a worker, on_mount returns immediately, the modal
+        # paints, stays responsive, and the worker updates it as events arrive.
+        self.run_worker(self._drive(), name="drive", exclusive=True)
 
     async def _drive(self) -> None:
         stream = self._open_stream()
