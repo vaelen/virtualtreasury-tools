@@ -15,6 +15,7 @@ class PagesScreen(CountFooterMixin, DataTable):
     BINDINGS = [
         Binding("enter", "view_page", "view"),
         Binding("space", "toggle_select", "select"),
+        Binding("a", "toggle_all", "all"),
         Binding("escape", "back", "back"),
     ]
 
@@ -61,6 +62,21 @@ class PagesScreen(CountFooterMixin, DataTable):
             (self.cursor_row, 4),
             "*" if self.bundle.is_in_bundle(ref) else "",
         )
+
+    def action_toggle_all(self) -> None:
+        if not self._pages:
+            return
+        refs = [PageRef(self.root_id, p["page_key"]) for p in self._pages]
+        all_selected = all(self.bundle.is_in_bundle(ref) for ref in refs)
+        for row, ref in enumerate(refs):
+            in_bundle = self.bundle.is_in_bundle(ref)
+            if all_selected == in_bundle:
+                self.bundle.toggle_page(ref)
+            self.update_cell_at(
+                (row, 4),
+                "" if all_selected else "*",
+            )
+        self.app.bundle_changed()  # type: ignore[attr-defined]
 
     def action_back(self) -> None:
         self.app.open_volumes()  # type: ignore[attr-defined]

@@ -4,7 +4,7 @@
 import pytest
 from textual.app import App
 
-from vtextract.tui.bundle import Bundle
+from vtextract.tui.bundle import Bundle, PageRef
 from vtextract.tui.screens.results import ResultsScreen
 
 
@@ -53,3 +53,68 @@ def test_results_screen_after_search(snap_compare, tmp_archive):
         await pilot.press("enter")  # submit search dialog
         await pilot.pause()
     assert snap_compare(VtBrowseApp(archive=tmp_archive), run_before=before)
+
+
+class _ToggleHarness(App):
+    def __init__(self, results, bundle):
+        super().__init__()
+        self._results = results
+        self._bundle = bundle
+        self.bundle_changed_calls = 0
+
+    def compose(self):
+        yield ResultsScreen(bundle=self._bundle, results=self._results, query="")
+
+    def set_pane_count(self, _text):  # satisfies CountFooterMixin
+        pass
+
+    def bundle_changed(self):
+        self.bundle_changed_calls += 1
+
+
+_TOGGLE_RESULTS = [
+    {"isadg_id": 1, "content_date": "1700", "estimated_date": None,
+     "reference_code": "R1", "title": "One",
+     "matched_pages": [{"root_id": "V", "page_key": "p1"}]},
+    {"isadg_id": 2, "content_date": "1701", "estimated_date": None,
+     "reference_code": "R2", "title": "Two",
+     "matched_pages": [{"root_id": "V", "page_key": "p2"}]},
+]
+
+
+@pytest.mark.asyncio
+async def test_results_a_selects_all_then_deselects_all():
+    bundle = Bundle()
+    harness = _ToggleHarness(_TOGGLE_RESULTS, bundle)
+    async with harness.run_test() as pilot:
+        await pilot.press("a")  # nothing selected -> select all
+        assert set(bundle.selected_items) == {1, 2}
+        table = pilot.app.query_one(ResultsScreen)
+        assert table.get_row_at(0)[0] == "[x]"
+        assert table.get_row_at(1)[0] == "[x]"
+
+        await pilot.press("a")  # all selected -> deselect all
+        assert bundle.selected_items == {}
+        assert table.get_row_at(0)[0] == "[ ]"
+        assert table.get_row_at(1)[0] == "[ ]"
+        assert harness.bundle_changed_calls == 2
+
+
+@pytest.mark.asyncio
+async def test_results_a_from_partial_selects_all():
+    bundle = Bundle()
+    bundle.toggle_item(1, [PageRef("V", "p1")])  # only id 1 selected
+    harness = _ToggleHarness(_TOGGLE_RESULTS, bundle)
+    async with harness.run_test() as pilot:
+        await pilot.press("a")  # partial -> select all (not deselect)
+        assert set(bundle.selected_items) == {1, 2}
+
+
+@pytest.mark.asyncio
+async def test_results_a_on_empty_is_noop():
+    bundle = Bundle()
+    harness = _ToggleHarness([], bundle)
+    async with harness.run_test() as pilot:
+        await pilot.press("a")
+        assert bundle.selected_items == {}
+        assert harness.bundle_changed_calls == 0

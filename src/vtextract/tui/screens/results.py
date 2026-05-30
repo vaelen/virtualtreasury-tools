@@ -24,6 +24,7 @@ class ResultsScreen(CountFooterMixin, DataTable):
     BINDINGS = [
         Binding("enter", "view_first_match", "view"),
         Binding("space", "toggle_item", "toggle"),
+        Binding("a", "toggle_all", "all"),
         Binding("escape", "back", "back"),
     ]
 
@@ -70,6 +71,24 @@ class ResultsScreen(CountFooterMixin, DataTable):
         in_bundle = r["isadg_id"] in self.bundle.selected_items
         self.update_cell_at((self.cursor_row, 0),
                             "[x]" if in_bundle else "[ ]")
+        self.app.bundle_changed()  # type: ignore[attr-defined]
+
+    def action_toggle_all(self) -> None:
+        if not self.results:
+            return
+        all_selected = all(
+            r["isadg_id"] in self.bundle.selected_items for r in self.results
+        )
+        for row, r in enumerate(self.results):
+            in_bundle = r["isadg_id"] in self.bundle.selected_items
+            if all_selected == in_bundle:
+                refs = [PageRef(p["root_id"], p["page_key"])
+                        for p in r.get("matched_pages", [])]
+                self.bundle.toggle_item(r["isadg_id"], refs)
+            self.update_cell_at(
+                (row, 0),
+                "[ ]" if all_selected else "[x]",
+            )
         self.app.bundle_changed()  # type: ignore[attr-defined]
 
     def action_back(self) -> None:
