@@ -96,6 +96,7 @@ async def test_results_a_selects_all_then_deselects_all():
         await pilot.press("a")  # all selected -> deselect all
         assert bundle.selected_items == {}
         assert table.get_row_at(0)[0] == "[ ]"
+        assert table.get_row_at(1)[0] == "[ ]"
         assert harness.bundle_changed_calls == 2
 
 

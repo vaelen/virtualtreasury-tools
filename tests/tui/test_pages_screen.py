@@ -57,6 +57,7 @@ async def test_pages_a_selects_all_then_deselects_all():
         assert not bundle.is_in_bundle(PageRef("V", "p1"))
         assert not bundle.is_in_bundle(PageRef("V", "p2"))
         assert table.get_row_at(0)[4] == ""
+        assert table.get_row_at(1)[4] == ""
         assert harness.bundle_changed_calls == 2
 
 
