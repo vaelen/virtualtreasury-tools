@@ -29,3 +29,13 @@ def test_help_dialog_via_f1(tmp_archive):
             assert isinstance(app.screen, HelpDialog)
 
     asyncio.run(runner())
+
+
+def test_help_lists_select_all_binding():
+    """The Help dialog documents the 'a' select/deselect-all shortcut."""
+    from vtextract.tui.dialogs.help import _BINDINGS
+
+    keys = {key for key, _ctx, _action in _BINDINGS}
+    assert "a" in keys
+    row = next(r for r in _BINDINGS if r[0] == "a")
+    assert "select" in row[2].lower()
