@@ -83,6 +83,24 @@ _TOGGLE_RESULTS = [
 
 
 @pytest.mark.asyncio
+async def test_selected_marker_renders_not_eaten_by_markup():
+    """Regression: a selected row's marker must actually render. Textual feeds
+    plain-str DataTable cells through Rich markup (``Text.from_markup``), which
+    parses ``[x]`` as a style tag and renders nothing — the box vanished. The
+    marker must survive the render path, not merely be stored."""
+    from textual.widgets._data_table import default_cell_formatter
+
+    bundle = Bundle()
+    harness = _ToggleHarness(_TOGGLE_RESULTS, bundle)
+    async with harness.run_test() as pilot:
+        table = pilot.app.query_one(ResultsScreen)
+        # what DataTable actually displays for row 0's selection cell:
+        assert default_cell_formatter(table.get_cell_at((0, 0))).plain == "[ ]"
+        await pilot.press("a")  # select all
+        assert default_cell_formatter(table.get_cell_at((0, 0))).plain == "[x]"
+
+
+@pytest.mark.asyncio
 async def test_results_a_selects_all_then_deselects_all():
     bundle = Bundle()
     harness = _ToggleHarness(_TOGGLE_RESULTS, bundle)
@@ -90,13 +108,13 @@ async def test_results_a_selects_all_then_deselects_all():
         await pilot.press("a")  # nothing selected -> select all
         assert set(bundle.selected_items) == {1, 2}
         table = pilot.app.query_one(ResultsScreen)
-        assert table.get_row_at(0)[0] == "[x]"
-        assert table.get_row_at(1)[0] == "[x]"
+        assert str(table.get_row_at(0)[0]) == "[x]"
+        assert str(table.get_row_at(1)[0]) == "[x]"
 
         await pilot.press("a")  # all selected -> deselect all
         assert bundle.selected_items == {}
-        assert table.get_row_at(0)[0] == "[ ]"
-        assert table.get_row_at(1)[0] == "[ ]"
+        assert str(table.get_row_at(0)[0]) == "[ ]"
+        assert str(table.get_row_at(1)[0]) == "[ ]"
         assert harness.bundle_changed_calls == 2
 
 

@@ -3,11 +3,20 @@
 
 from __future__ import annotations
 
+from rich.text import Text
 from textual.binding import Binding
 from textual.widgets import DataTable
 
 from vtextract.tui.bundle import Bundle, PageRef
 from vtextract.tui.count_footer import CountFooterMixin
+
+
+def _sel_cell(selected: bool) -> Text:
+    """The selection marker for a row. Built as ``Text`` rather than a plain
+    string because Textual renders str cells through Rich markup, which would
+    parse ``[x]`` as a style tag and drop it (leaving the cell blank). A ``Text``
+    is shown verbatim."""
+    return Text("[x]" if selected else "[ ]")
 
 
 def _date_cell(result: dict) -> str:
@@ -39,7 +48,7 @@ class ResultsScreen(CountFooterMixin, DataTable):
         for r in self.results:
             in_bundle = r["isadg_id"] in self.bundle.selected_items
             self.add_row(
-                "[x]" if in_bundle else "[ ]",
+                _sel_cell(in_bundle),
                 str(r["isadg_id"]),
                 _date_cell(r),
                 r.get("reference_code") or "-",
@@ -69,8 +78,7 @@ class ResultsScreen(CountFooterMixin, DataTable):
                 for p in r.get("matched_pages", [])]
         self.bundle.toggle_item(r["isadg_id"], refs)
         in_bundle = r["isadg_id"] in self.bundle.selected_items
-        self.update_cell_at((self.cursor_row, 0),
-                            "[x]" if in_bundle else "[ ]")
+        self.update_cell_at((self.cursor_row, 0), _sel_cell(in_bundle))
         self.app.bundle_changed()  # type: ignore[attr-defined]
 
     def action_toggle_all(self) -> None:
@@ -85,10 +93,7 @@ class ResultsScreen(CountFooterMixin, DataTable):
                 refs = [PageRef(p["root_id"], p["page_key"])
                         for p in r.get("matched_pages", [])]
                 self.bundle.toggle_item(r["isadg_id"], refs)
-            self.update_cell_at(
-                (row, 0),
-                "[ ]" if all_selected else "[x]",
-            )
+            self.update_cell_at((row, 0), _sel_cell(not all_selected))
         self.app.bundle_changed()  # type: ignore[attr-defined]
 
     def action_back(self) -> None:
