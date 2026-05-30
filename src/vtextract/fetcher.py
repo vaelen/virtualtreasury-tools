@@ -52,6 +52,7 @@ def fetch_resource(
     on_page: Callable[[], None] | None = None,
     refresh: bool = False,
     on_verify: Callable[[str, str], None] | None = None,
+    image_pages: set[str] | None = None,
     _root_manifest_cache: dict | None = None,
     _verified_pages: set[str] | None = None,
 ) -> Record:
@@ -61,6 +62,11 @@ def fetch_resource(
     and per-page annotation lists are fetched; image bytes are skipped. The
     resource state records the mode so a later ``images=True`` run can backfill
     the images.
+
+    ``image_pages`` (when not ``None``) is an allowlist of ``page_key``s: image
+    bytes are downloaded/verified only for pages in the set, so a page-level
+    bundle can backfill just its selected pages instead of the whole resource
+    (which may be an entire volume). Metadata and transcriptions are unaffected.
 
     Stores each physical page once in the shared per-volume page store and
     writes the resource record referencing its primary and context pages.
@@ -100,6 +106,7 @@ def fetch_resource(
             _ensure_page(
                 client, archive, page, role=role, refs=page_refs,
                 images=images, refresh=refresh, verified=verified, on_verify=on_verify,
+                image_pages=image_pages,
             )
             if on_page is not None:
                 on_page()
@@ -194,6 +201,7 @@ def _ensure_page(
     refresh: bool = False,
     verified: set[str] | None = None,
     on_verify: Callable[[str, str], None] | None = None,
+    image_pages: set[str] | None = None,
 ) -> None:
     if not page.page_key:
         return
@@ -214,9 +222,11 @@ def _ensure_page(
     has_image = archive.has_page_image(page.root_id, page.page_key)
     has_text = archive.has_page_transcription(page.root_id, page.page_key)
     expects_text = bool(page.annotation_list_urls)
+    # When an allowlist is given, only its pages are eligible for image bytes.
+    image_allowed = image_pages is None or page.page_key in image_pages
 
     if not refresh:
-        need_image = images and not has_image
+        need_image = images and image_allowed and not has_image
         need_text = expects_text and not has_text
         if need_image or need_text:
             _download_page(client, archive, page, want_image=need_image)
@@ -227,7 +237,7 @@ def _ensure_page(
     if expects_text and not has_text:
         _download_page(client, archive, page, want_image=False)
 
-    if not images:
+    if not images or not image_allowed:
         return
 
     key = f"{page.root_id}/{page.page_key}"

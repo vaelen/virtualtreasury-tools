@@ -276,6 +276,7 @@ def _run_search(argv: list[str]) -> int:
 
 def _extract(client, archive, hits, *, search_id: str, context_pages: int,
              reporter=None, refresh: bool = False, images: bool = False,
+             image_pages: set[str] | None = None,
              total: tuple[int, str] | None = None) -> tuple[int, int]:
     """Run the shared per-resource fetch loop, returning (completed, failed).
 
@@ -318,6 +319,7 @@ def _extract(client, archive, hits, *, search_id: str, context_pages: int,
                         search_id=search_id,
                         context_pages=context_pages,
                         images=images,
+                        image_pages=image_pages,
                         on_item_start=reporter.item_pages,
                         on_page=reporter.page_done,
                         refresh=refresh,
@@ -368,6 +370,12 @@ def _run_get(argv: list[str]) -> int:
         "and metadata only).",
     )
     parser.add_argument(
+        "--only-image-pages",
+        help="Comma-separated page keys (Loris image filenames); with --images, "
+        "restrict image downloads to just these pages instead of every page in "
+        "the resource. Metadata and transcriptions are still fetched for all pages.",
+    )
+    parser.add_argument(
         "--json-progress", action="store_true",
         help="emit JSONL progress events on stdout instead of "
         "rich progress on stderr",
@@ -396,11 +404,15 @@ def _run_get(argv: list[str]) -> int:
         {"isadgID": int(token)} if token.isdigit() else {"displayReferenceCode": token}
         for token in args.identifiers
     ]
+    image_pages = (
+        {p for p in (s.strip() for s in args.only_image_pages.split(",")) if p}
+        if args.only_image_pages else None
+    )
     reporter = JsonFetchReporter() if args.json_progress else Reporter()
     completed, failed = _extract(
         client, archive, hits, search_id="get",
         context_pages=args.context_pages, reporter=reporter,
-        refresh=args.refresh, images=args.images,
+        refresh=args.refresh, images=args.images, image_pages=image_pages,
         total=(len(hits), "resources"),
     )
     return 1 if failed else 0

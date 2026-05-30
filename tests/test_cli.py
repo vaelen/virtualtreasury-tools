@@ -627,6 +627,46 @@ def test_get_with_images_downloads_image(tmp_path, monkeypatch):
     assert (tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg").exists()
 
 
+def test_get_only_image_pages_downloads_just_that_page(tmp_path, monkeypatch):
+    config = _write_config(tmp_path)
+    counts = {"loris": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.startswith("/loris/"):
+            counts["loris"] += 1
+        return _get_handler(request)
+
+    monkeypatch.setattr(cli, "_make_transport", lambda: httpx.MockTransport(handler))
+    code = cli.run(["get", "474234", "--images",
+                    "--only-image-pages", "IMC_1954_RoD_1_Page_253.jpg",
+                    "--out", str(tmp_path), "--context-pages", "0",
+                    "--config", str(config)])
+    assert code == 0
+    assert counts["loris"] == 1
+    assert (tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg").exists()
+
+
+def test_get_only_image_pages_skips_unlisted_page(tmp_path, monkeypatch):
+    config = _write_config(tmp_path)
+    counts = {"loris": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.startswith("/loris/"):
+            counts["loris"] += 1
+        return _get_handler(request)
+
+    monkeypatch.setattr(cli, "_make_transport", lambda: httpx.MockTransport(handler))
+    code = cli.run(["get", "474234", "--images",
+                    "--only-image-pages", "some_other_page.jpg",
+                    "--out", str(tmp_path), "--context-pages", "0",
+                    "--config", str(config)])
+    assert code == 0
+    assert counts["loris"] == 0  # the manifest's page is not in the allowlist
+    # transcription is still written for the unlisted page
+    assert (tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg.txt").exists()
+    assert not (tmp_path / "pages" / "208925" / "IMC_1954_RoD_1_Page_253.jpg").exists()
+
+
 def test_refresh_default_does_not_head_or_download_images(tmp_path, monkeypatch):
     config = _seed_one_item(tmp_path, monkeypatch)
     counts = {"head": 0, "get": 0}

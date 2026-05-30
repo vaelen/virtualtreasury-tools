@@ -598,3 +598,115 @@ def test_fetch_resource_empty_manifest_completes_with_no_pages(tmp_path):
     assert record.pages == []
     assert calls["loris"] == 0
     assert archive.is_resource_complete(474234) is True
+
+
+# --- image-page allowlist (export backfill restricts downloads to selected pages) ---
+
+_MULTIPAGE_MANIFEST = {
+    "label": "Volume-sized resource with two pages",
+    "metadata": [{"label": "ReferenceCode", "value": "IMC 1954/RoD/1"}],
+    "sequences": [{"canvases": [
+        {"@id": "https://by2022-prod.adaptcentre.ie/iiif/v1/208925/canvas/p1",
+         "label": "page one", "width": 826, "height": 1368,
+         "images": [{"resource": {"@id": "https://by2022-prod.adaptcentre.ie/loris/page_one.jpg/full/full/0/default.jpg"}}],
+         "otherContent": [{"@id": "https://by2022-prod.adaptcentre.ie/iiif/v1/208925/list/197350"}]},
+        {"@id": "https://by2022-prod.adaptcentre.ie/iiif/v1/208925/canvas/p2",
+         "label": "page two", "width": 826, "height": 1368,
+         "images": [{"resource": {"@id": "https://by2022-prod.adaptcentre.ie/loris/page_two.jpg/full/full/0/default.jpg"}}],
+         "otherContent": [{"@id": "https://by2022-prod.adaptcentre.ie/iiif/v1/208925/list/197350"}]},
+    ]}],
+}
+
+
+def _multipage_client(loris_gets: list[str]):
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/rest/isadg-identity-statements/474234":
+            return httpx.Response(200, content=_item_json("isadg-identity-statements"))
+        if path == "/iiif/v1/474234/manifest":
+            return httpx.Response(200, json=_MULTIPAGE_MANIFEST)
+        if path == "/iiif/v1/208925/list/197350":
+            return httpx.Response(200, content=_item_json("list"))
+        if path.startswith("/loris/") and request.method == "GET":
+            loris_gets.append(path)
+            return httpx.Response(200, content=_item_image())
+        return httpx.Response(404, text=path)
+
+    return Client(
+        base_url="https://by2022-prod.adaptcentre.ie", auth_header="Basic x",
+        user_agent="UA", transport=httpx.MockTransport(handler),
+        delay=0.0, sleep_func=lambda _s: None,
+    )
+
+
+def test_fetch_resource_image_pages_restricts_image_downloads(tmp_path):
+    """image_pages allowlist: only the named page's image is downloaded; the
+    other page still gets its metadata + transcription."""
+    from vtextract.archive import Archive
+
+    archive = Archive(tmp_path)
+    loris_gets: list[str] = []
+    fetch_resource(
+        _multipage_client(loris_gets), archive, {"isadgID": 474234},
+        search_id="s", context_pages=0, images=True,
+        image_pages={"page_one.jpg"},
+    )
+
+    page_dir = tmp_path / "pages" / "208925"
+    assert (page_dir / "page_one.jpg").exists()          # selected -> downloaded
+    assert not (page_dir / "page_two.jpg").exists()      # not selected -> skipped
+    assert (page_dir / "page_two.jpg.txt").exists()      # transcription still written
+    assert loris_gets == ["/loris/page_one.jpg/full/full/0/default.jpg"]
+
+
+def test_fetch_resource_image_pages_none_downloads_all(tmp_path):
+    """image_pages=None (default) preserves the download-everything behaviour."""
+    from vtextract.archive import Archive
+
+    archive = Archive(tmp_path)
+    loris_gets: list[str] = []
+    fetch_resource(
+        _multipage_client(loris_gets), archive, {"isadgID": 474234},
+        search_id="s", context_pages=0, images=True,
+    )
+    assert sorted(loris_gets) == [
+        "/loris/page_one.jpg/full/full/0/default.jpg",
+        "/loris/page_two.jpg/full/full/0/default.jpg",
+    ]
+
+
+def test_fetch_resource_image_pages_restricts_refresh_verify(tmp_path):
+    """Under --refresh, the allowlist also limits which images are HEAD-verified."""
+    from vtextract.archive import Archive
+
+    archive = Archive(tmp_path)
+    # First seed both images.
+    fetch_resource(_multipage_client([]), archive, {"isadgID": 474234},
+                   search_id="s", context_pages=0, images=True)
+
+    heads: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if request.method == "HEAD" and path.startswith("/loris/"):
+            heads.append(path)
+            return httpx.Response(200, headers={"Content-Length": str(len(_item_image()))})
+        if path == "/rest/isadg-identity-statements/474234":
+            return httpx.Response(200, content=_item_json("isadg-identity-statements"))
+        if path == "/iiif/v1/474234/manifest":
+            return httpx.Response(200, json=_MULTIPAGE_MANIFEST)
+        if path == "/iiif/v1/208925/list/197350":
+            return httpx.Response(200, content=_item_json("list"))
+        if path.startswith("/loris/") and request.method == "GET":
+            return httpx.Response(200, content=_item_image())
+        return httpx.Response(404, text=path)
+
+    client = Client(
+        base_url="https://by2022-prod.adaptcentre.ie", auth_header="Basic x",
+        user_agent="UA", transport=httpx.MockTransport(handler),
+        delay=0.0, sleep_func=lambda _s: None,
+    )
+    fetch_resource(client, archive, {"isadgID": 474234}, search_id="s",
+                   context_pages=0, refresh=True, images=True,
+                   image_pages={"page_one.jpg"})
+    assert heads == ["/loris/page_one.jpg/full/full/0/default.jpg"]

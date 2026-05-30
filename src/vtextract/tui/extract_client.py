@@ -41,11 +41,17 @@ class ExtractClient:
 
     async def get_images_stream(
         self, isadg_ids: list[int],
+        page_keys: list[str] | None = None,
         cancel_event: asyncio.Event | None = None,
     ) -> AsyncIterator[ProgressEvent]:
+        # page_keys restricts the download to just the bundle's selected pages
+        # (a resource's manifest can cover an entire volume, so without this the
+        # backfill would pull every page image).
         full = [self.binary, "get", *map(str, isadg_ids),
-                "--refresh", "--images",
-                "--out", str(self.archive), "--json-progress"]
+                "--refresh", "--images"]
+        if page_keys:
+            full += ["--only-image-pages", ",".join(sorted(set(page_keys)))]
+        full += ["--out", str(self.archive), "--json-progress"]
         inner = self._stream(full, cancel_event=cancel_event)
         try:
             async for event in inner:

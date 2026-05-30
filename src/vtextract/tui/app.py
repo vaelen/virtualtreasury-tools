@@ -386,21 +386,28 @@ class VtBrowseApp(App):
         if result.include_images:
             reader = ArchiveReader(self.archive)
             missing_isadg_ids: set[int] = set()
+            missing_page_keys: set[str] = set()
             for ref in self.bundle.effective_pages():
                 if reader.image_exists(ref.root_id, ref.page_key):
                     continue
+                missing_page_keys.add(ref.page_key)
                 for iid, page_refs in self.bundle.selected_items.items():
                     if ref in page_refs:
                         missing_isadg_ids.add(iid)
             if missing_isadg_ids:
                 extract = ExtractClient(archive=self.archive)
                 ids = sorted(missing_isadg_ids)
+                # Pass the selected page keys so the backfill downloads only
+                # those pages, not every image in the resource's manifest
+                # (which may span an entire volume).
+                page_keys = sorted(missing_page_keys)
                 self.push_screen(
                     ProgressModal(
                         title=f"vtextract get --images ({len(ids)} items)",
                         stream_factory=lambda cancel_event=None: (
                             extract.get_images_stream(
-                                ids, cancel_event=cancel_event,
+                                ids, page_keys=page_keys,
+                                cancel_event=cancel_event,
                             )
                         ),
                     ),

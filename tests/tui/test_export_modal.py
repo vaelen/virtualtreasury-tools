@@ -35,7 +35,7 @@ async def _open_export_with_images(app, pilot, tmp_path):
 @pytest.mark.asyncio
 async def test_export_with_images_shows_progress_modal(tmp_archive, tmp_path,
                                                        monkeypatch):
-    async def stub(self, ids, cancel_event=None):
+    async def stub(self, ids, page_keys=None, cancel_event=None):
         yield StartEvent(tool="vtextract fetch", argv=[])
         yield DoneEvent(elapsed_seconds=0.1, counters={"completed": 1})
 
@@ -52,6 +52,40 @@ async def test_export_with_images_shows_progress_modal(tmp_archive, tmp_path,
 
 
 @pytest.mark.asyncio
+async def test_backfill_passes_only_selected_missing_page_keys(
+        tmp_archive, tmp_path, monkeypatch):
+    """Regression: the backfill must restrict the download to the bundle's
+    selected pages, not the whole resource/volume. The page-key allowlist is
+    what carries that restriction across the subprocess boundary."""
+    captured = {}
+
+    async def stub(self, ids, page_keys=None, cancel_event=None):
+        captured["ids"] = list(ids)
+        captured["page_keys"] = page_keys
+        yield StartEvent(tool="vtextract fetch", argv=[])
+        yield DoneEvent(elapsed_seconds=0.1, counters={"completed": 1})
+
+    monkeypatch.setattr(ExtractClient, "get_images_stream", stub)
+
+    app = VtBrowseApp(archive=tmp_archive)
+    async with app.run_test() as pilot:
+        # Two pages selected under item 100; neither has an image on disk.
+        app.bundle.toggle_item(100, [PageRef("volA", "volA_p1.jpg"),
+                                     PageRef("volA", "volA_p2.jpg")])
+        result = FileResult(path=tmp_path / "out", fmt="folder",
+                            include_images=True)
+        app.push_screen(FileDialog(mode="export", start_dir=tmp_path),
+                        app._on_export_chosen)
+        await pilot.pause()
+        app.screen.dismiss(result)
+        await pilot.pause()
+        await app.workers.wait_for_complete()
+
+    assert captured["ids"] == [100]
+    assert sorted(captured["page_keys"]) == ["volA_p1.jpg", "volA_p2.jpg"]
+
+
+@pytest.mark.asyncio
 async def test_modal_stays_responsive_while_stream_runs(tmp_archive, tmp_path,
                                                         monkeypatch):
     """While the backfill stream is still producing, the modal must paint and
@@ -60,7 +94,7 @@ async def test_modal_stays_responsive_while_stream_runs(tmp_archive, tmp_path,
     started = asyncio.Event()
     release = asyncio.Event()
 
-    async def stub(self, ids, cancel_event=None):
+    async def stub(self, ids, page_keys=None, cancel_event=None):
         yield StartEvent(tool="vtextract fetch", argv=[])
         started.set()
         await release.wait()  # stream still in progress until released

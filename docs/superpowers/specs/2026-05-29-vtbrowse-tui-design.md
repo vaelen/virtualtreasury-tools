@@ -275,7 +275,10 @@ user `←`/`→`s onto an off-result neighbour, only `page X of Y` shows.
 
 When `Include Images` is on and any selected page lacks its image on disk,
 the TUI shells out to `vtextract get --refresh --images <isadg_ids>` for
-the items contributing those pages before writing the bundle. Progress is
+the items contributing those pages before writing the bundle. Because a
+resource's IIIF manifest can cover an entire volume, the call also passes
+`--only-image-pages <page_keys>` (the selected pages' Loris filenames) so only
+those pages' images are downloaded rather than the whole volume. Progress is
 reported in a modal progress dialog reusing `BuildReporter`-style line
 counters. If the user cancels mid-fetch, the dialog falls back to
 "Continue without missing images / Cancel export".

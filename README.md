@@ -178,6 +178,19 @@ normalised to a dash (`TNA-SO-1-14`) before lookup. A purely numeric argument is
 treated as an isadgID. A reference code that resolves to nothing is reported and
 skipped without aborting the rest of the run.
 
+A resource's IIIF manifest can cover every page in its volume, so `--images`
+normally downloads them all. To pull images for just a few pages, pass
+`--only-image-pages` a comma-separated list of page keys (the Loris image
+filenames); only those pages' images are downloaded, while metadata and
+transcriptions are still fetched for the whole resource. This is how `vtbrowse`
+backfills images for an exported bundle without dragging down the entire volume:
+
+```bash
+uv run vtextract get 474234 --images \
+  --only-image-pages IMC_1954_RoD_1_Page_253.jpg,IMC_1954_RoD_1_Page_254.jpg \
+  --out ./archive
+```
+
 ### Progress output
 
 Both commands report progress on **stderr**. `search` first prints how many
