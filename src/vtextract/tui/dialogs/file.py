@@ -71,32 +71,38 @@ class FileDialog(ModalScreen[FileResult | None]):
 
     def on_directory_tree_file_selected(
             self, ev: DirectoryTree.FileSelected) -> None:
-        # In Open mode, peek a JSON header into the hover summary.
-        if self.mode == "open" and ev.path.suffix == ".json":
-            try:
-                data = json.loads(ev.path.read_text())
-                items = len(data.get("selected_items", []))
-                pages = len({(p["root_id"], p["page_key"])
-                             for d in data.get("selected_items", [])
-                             for p in d.get("matched_pages", [])})
-                self.query_one("#hover-summary", Static).update(
-                    f"{items} items, {pages} pages"
-                )
-            except Exception:
-                self.query_one("#hover-summary", Static).update("(unreadable)")
-        # In Save / Export, jam the file name into the input.
-        if self.mode != "open":
+        if self.mode == "open":
+            # Open mode keeps the full name (extension and all) so the value
+            # resolves to a real file, and peeks a JSON header into the summary.
+            self.query_one("#name", Input).value = ev.path.name
+            if ev.path.suffix == ".json":
+                try:
+                    data = json.loads(ev.path.read_text())
+                    items = len(data.get("selected_items", []))
+                    pages = len({(p["root_id"], p["page_key"])
+                                 for d in data.get("selected_items", [])
+                                 for p in d.get("matched_pages", [])})
+                    self.query_one("#hover-summary", Static).update(
+                        f"{items} items, {pages} pages"
+                    )
+                except Exception:
+                    self.query_one("#hover-summary", Static).update(
+                        "(unreadable)")
+        else:
+            # Save / Export use a base name; the suffix is added on submit.
             self.query_one("#name", Input).value = ev.path.stem
 
     def on_button_pressed(self, ev: Button.Pressed) -> None:
         if ev.button.id == "cancel":
             self.dismiss(None)
             return
-        location = self._current_dir()
         name = self.query_one("#name", Input).value.strip()
         if not name:
             return
-        path = location / name
+        # An absolute or ~-relative name wins outright; a bare name resolves
+        # against the directory currently shown in the tree.
+        typed = Path(name).expanduser()
+        path = typed if typed.is_absolute() else self._current_dir() / typed
         if self.mode == "save" and not str(path).endswith(".json"):
             path = path.with_suffix(".json")
         fmt = "folder"

@@ -63,6 +63,12 @@ class Bundle:
     def clear_page_override(self, page: PageRef) -> None:
         self.page_state.pop(page, None)
 
+    def replace_contents(self, other: "Bundle") -> None:
+        """Adopt ``other``'s selections in place, keeping this instance's
+        identity so live holders (e.g. the BundlePane) observe the change."""
+        self.selected_items = other.selected_items
+        self.page_state = other.page_state
+
     # ----- persistence -----
 
     def to_json(self) -> str:

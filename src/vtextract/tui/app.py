@@ -269,7 +269,7 @@ class VtBrowseApp(App):
             return
         if choice == "save_and_exit":
             self.push_screen(
-                FileDialog(mode="save", start_dir=Path.home()),
+                FileDialog(mode="save", start_dir=Path.cwd()),
                 self._on_save_then_exit,
             )
             return
@@ -347,7 +347,7 @@ class VtBrowseApp(App):
 
     def action_save_bundle(self) -> None:
         self.push_screen(
-            FileDialog(mode="save", start_dir=Path.home()),
+            FileDialog(mode="save", start_dir=Path.cwd()),
             self._on_save_chosen,
         )
 
@@ -360,14 +360,14 @@ class VtBrowseApp(App):
 
     def action_open_bundle(self) -> None:
         self.push_screen(
-            FileDialog(mode="open", start_dir=Path.home()),
+            FileDialog(mode="open", start_dir=Path.cwd()),
             self._on_open_chosen,
         )
 
     def _on_open_chosen(self, result: FileResult | None) -> None:
         if result is None or not result.path.exists():
             return
-        self.bundle = Bundle.from_json(result.path.read_text())
+        self.bundle.replace_contents(Bundle.from_json(result.path.read_text()))
         self.bundle_changed()
         # ``bundle_changed`` re-marks dirty for the load-side mutation; an
         # Open is effectively a clean slate — the on-disk file IS the truth.
@@ -376,7 +376,7 @@ class VtBrowseApp(App):
 
     def action_export_bundle(self) -> None:
         self.push_screen(
-            FileDialog(mode="export", start_dir=Path.home()),
+            FileDialog(mode="export", start_dir=Path.cwd()),
             self._on_export_chosen,
         )
 
