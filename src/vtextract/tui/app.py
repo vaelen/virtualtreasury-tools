@@ -97,9 +97,10 @@ class VtBrowseApp(App):
         Binding("tab", "focus_next", "switch pane"),
     ]
 
-    def __init__(self, *, archive: Path) -> None:
+    def __init__(self, *, archive: Path, initial_theme: str | None = None) -> None:
         super().__init__()
         self.archive = archive
+        self._initial_theme = initial_theme
         self.index = IndexClient(archive)
         self.bundle = Bundle()
         self.last_results: list[dict] = []
@@ -117,6 +118,11 @@ class VtBrowseApp(App):
         yield Footer()
 
     async def on_mount(self) -> None:
+        # Restore the saved theme. Guarded: an unregistered name (a typo, or a
+        # theme dropped in a Textual upgrade) would raise InvalidThemeError, so
+        # ignore it and let Textual's default stand.
+        if self._initial_theme in self.available_themes:
+            self.theme = self._initial_theme
         state = await self._detect_index_state()
         if state in ("missing", "stale"):
             self.push_screen(

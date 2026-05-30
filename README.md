@@ -67,7 +67,14 @@ token = "<base64 user:pass token>"
 base_url      = "https://by2022-prod.adaptcentre.ie"
 delay         = 0.5                # seconds between requests
 max_retries   = 3
+
+[browse]                           # vtbrowse TUI settings
+theme         = "textual-dark"     # last theme picked in vtbrowse (Ctrl+P)
 ```
+
+`[browse].theme` is written automatically: `vtbrowse` remembers the theme you
+select from its command palette (Ctrl+P → "Change theme") and restores it on
+the next launch.
 
 ## Credentials
 

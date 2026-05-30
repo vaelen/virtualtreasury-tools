@@ -15,6 +15,7 @@ DEFAULT_USER_AGENT = (
 )
 DEFAULT_INDEX_DB_NAME = "beyond_2022"
 DEFAULT_ARCHIVE = "~/.vt/archive"
+DEFAULT_BROWSE_THEME = "textual-dark"
 
 
 def default_config_path() -> Path:
@@ -31,6 +32,7 @@ class Config:
     index_db_name: str = DEFAULT_INDEX_DB_NAME
     delay: float = 0.5
     max_retries: int = 3
+    browse_theme: str = DEFAULT_BROWSE_THEME
 
 
 def make_token(username: str, password: str) -> str:
@@ -62,6 +64,7 @@ def load_config(path: Path | None = None) -> Config:
 
     token = auth.get("token")
     archive = data.get("archive", DEFAULT_ARCHIVE)
+    browse = data.get("browse", {})
 
     return Config(
         auth_header=f"Basic {token}" if token else None,
@@ -71,6 +74,7 @@ def load_config(path: Path | None = None) -> Config:
         index_db_name=http.get("index_db_name", DEFAULT_INDEX_DB_NAME),
         delay=float(http.get("delay", 0.5)),
         max_retries=int(http.get("max_retries", 3)),
+        browse_theme=browse.get("theme", DEFAULT_BROWSE_THEME),
     )
 
 
@@ -95,9 +99,10 @@ def _toml_table(header: str | None, table: dict) -> list[str]:
 def write_config(path: Path, data: dict) -> None:
     """Write ``data`` to ``path`` as TOML, creating ``~/.vt`` mode 0700.
 
-    Emits top-level scalar keys first, then the ``[extract.auth]`` and
-    ``[extract.http]`` tables. The file is written mode 0600 since it holds a
-    credential.
+    Emits top-level scalar keys first, then the ``[extract.auth]`` /
+    ``[extract.http]`` tables, then the ``[browse]`` table. The file is written
+    mode 0600 since it holds a credential. Every known table is round-tripped,
+    so writing one setting (e.g. via ``set_token``) never drops another.
     """
     top = {k: v for k, v in data.items() if not isinstance(v, dict)}
     blocks: list[list[str]] = []
@@ -108,6 +113,9 @@ def write_config(path: Path, data: dict) -> None:
         sub = extract.get(name)
         if sub:
             blocks.append(_toml_table(f"extract.{name}", sub))
+    browse = data.get("browse")
+    if browse:
+        blocks.append(_toml_table("browse", browse))
 
     text = "\n\n".join("\n".join(block) for block in blocks)
     if text:
@@ -122,4 +130,11 @@ def set_token(path: Path, token: str) -> None:
     """Store ``token`` in ``[extract.auth].token``, preserving other settings."""
     data = _read_raw(path)
     data.setdefault("extract", {}).setdefault("auth", {})["token"] = token
+    write_config(path, data)
+
+
+def set_browse_theme(path: Path, theme: str) -> None:
+    """Store ``theme`` in ``[browse].theme``, preserving other settings."""
+    data = _read_raw(path)
+    data.setdefault("browse", {})["theme"] = theme
     write_config(path, data)
