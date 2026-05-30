@@ -48,6 +48,72 @@ def test_upsert_item_replaces_on_reindex(tmp_path):
         assert old == []  # old title text gone
 
 
+def test_filter_items_content_falls_back_to_estimated(tmp_path):
+    # An item with no catalogued content date but an estimated range must be
+    # found by a content-date search overlapping that estimate.
+    with _db(tmp_path) as db:
+        db.upsert_item(
+            _item(isadg_id=521, content_begin=None, content_end=None,
+                  estimated_begin="1776-01-01", estimated_end="1793-12-31",
+                  estimated_source="volume"),
+            fingerprint=("items/521/metadata.json", 1.0, 10))
+        rows = db.filter_items(None, date_type="content",
+                               date_from="1780-01-01", date_to="1780-12-31")
+        assert [r["isadg_id"] for r in rows] == [521]
+
+
+def test_filter_items_content_date_takes_precedence_over_estimated(tmp_path):
+    # When a real content date exists it is authoritative — the estimate is
+    # ignored, even if it would have matched.
+    with _db(tmp_path) as db:
+        db.upsert_item(
+            _item(isadg_id=900, content_begin="1850-01-01", content_end="1850-12-31",
+                  estimated_begin="1737-01-01", estimated_end="1737-12-31",
+                  estimated_source="item_title"),
+            fingerprint=("items/900/metadata.json", 1.0, 10))
+        assert db.filter_items(None, date_type="content",
+                               date_from="1737-01-01", date_to="1737-12-31") == []
+        rows = db.filter_items(None, date_type="content",
+                               date_from="1850-01-01", date_to="1850-12-31")
+        assert [r["isadg_id"] for r in rows] == [900]
+
+
+def test_filter_items_created_does_not_fall_back_to_estimated(tmp_path):
+    # The estimate is a content-coverage guess, not a record-creation date:
+    # a created-date search must not use it.
+    with _db(tmp_path) as db:
+        db.upsert_item(
+            _item(isadg_id=521, content_begin=None, content_end=None,
+                  created_begin=None, created_end=None,
+                  estimated_begin="1776-01-01", estimated_end="1793-12-31",
+                  estimated_source="volume"),
+            fingerprint=("items/521/metadata.json", 1.0, 10))
+        rows = db.filter_items(None, date_type="created",
+                               date_from="1780-01-01", date_to="1780-12-31")
+        assert rows == []
+
+
+def test_filter_items_orders_estimated_only_by_effective_date(tmp_path):
+    # Filter-only output is ordered chronologically; an estimated-only item
+    # sorts by its estimated year, interleaved with content-dated items.
+    with _db(tmp_path) as db:
+        db.upsert_item(
+            _item(isadg_id=100, content_begin="1737-01-01", content_end="1737-12-31"),
+            fingerprint=("items/100/metadata.json", 1.0, 10))
+        db.upsert_item(
+            _item(isadg_id=521, content_begin=None, content_end=None,
+                  estimated_begin="1700-01-01", estimated_end="1700-12-31",
+                  estimated_source="volume"),
+            fingerprint=("items/521/metadata.json", 1.0, 10))
+        db.upsert_item(
+            _item(isadg_id=900, content_begin=None, content_end=None,
+                  estimated_begin="1800-01-01", estimated_end="1800-12-31",
+                  estimated_source="volume"),
+            fingerprint=("items/900/metadata.json", 1.0, 10))
+        rows = db.filter_items(None)
+        assert [r["isadg_id"] for r in rows] == [521, 100, 900]  # 1700, 1737, 1800
+
+
 def test_upsert_volume_and_transcription(tmp_path):
     with _db(tmp_path) as db:
         db.upsert_volume(VolumeRow("volA", "Vol A", "REF-A"),

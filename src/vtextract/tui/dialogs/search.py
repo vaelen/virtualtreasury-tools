@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from textual.binding import Binding
 from textual.containers import Container, Horizontal
 from textual.screen import ModalScreen
-from textual.widgets import Button, Checkbox, Input, Label, RadioButton, RadioSet
+from textual.widgets import Button, Checkbox, Input, Label
 
 
 @dataclass
@@ -38,12 +38,6 @@ class SearchDialog(ModalScreen[SearchSpec | None]):
                 Checkbox("Description", value=True, id="f-description"),
                 Checkbox("Transcription", value=True, id="f-transcription"),
             )
-            yield Label("Date type")
-            yield RadioSet(
-                RadioButton("Content", value=True, id="dt-content"),
-                RadioButton("Created", id="dt-created"),
-                id="date-type",
-            )
             yield Horizontal(
                 Input(placeholder="From (YYYY or YYYY-MM-DD)", id="from"),
                 Input(placeholder="To", id="to"),
@@ -72,13 +66,13 @@ class SearchDialog(ModalScreen[SearchSpec | None]):
             ("description", field("f-description")),
             ("transcription", field("f-transcription")),
         ) if present)
-        date_type = "created" if self.query_one(
-            "#dt-created", RadioButton).value else "content"
         return SearchSpec(
             query=self.query_one("#query", Input).value.strip(),
             fields=fields,
             date_from=self.query_one("#from", Input).value.strip() or None,
             date_to=self.query_one("#to", Input).value.strip() or None,
-            date_type=date_type,
+            # vtbrowse always searches the content date (with the index's
+            # estimated-date fallback); the created date is not exposed here.
+            date_type="content",
             volume=self.query_one("#volume", Input).value.strip() or None,
         )

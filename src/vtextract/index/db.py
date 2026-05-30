@@ -387,11 +387,19 @@ class IndexDB:
     ):
         """Return item rows (as sqlite3.Row) passing the structured filters.
 
-        ids=None means 'all items'. Results are ordered by content_begin asc,
-        then isadg_id, for stable filter-only output.
+        ids=None means 'all items'. Results are ordered by effective content
+        date asc (content_begin, falling back to estimated_begin), then
+        isadg_id, for stable filter-only output.
         """
-        begin_col = "content_begin" if date_type == "content" else "created_begin"
-        end_col = "content_end" if date_type == "content" else "created_end"
+        # Content searches fall back to the estimated date when no catalogued
+        # content date exists (the estimate is a content-coverage guess); a real
+        # content date stays authoritative. Created searches never use it.
+        if date_type == "content":
+            begin_expr = "COALESCE(i.content_begin, i.estimated_begin)"
+            end_expr = "COALESCE(i.content_end, i.estimated_end)"
+        else:
+            begin_expr = "i.created_begin"
+            end_expr = "i.created_end"
         where: list[str] = []
         params: list = []
         if ids is not None:
@@ -401,10 +409,10 @@ class IndexDB:
             where.append(f"i.isadg_id IN ({placeholders})")
             params.extend(ids)
         if date_to is not None:
-            where.append(f"i.{begin_col} IS NOT NULL AND i.{begin_col} <= ?")
+            where.append(f"{begin_expr} IS NOT NULL AND {begin_expr} <= ?")
             params.append(date_to)
         if date_from is not None:
-            where.append(f"i.{end_col} IS NOT NULL AND i.{end_col} >= ?")
+            where.append(f"{end_expr} IS NOT NULL AND {end_expr} >= ?")
             params.append(date_from)
         if volume is not None:
             where.append(
@@ -415,7 +423,8 @@ class IndexDB:
         sql = "SELECT * FROM item i"
         if where:
             sql += " WHERE " + " AND ".join(where)
-        sql += " ORDER BY i.content_begin IS NULL, i.content_begin, i.isadg_id"
+        order_expr = "COALESCE(i.content_begin, i.estimated_begin)"
+        sql += f" ORDER BY {order_expr} IS NULL, {order_expr}, i.isadg_id"
         return list(self._conn.execute(sql, params))
 
     def volumes(self) -> list[VolumeInfo]:

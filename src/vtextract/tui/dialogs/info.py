@@ -13,6 +13,15 @@ from vtextract.tui.bundle import Bundle, PageRef
 from vtextract.tui.index_client import IndexClient
 
 
+def _fmt_range(begin: str | None, end: str | None) -> str:
+    """Render a date range: ``-`` when absent, the single value when begin==end."""
+    if not begin and not end:
+        return "-"
+    if begin == end:
+        return begin or "-"
+    return f"{begin or '?'} – {end or '?'}"
+
+
 class _InfoBase(ModalScreen[None]):
     BINDINGS = [Binding("escape", "dismiss(None)", "close")]
 
@@ -131,12 +140,18 @@ class ItemInfoDialog(_InfoBase):
             for p in item.get("pages", [])
         )
         in_bundle = self.isadg_id in self.bundle.selected_items
+        est = _fmt_range(item.get("estimated_begin"), item.get("estimated_end"))
+        source = item.get("estimated_source")
+        if est != "-" and source:
+            est = f"{est} (from {source})"
         return "\n".join([
             f"ISADG ID     {item['isadg_id']}",
             f"Title        {item.get('title', '-')}",
             f"Reference    {item.get('reference_code', '-')}",
             f"Repository   {item.get('repository') or '-'}",
-            f"Content date {item.get('content_begin', '-')} – {item.get('content_end', '-')}",
+            f"Content date {_fmt_range(item.get('content_begin'), item.get('content_end'))}",
+            f"Created date {_fmt_range(item.get('created_begin'), item.get('created_end'))}",
+            f"Estimated    {est}",
             "",
             f"Pages ({len(item.get('pages', []))})",
             pages_block,

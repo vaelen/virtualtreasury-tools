@@ -10,6 +10,16 @@ from vtextract.tui.bundle import Bundle, PageRef
 from vtextract.tui.count_footer import CountFooterMixin
 
 
+def _date_cell(result: dict) -> str:
+    """The catalog's single date: the content date, else the estimated date in
+    square brackets (the ISAD(G) convention for a supplied/estimated date)."""
+    content = result.get("content_date")
+    if content:
+        return content
+    estimated = result.get("estimated_date")
+    return f"[{estimated}]" if estimated else "-"
+
+
 class ResultsScreen(CountFooterMixin, DataTable):
     BINDINGS = [
         Binding("enter", "view_first_match", "view"),
@@ -24,14 +34,13 @@ class ResultsScreen(CountFooterMixin, DataTable):
         self.query = query
 
     def on_mount(self) -> None:
-        self.add_columns("Sel", "ID", "Date", "Est.", "Reference", "Title")
+        self.add_columns("Sel", "ID", "Date", "Reference", "Title")
         for r in self.results:
             in_bundle = r["isadg_id"] in self.bundle.selected_items
             self.add_row(
                 "[x]" if in_bundle else "[ ]",
                 str(r["isadg_id"]),
-                r.get("content_date") or "-",
-                r.get("estimated_date") or "-",
+                _date_cell(r),
                 r.get("reference_code") or "-",
                 r.get("title") or "-",
             )
