@@ -109,6 +109,35 @@ def test_json_fetch_reporter_emits_per_item_events():
     )
 
 
+def test_json_fetch_reporter_emits_per_page_progress():
+    """Each page_done() must emit a progress event so a parent TUI shows
+    movement during the slow per-image download of a single resource;
+    otherwise the progress modal looks frozen (regression: page_done was a
+    no-op under --json-progress)."""
+    out = io.StringIO()
+    with JsonFetchReporter(stream=out) as r:
+        r.set_total(1)
+        r.start_item("abc")
+        r.item_pages(3)
+        r.page_done()
+        r.page_done()
+        r.page_done()
+        r.item_done(123)
+        r.finish(completed=1, failed=0)
+    events = _events(out)
+    page_events = [
+        e for e in events
+        if e["event"] == "progress" and e.get("phase") == "pages"
+    ]
+    assert len(page_events) == 3, "one progress event per page_done()"
+    # Counters convey position within the current item (1/3, 2/3, 3/3) so the
+    # modal's counters line visibly advances while the overall bar holds.
+    assert [e["counters"]["page"] for e in page_events] == [1, 2, 3]
+    assert all(e["counters"]["pages"] == 3 for e in page_events)
+    # The overall bar stays coherent: page events report the overall total.
+    assert all(e["total"] == 1 for e in page_events)
+
+
 def test_json_reporter_emit_error_terminates_with_error_event():
     out = io.StringIO()
     r = JsonBuildReporter(stream=out)

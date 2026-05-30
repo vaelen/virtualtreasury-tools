@@ -249,6 +249,8 @@ class JsonFetchReporter(JsonProgressReporter):
         super().__init__(stream=stream)
         self._total: int = 0
         self._current: int = 0
+        self._item_pages: int = 0
+        self._item_done: int = 0
 
     def __enter__(self):
         super().__enter__()
@@ -265,10 +267,21 @@ class JsonFetchReporter(JsonProgressReporter):
         self.emit_log(f"fetching {label}...")
 
     def item_pages(self, n: int) -> None:
+        self._item_pages = n
+        self._item_done = 0
         self.emit_log(f"{n} pages")
 
     def page_done(self) -> None:
-        pass
+        # Emit one event per page so a parent TUI shows live movement during
+        # the slow per-image download of a single resource. Without this the
+        # progress modal would sit silent for the whole item and look frozen.
+        # The overall bar holds (current/total = resources), while the page
+        # counters advance within the current item.
+        self._item_done += 1
+        self.emit_progress(
+            phase="pages", current=self._current, total=self._total,
+            page=self._item_done, pages=self._item_pages,
+        )
 
     def item_done(self, isadg_id: int) -> None:
         self.emit_log(f"done {isadg_id}")
