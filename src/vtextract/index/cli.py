@@ -14,7 +14,7 @@ from rich.table import Table
 
 from vtextract.config import load_config
 from vtextract.theme import THEMES, Theme, add_theme_args as _add_theme_args, highlight_terms as _highlight_title
-from vtextract.index.models import IndexStats, ItemDetail, PageEntry, PageNav, SearchHit, SearchQuery
+from vtextract.index.models import ItemDetail, PageEntry, SearchHit, SearchQuery
 from vtextract.index.service import IndexService, IndexUnavailable
 from vtextract.progress import BuildReporter
 
@@ -49,7 +49,6 @@ def _parse_fields(value: str | None) -> tuple[str, ...]:
             f"unknown field(s): {', '.join(bad)}; choose from {', '.join(_FIELD_CHOICES)}"
         )
     return fields
-
 
 
 def _page_files_dict(e: PageEntry) -> dict:
