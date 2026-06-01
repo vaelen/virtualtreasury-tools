@@ -46,6 +46,11 @@ class VtBrowseApp(App):
     # Minimum time the startup splash stays up, so a fast index open does not
     # flash it. Tests override this to 0 (see tests/tui/conftest.py).
     SPLASH_MIN_SECONDS = 0.5
+    # Defer the slow startup work to after the splash's first paint (see
+    # on_mount / _run_startup). Tests set this False so startup runs inline and
+    # the screen stack is settled before the test drives the app; the real
+    # deferred path has its own coverage (test_splash_shown_on_real_startup_path).
+    SPLASH_DEFER_STARTUP = True
     CSS = """
     Screen { layout: vertical; }
     /* The main Bundle | Document split fills the height between header and
@@ -135,12 +140,26 @@ class VtBrowseApp(App):
         # ignore it and let Textual's default stand.
         if self._initial_theme in self.available_themes:
             self.theme = self._initial_theme
-        # Push the splash first so the slow index open renders behind it
-        # rather than over a blank pane. It defaults to the "Opening index…"
-        # phase via its compose; we set later phases after the awaits below
-        # (by which point the splash is mounted and queryable).
+        # Push the splash, then DEFER the slow startup work. Textual dispatches
+        # the initial Mount (this on_mount) inside a batch_update() that
+        # suspends all repaints until the batch ends. Any slow work done here
+        # would run — and dismiss the splash — before a single frame paints, so
+        # the splash would never reach the screen. call_after_refresh runs the
+        # work only after the batch ends and the splash has painted.
         self._splash = SplashScreen()
         self.push_screen(self._splash)
+        if self.SPLASH_DEFER_STARTUP:
+            self.call_after_refresh(self._run_startup)
+        else:
+            # Inline path (tests): run startup now so the stack is settled
+            # before the caller interacts. The splash never paints here anyway
+            # — the initial mount runs inside Textual's repaint-suspending
+            # batch_update — but the end state is identical.
+            await self._run_startup()
+
+    async def _run_startup(self) -> None:
+        # Runs after the splash's first paint (see on_mount). Does the slow
+        # index open + volume load behind the visible splash, then dismisses it.
         start = time.monotonic()
         try:
             state = await self._detect_index_state()
@@ -153,7 +172,8 @@ class VtBrowseApp(App):
                     lambda ok, s=state: self._on_index_prompt_dismissed(ok, s),
                 )
                 return
-            self._splash.set_status("Loading volumes…")
+            if self._splash is not None:
+                self._splash.set_status("Loading volumes…")
             self._finalize_startup(state)
             await self._dismiss_splash(start)
             self.call_after_refresh(self._focus_document_pane)

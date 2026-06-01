@@ -37,10 +37,16 @@ def tmp_archive(tmp_path) -> Path:
 
 @pytest.fixture(autouse=True)
 def _instant_splash(monkeypatch):
-    """Every full-app TUI test mounts the startup splash (a modal pushed first
-    in on_mount). With the production 0.5s minimum it would still be on top
-    when a test interacts or screenshots. Force a zero minimum so the splash is
-    pushed and dismissed within on_mount, leaving the main screen active and
-    existing baselines unchanged. The dedicated splash render test overrides
-    on_mount to keep the splash up regardless."""
+    """Neutralize the startup splash for every full-app TUI test.
+
+    Production defers the slow startup work to after the splash paints
+    (``SPLASH_DEFER_STARTUP``), so when ``run_test`` yields, the splash is still
+    up and startup is mid-flight — which would collide with tests that drive the
+    app immediately. Run startup inline instead so the screen stack is settled
+    (splash dismissed, volumes loaded) before the test interacts, and zero the
+    minimum-display time. The end state is identical to production; only the
+    timing differs. The deferred path keeps its own coverage in
+    test_splash_shown_on_real_startup_path, and the render in
+    test_splash_visible_on_startup."""
     monkeypatch.setattr(VtBrowseApp, "SPLASH_MIN_SECONDS", 0.0)
+    monkeypatch.setattr(VtBrowseApp, "SPLASH_DEFER_STARTUP", False)
