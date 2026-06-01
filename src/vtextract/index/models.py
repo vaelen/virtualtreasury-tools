@@ -58,6 +58,15 @@ class VolumeRow:
 
 
 @dataclass
+class PageFiles:
+    """Absolute paths to a page's on-disk artefacts, or None when absent."""
+
+    image: str | None = None
+    metadata: str | None = None
+    transcription: str | None = None
+
+
+@dataclass
 class SearchQuery:
     text: str | None = None
     fields: tuple[str, ...] = ("title", "description", "transcription")

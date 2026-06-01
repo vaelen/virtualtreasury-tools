@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from vtextract.index.models import ItemRow, PageLink, VolumePage, VolumeRow
+from vtextract.index.models import ItemRow, PageFiles, PageLink, VolumePage, VolumeRow
 
 # Description is composed from these free-text fields, in this order. Each entry
 # is (detail array key, field on each array element); the identity-statement
@@ -97,3 +97,23 @@ def read_volume(volume_path: Path, *, root_id: str) -> VolumeRow:
 
 def read_transcription(txt_path: Path) -> str:
     return Path(txt_path).read_text()
+
+
+def _resolve(page_dir: Path, name: str) -> str | None:
+    path = page_dir / name
+    return str(path.resolve()) if path.exists() else None
+
+
+def page_files(archive: Path, root_id: str, page_key: str) -> PageFiles:
+    """Resolve a page's on-disk image/metadata/transcription absolute paths.
+
+    Page store layout (see archive.py): the image is ``{page_key}``, the
+    transcription ``{page_key}.txt``, the annotations/metadata ``{page_key}.json``.
+    Each field is None when the file is not present.
+    """
+    page_dir = Path(archive) / "pages" / root_id
+    return PageFiles(
+        image=_resolve(page_dir, page_key),
+        metadata=_resolve(page_dir, f"{page_key}.json"),
+        transcription=_resolve(page_dir, f"{page_key}.txt"),
+    )
