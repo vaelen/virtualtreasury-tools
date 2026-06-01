@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from enum import Enum
+
 from rich.text import Text
 from textual.binding import Binding
 from textual.widgets import DataTable
@@ -29,11 +31,55 @@ def _date_cell(result) -> str:
     return f"[{estimated}]" if estimated else "-"
 
 
+class SortMode(Enum):
+    """The three result orderings the ``d`` key cycles through. The value is
+    the human label shown in the pane title."""
+
+    RELEVANCE = "relevance"
+    DATE_ASC = "date ↑"   # oldest first
+    DATE_DESC = "date ↓"  # newest first
+
+    def next(self) -> "SortMode":
+        order = (SortMode.RELEVANCE, SortMode.DATE_ASC, SortMode.DATE_DESC)
+        return order[(order.index(self) + 1) % len(order)]
+
+
+def _date_sort_key(result):
+    """The date a result sorts on: content date, else estimated date, else None
+    (undated). Mirrors what ``_date_cell`` displays and the
+    ``COALESCE(content_begin, estimated_begin)`` ordering used by the index."""
+    return result.content_date or result.estimated_date
+
+
+def sort_results(results: list, mode: SortMode) -> list:
+    """Return a new list of ``results`` ordered for ``mode``.
+
+    Relevance sorts ascending by bm25 ``score`` (more-negative = better); the
+    sort is stable so ties keep their incoming order. Both date modes key on
+    ``content_date or estimated_date`` with undated results pinned **last** in
+    either direction; equal dates keep ``isadg_id`` ascending (a stable
+    secondary sort, applied before the date sort)."""
+    if mode is SortMode.RELEVANCE:
+        return sorted(results, key=lambda r: r.score)
+
+    dated = sorted(
+        (r for r in results if _date_sort_key(r) is not None),
+        key=lambda r: r.isadg_id,
+    )
+    dated.sort(key=_date_sort_key, reverse=(mode is SortMode.DATE_DESC))
+    undated = sorted(
+        (r for r in results if _date_sort_key(r) is None),
+        key=lambda r: r.isadg_id,
+    )
+    return dated + undated
+
+
 class ResultsScreen(CountFooterMixin, DataTable):
     BINDINGS = [
         Binding("enter", "view_first_match", "view"),
         Binding("space", "toggle_item", "toggle"),
         Binding("a", "toggle_all", "all"),
+        Binding("d", "cycle_sort", "sort"),
         Binding("escape", "back", "back"),
     ]
 
@@ -42,9 +88,20 @@ class ResultsScreen(CountFooterMixin, DataTable):
         self.bundle = bundle
         self.results = results
         self.query = query
+        self.sort_mode = SortMode.RELEVANCE
 
     def on_mount(self) -> None:
         self.add_columns("Sel", "ID", "Date", "Reference", "Title")
+        self.results = sort_results(self.results, self.sort_mode)
+        self._populate()
+        self._update_title()
+        self._wire_count_footer()
+
+    def _populate(self) -> None:
+        """(Re)build every table row from ``self.results`` in its current order,
+        re-deriving each selection marker from the bundle so membership stays
+        correct after a re-sort. Leaves the cursor on the first row."""
+        self.clear()  # clears rows, keeps columns
         for r in self.results:
             in_bundle = r.isadg_id in self.bundle.selected_items
             self.add_row(
@@ -56,7 +113,11 @@ class ResultsScreen(CountFooterMixin, DataTable):
             )
         if self.results:
             self.move_cursor(row=0)
-        self._wire_count_footer()
+
+    def _update_title(self) -> None:
+        self.app.set_pane_title(  # type: ignore[attr-defined]
+            f"Search Results · sort: {self.sort_mode.value}"
+        )
 
     def action_view_first_match(self) -> None:
         if not self.results:
@@ -93,6 +154,19 @@ class ResultsScreen(CountFooterMixin, DataTable):
                 self.bundle.toggle_item(r.isadg_id, refs)
             self.update_cell_at((row, 0), _sel_cell(not all_selected))
         self.app.bundle_changed()  # type: ignore[attr-defined]
+
+    def action_cycle_sort(self) -> None:
+        if not self.results:
+            return
+        current_id = self.results[self.cursor_row].isadg_id
+        self.sort_mode = self.sort_mode.next()
+        self.results = sort_results(self.results, self.sort_mode)
+        self._populate()
+        for i, r in enumerate(self.results):
+            if r.isadg_id == current_id:
+                self.move_cursor(row=i)
+                break
+        self._update_title()
 
     def action_back(self) -> None:
         self.app.open_volumes()  # type: ignore[attr-defined]

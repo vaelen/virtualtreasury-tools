@@ -19,6 +19,7 @@ _BINDINGS = (
     ("space",    "page row, transcription",   "toggle page user state"),
     ("space",    "search result row",         "toggle item in selection"),
     ("a",        "page list, search results", "select or deselect all"),
+    ("d",        "search results",            "cycle sort order"),
     ("space",    "Bundle row",                "remove page or volume's pages"),
     ("esc",      "any",                       "back one level"),
     ("tab",      "any",                       "swap focus between panes"),

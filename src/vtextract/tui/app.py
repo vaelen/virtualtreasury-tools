@@ -388,6 +388,7 @@ class VtBrowseApp(App):
             results=self.last_results,
             query=self.last_query or "",
         )
+        # ResultsScreen.on_mount re-publishes this title with the sort-mode suffix
         self._mount_screen(screen, title="Search Results")
 
     def action_open_volumes(self) -> None:

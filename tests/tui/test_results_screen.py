@@ -20,6 +20,9 @@ class _Harness(App):
     def set_pane_count(self, _text):  # satisfies CountFooterMixin
         pass
 
+    def set_pane_title(self, _text):  # satisfies _update_title
+        pass
+
 
 @pytest.mark.asyncio
 async def test_results_catalog_falls_back_to_estimated_date():
@@ -71,6 +74,9 @@ class _ToggleHarness(App):
         yield ResultsScreen(bundle=self._bundle, results=self._results, query="")
 
     def set_pane_count(self, _text):  # satisfies CountFooterMixin
+        pass
+
+    def set_pane_title(self, _text):  # satisfies _update_title
         pass
 
     def bundle_changed(self):
