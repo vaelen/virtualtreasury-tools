@@ -74,3 +74,42 @@ def test_item_fts_does_not_include_dates(tmp_path):
         assert "estimated_begin" not in fts_cols
         assert "estimated_end" not in fts_cols
         assert "estimated_source" not in fts_cols
+
+
+def test_page_ordinal_lookup_uses_index_not_scan(tmp_path):
+    """page_at_ordinal must seek by (root_id, ordinal), not scan the volume.
+
+    This is the hot path behind vtbrowse left/right page navigation; without a
+    (root_id, ordinal) index it linearly scans every page in the volume.
+    """
+    with IndexDB(tmp_path / "index" / "vtindex.sqlite3") as db:
+        plan = " ".join(
+            str(r[3])
+            for r in db._conn.execute(
+                "EXPLAIN QUERY PLAN "
+                "SELECT * FROM page WHERE root_id=? AND ordinal=?",
+                ("vol", 1),
+            )
+        )
+    assert "ix_page_ordinal" in plan, plan
+    assert "SCAN" not in plan, plan
+
+
+def test_page_ordinal_index_created_in_place_on_reopen(tmp_path):
+    """A legacy index lacking ix_page_ordinal gets it back on next open.
+
+    No schema-version bump / rebuild required.
+    """
+    db_path = tmp_path / "index" / "vtindex.sqlite3"
+    with IndexDB(db_path) as db:
+        db._conn.execute("DROP INDEX ix_page_ordinal")
+        db._conn.commit()
+        assert not _has_index(db._conn, "ix_page_ordinal")
+    with IndexDB(db_path) as db:
+        assert _has_index(db._conn, "ix_page_ordinal")
+
+
+def _has_index(conn, name):
+    return conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?", (name,)
+    ).fetchone() is not None

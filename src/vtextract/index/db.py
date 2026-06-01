@@ -76,6 +76,7 @@ CREATE TABLE transcription_map (
     rowid INTEGER PRIMARY KEY, root_id TEXT, page_key TEXT
 );
 CREATE INDEX ix_item_page_page ON item_page (root_id, page_key);
+CREATE INDEX ix_page_ordinal ON page (root_id, ordinal);
 CREATE VIRTUAL TABLE item_fts USING fts5(title, description);
 CREATE VIRTUAL TABLE transcription_fts USING fts5(text);
 """
@@ -142,6 +143,13 @@ class IndexDB:
                 f"index schema version {version!r} != expected {SCHEMA_VERSION}; "
                 "run `vtindex build --rebuild`."
             )
+        # Backfill indexes that postdate the schema version on existing stores,
+        # so we can speed up the hot path (page navigation) without forcing a
+        # full rebuild. Adding an index is cheap and idempotent.
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS ix_page_ordinal ON page (root_id, ordinal)"
+        )
+        self._conn.commit()
 
     # --- meta ---
 
