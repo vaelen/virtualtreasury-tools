@@ -70,5 +70,5 @@ async def test_results_title_is_search_results(tmp_archive):
         await pilot.press("enter")
         await pilot.pause()
         pane = app.query_one(DocumentPane)
-        assert pane.border_title == "Search Results"
+        assert pane.border_title == "Search Results · sort: relevance"
         assert _COUNT.match(str(pane.border_subtitle or ""))

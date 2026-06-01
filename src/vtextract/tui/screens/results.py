@@ -87,9 +87,19 @@ class ResultsScreen(CountFooterMixin, DataTable):
         self.bundle = bundle
         self.results = results
         self.query = query
+        self.sort_mode = SortMode.RELEVANCE
 
     def on_mount(self) -> None:
         self.add_columns("Sel", "ID", "Date", "Reference", "Title")
+        self._populate()
+        self._update_title()
+        self._wire_count_footer()
+
+    def _populate(self) -> None:
+        """(Re)build every table row from ``self.results`` in its current order,
+        re-deriving each selection marker from the bundle so membership stays
+        correct after a re-sort. Leaves the cursor on the first row."""
+        self.clear()  # clears rows, keeps columns
         for r in self.results:
             in_bundle = r.isadg_id in self.bundle.selected_items
             self.add_row(
@@ -101,7 +111,11 @@ class ResultsScreen(CountFooterMixin, DataTable):
             )
         if self.results:
             self.move_cursor(row=0)
-        self._wire_count_footer()
+
+    def _update_title(self) -> None:
+        self.app.set_pane_title(  # type: ignore[attr-defined]
+            f"Search Results · sort: {self.sort_mode.value}"
+        )
 
     def action_view_first_match(self) -> None:
         if not self.results:
