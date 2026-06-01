@@ -1,143 +1,173 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
 # All rights reserved
 
-"""The single subprocess choke point for `vtindex`.
+"""In-process gateway to the archive index for the vtbrowse TUI.
 
-Nothing else in vtextract/tui/ may invoke vtindex — every consumer goes
-through `IndexClient`. The contract is the vtindex CLI's JSON output,
-not its Python API."""
+This is the ONLY place in vtextract/tui/ that holds an ``IndexService``. It runs
+the (synchronous) service on a dedicated single-thread executor so the Textual
+event loop stays responsive and the SQLite connection stays confined to one
+thread. Builds run on a worker thread with a queue-backed progress reporter and
+cooperative cancellation. Read methods return the service's typed DTOs.
+
+Per the architectural boundary (tests/test_no_direct_db.py) tui/ never imports
+vtextract.index.{db,query,builder}; it goes through vtextract.index.service.
+"""
 
 from __future__ import annotations
 
 import asyncio
-import json
+import threading
+import time
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any
 
-from vtextract.tui.progress_events import ProgressEvent, parse_event
+from vtextract.index.models import SearchQuery
+from vtextract.index.service import IndexService, IndexUnavailable
+from vtextract.tui.progress_events import (
+    DoneEvent,
+    ErrorEvent,
+    LogEvent,
+    ProgressEvent,
+    ProgressUpdate,
+    StartEvent,
+)
 
 
 class IndexError(RuntimeError):
-    """vtindex exited with a non-handled status (typically 2 = misconfig)."""
+    """The index is unavailable (missing or incompatible). Mirrors the old
+    subprocess exit-2 condition so callers (App._detect_index_state) are
+    unchanged."""
 
 
-@dataclass
+class _QueueBuildReporter:
+    """A ``builder.build()``-compatible reporter that turns build progress into
+    ``ProgressEvent``s, handed to a thread-safe ``emit`` callback (the build runs
+    on a worker thread, so ``emit`` marshals back onto the event loop)."""
+
+    def __init__(self, emit) -> None:
+        self._emit = emit
+        self._total = 0
+        self._current = 0
+        self._started = time.monotonic()
+
+    def start(self, total: int) -> None:
+        self._total = total
+        self._current = 0
+        self._emit(LogEvent(message=f"Indexing {total} files."))
+        self._emit(ProgressUpdate(phase="indexing", current=0, total=total))
+
+    def advance(self, n: int = 1) -> None:
+        self._current += n
+        self._emit(ProgressUpdate(phase="indexing", current=self._current,
+                                  total=self._total))
+
+    def finish(self, *, added: int, updated: int, removed: int,
+               unchanged: int, skipped: int) -> None:
+        self._emit(DoneEvent(
+            elapsed_seconds=round(time.monotonic() - self._started, 2),
+            counters={"added": added, "updated": updated, "removed": removed,
+                      "unchanged": unchanged, "skipped": skipped},
+        ))
+
+
 class IndexClient:
-    archive: Path
-    binary: str = "vtindex"
+    """In-process gateway holding an ``IndexService`` on a single executor thread."""
 
-    # ---------- one-shot JSON queries ----------
+    def __init__(self, archive: Path) -> None:
+        self.archive = Path(archive)
+        self._service: IndexService | None = None
+        self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="vtindex-read")
 
-    async def volumes(self) -> list[dict]:
-        return await self._json(["volumes"])
+    # ---------- read dispatch (single dedicated thread) ----------
+
+    def _run(self, fn):
+        try:
+            if self._service is None:
+                self._service = IndexService(self.archive)
+            return fn(self._service)
+        except IndexUnavailable as exc:
+            raise IndexError(str(exc)) from exc
+
+    async def _call(self, fn):
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(self._pool, self._run, fn)
+
+    async def volumes(self):
+        return await self._call(lambda s: s.volumes())
 
     async def search(self, *, query: str | None = None,
                      fields: tuple[str, ...] | None = None,
                      date_from: str | None = None, date_to: str | None = None,
                      date_type: str = "content", volume: str | None = None,
-                     limit: int = 50, offset: int = 0) -> list[dict]:
-        argv = ["search"]
-        if query:
-            argv.append(query)
-        if fields:
-            argv += ["--in", ",".join(fields)]
-        if date_from:
-            argv += ["--from", date_from]
-        if date_to:
-            argv += ["--to", date_to]
-        argv += ["--date-type", date_type]
-        if volume:
-            argv += ["--volume", volume]
-        argv += ["--limit", str(limit), "--offset", str(offset)]
-        return await self._json(argv, empty_on_exit_1=True) or []
-
-    async def page(self, root_id: str, page_key: str) -> dict | None:
-        return await self._json(["page", f"{root_id}/{page_key}"],
-                                empty_on_exit_1=True)
-
-    async def pages(self, root_id: str) -> list[dict]:
-        return await self._json(["pages", root_id], empty_on_exit_1=True) or []
-
-    async def item(self, isadg_id: int) -> dict | None:
-        return await self._json(["item", str(isadg_id)], empty_on_exit_1=True)
-
-    async def stats(self) -> dict:
-        return await self._json(["stats"])
-
-    # ---------- internal: one-shot subprocess + JSON parse ----------
-
-    async def _json(self, sub_argv: list[str], *,
-                    empty_on_exit_1: bool = False) -> Any:
-        argv = [self.binary, *sub_argv,
-                "--archive", str(self.archive), "--json"]
-        proc = await asyncio.create_subprocess_exec(
-            *argv, stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+                     limit: int = 50, offset: int = 0):
+        q = SearchQuery(
+            text=query or None,
+            fields=fields or ("title", "description", "transcription"),
+            date_from=date_from, date_to=date_to, date_type=date_type,
+            volume=volume, limit=limit, offset=offset,
         )
-        stdout, stderr = await proc.communicate()
-        rc = proc.returncode
-        if rc == 0:
-            text = stdout.decode().strip()
-            if not text:
-                return None
-            return json.loads(text)
-        if rc == 1 and empty_on_exit_1:
-            return None
-        raise IndexError(stderr.decode().strip() or f"vtindex exit {rc}")
+        return await self._call(lambda s: s.search(q))
 
-    # ---------- streaming build ----------
+    async def page(self, root_id: str, page_key: str):
+        return await self._call(lambda s: s.page(root_id, page_key))
+
+    async def pages(self, root_id: str):
+        return await self._call(lambda s: s.pages(root_id))
+
+    async def item(self, isadg_id: int):
+        return await self._call(lambda s: s.item(isadg_id))
+
+    async def stats(self):
+        return await self._call(lambda s: s.stats())
+
+    # ---------- lifecycle ----------
+
+    def _reset_service(self) -> None:
+        """Runs on the read thread: drop the service so the next read reopens it."""
+        if self._service is not None:
+            self._service.close()
+            self._service = None
+
+    def close(self) -> None:
+        self._pool.shutdown(wait=False)
+
+    # ---------- in-process build ----------
 
     async def build_stream(
         self, *, rebuild: bool = False,
         cancel_event: asyncio.Event | None = None,
     ) -> AsyncIterator[ProgressEvent]:
-        argv = [self.binary, "build", "--archive", str(self.archive),
-                "--json-progress"]
-        if rebuild:
-            argv.append("--rebuild")
-        proc = await asyncio.create_subprocess_exec(
-            *argv, stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        assert proc.stdout is not None
+        loop = asyncio.get_running_loop()
+        queue: asyncio.Queue = asyncio.Queue()
+        cancel = threading.Event()
+        sentinel = object()
+
+        def emit(ev: ProgressEvent) -> None:
+            loop.call_soon_threadsafe(queue.put_nowait, ev)
+
+        reporter = _QueueBuildReporter(emit)
+
+        def run_build() -> None:
+            emit(StartEvent(tool="vtindex build", argv=[]))
+            try:
+                IndexService.build(self.archive, rebuild=rebuild,
+                                   reporter=reporter, cancel=cancel)
+            except Exception as exc:  # noqa: BLE001 — surface as a stream event
+                emit(ErrorEvent(message=str(exc), exit_code=1))
+            finally:
+                loop.call_soon_threadsafe(queue.put_nowait, sentinel)
+
+        fut = loop.run_in_executor(None, run_build)
         try:
-            async for line in proc.stdout:
-                text = line.decode().strip()
-                if text:
-                    yield parse_event(text)
-                if cancel_event is not None and cancel_event.is_set():
+            while True:
+                ev = await queue.get()
+                if ev is sentinel:
                     break
+                yield ev
+                if cancel_event is not None and cancel_event.is_set():
+                    cancel.set()
         finally:
-            # GeneratorExit lands here when the consumer aclose()s us
-            # (e.g. ProgressModal cancel). SIGTERM the child, then SIGKILL
-            # after a 2-second grace period.
-            if proc.returncode is None:
-                try:
-                    proc.terminate()
-                except ProcessLookupError:
-                    pass
-                try:
-                    await asyncio.wait_for(proc.wait(), timeout=2.0)
-                except asyncio.TimeoutError:
-                    try:
-                        proc.kill()
-                    except ProcessLookupError:
-                        pass
-                    await proc.wait()
-            else:
-                await proc.wait()
-            rc = proc.returncode
-            # Only emit the synthetic error event on natural-EOF failures —
-            # cancellation (the consumer aclose'd us) and SIGTERM/SIGKILL
-            # exit codes should NOT yield, because yielding during
-            # GeneratorExit is a RuntimeError.
-            cancelled = bool(cancel_event and cancel_event.is_set())
-            terminated = rc is not None and rc < 0  # negative = killed by signal
-            if rc not in (0, 1) and not cancelled and not terminated:
-                stderr = (await proc.stderr.read()).decode() if proc.stderr else ""
-                yield parse_event(json.dumps({
-                    "event": "error", "message": stderr or f"exit {rc}",
-                    "exit_code": rc,
-                }))
+            cancel.set()
+            await fut
+            await loop.run_in_executor(self._pool, self._reset_service)
