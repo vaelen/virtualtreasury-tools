@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from enum import Enum
+
 from rich.text import Text
 from textual.binding import Binding
 from textual.widgets import DataTable
@@ -27,6 +29,49 @@ def _date_cell(result) -> str:
         return content
     estimated = result.estimated_date
     return f"[{estimated}]" if estimated else "-"
+
+
+class SortMode(Enum):
+    """The three result orderings the ``d`` key cycles through. The value is
+    the human label shown in the pane title."""
+
+    RELEVANCE = "relevance"
+    DATE_ASC = "date ↑"   # oldest first
+    DATE_DESC = "date ↓"  # newest first
+
+    def next(self) -> "SortMode":
+        order = (SortMode.RELEVANCE, SortMode.DATE_ASC, SortMode.DATE_DESC)
+        return order[(order.index(self) + 1) % len(order)]
+
+
+def _date_sort_key(result):
+    """The date a result sorts on: content date, else estimated date, else None
+    (undated). Mirrors what ``_date_cell`` displays and the
+    ``COALESCE(content_begin, estimated_begin)`` ordering used by the index."""
+    return result.content_date or result.estimated_date
+
+
+def sort_results(results: list, mode: SortMode) -> list:
+    """Return a new list of ``results`` ordered for ``mode``.
+
+    Relevance sorts ascending by bm25 ``score`` (more-negative = better); the
+    sort is stable so ties keep their incoming order. Both date modes key on
+    ``content_date or estimated_date`` with undated results pinned **last** in
+    either direction; equal dates keep ``isadg_id`` ascending (a stable
+    secondary sort, applied before the date sort)."""
+    if mode is SortMode.RELEVANCE:
+        return sorted(results, key=lambda r: r.score)
+
+    dated = sorted(
+        (r for r in results if _date_sort_key(r) is not None),
+        key=lambda r: r.isadg_id,
+    )
+    dated.sort(key=_date_sort_key, reverse=(mode is SortMode.DATE_DESC))
+    undated = sorted(
+        (r for r in results if _date_sort_key(r) is None),
+        key=lambda r: r.isadg_id,
+    )
+    return dated + undated
 
 
 class ResultsScreen(CountFooterMixin, DataTable):
