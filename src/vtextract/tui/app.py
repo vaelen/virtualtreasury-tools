@@ -140,20 +140,29 @@ class VtBrowseApp(App):
         self._splash = SplashScreen()
         self.push_screen(self._splash)
         start = time.monotonic()
-        state = await self._detect_index_state()
-        if state in ("missing", "stale"):
+        try:
+            state = await self._detect_index_state()
+            if state in ("missing", "stale"):
+                await self._dismiss_splash(start)
+                self.push_screen(
+                    IndexPromptDialog(
+                        state=state, archive=self.archive,
+                        index_path=self._index_path()),
+                    lambda ok, s=state: self._on_index_prompt_dismissed(ok, s),
+                )
+                return
+            self._splash.set_status("Loading volumes…")
+            self._finalize_startup(state)
             await self._dismiss_splash(start)
-            self.push_screen(
-                IndexPromptDialog(
-                    state=state, archive=self.archive,
-                    index_path=self._index_path()),
-                lambda ok, s=state: self._on_index_prompt_dismissed(ok, s),
-            )
-            return
-        self._splash.set_status("Loading volumes…")
-        self._finalize_startup(state)
-        await self._dismiss_splash(start)
-        self.call_after_refresh(self._focus_document_pane)
+            self.call_after_refresh(self._focus_document_pane)
+        except Exception:
+            # Never leave the modal splash stranded over a half-initialized
+            # app: dismiss it immediately (skipping the min-display wait) and
+            # let the error propagate. The guard makes a later dismiss a no-op.
+            if self._splash is not None:
+                self._splash.dismiss()
+                self._splash = None
+            raise
 
     async def _dismiss_splash(self, start: float) -> None:
         # Keep the splash up for at least SPLASH_MIN_SECONDS so a fast load
@@ -168,7 +177,9 @@ class VtBrowseApp(App):
     def _focus_document_pane(self) -> None:
         # After the modal splash pops, focus returns to nothing (the splash was
         # pushed before any screen was focused), so re-assert focus on the
-        # revealed document-pane child (the VolumesScreen).
+        # revealed document-pane child (the VolumesScreen). open_volumes already
+        # scheduled a focus call, but that one was shadowed while the splash
+        # modal owned focus, so this re-assert is what actually takes effect.
         children = self.query_one(DocumentPane).children
         if children:
             children[0].focus()
