@@ -100,6 +100,8 @@ class IndexService:
 
     @property
     def db(self) -> IndexDB:
+        # Lazily (re)open if a prior close() nulled the handle; reopen() relies
+        # on this so a closed service is transparently usable again.
         if self._db is None:
             self._open()
         assert self._db is not None
@@ -138,6 +140,10 @@ class IndexService:
         )
 
     def item(self, isadg_id: int) -> ItemDetail | None:
+        """Return an item's header + its page links. The page entries are
+        link-only (root_id/page_key/role); image/metadata/transcription are left
+        None to match the legacy item output — callers needing a page's files
+        should use ``page()`` / ``pages()``."""
         row = self.db.item(isadg_id)
         if row is None:
             return None
@@ -160,7 +166,7 @@ class IndexService:
         return IndexStats(
             items=counts["items"], volumes=counts["volumes"], pages=counts["pages"],
             schema_version=self.db.get_meta("schema_version"),
-            stale=_is_stale(self.db, self.archive),
+            stale=self.is_stale(),
         )
 
     # --- build (write path) ---

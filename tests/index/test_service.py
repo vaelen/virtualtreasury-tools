@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import pytest
 
 from vtextract.index.models import (
@@ -71,6 +72,8 @@ def test_item_returns_detail(built_archive):
     assert isinstance(item, ItemDetail)
     assert item.isadg_id == built_archive["isadg_id"]
     assert all(isinstance(p, PageEntry) and p.role for p in item.pages)
+    # item pages are link-only: file paths are intentionally not resolved.
+    assert all(p.transcription is None and p.image is None for p in item.pages)
 
 
 def test_item_unknown_returns_none(built_archive):
@@ -86,8 +89,12 @@ def test_stats(built_archive):
     assert stats.stale is False
 
 
+def test_is_stale_false_after_build(built_archive):
+    with IndexService(built_archive["path"]) as svc:
+        assert svc.is_stale() is False
+
+
 def test_build_then_reopen_reflects_new_item(built_archive):
-    import json
     archive = built_archive["path"]
     svc = IndexService(archive)
     try:
