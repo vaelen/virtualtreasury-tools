@@ -34,3 +34,24 @@ def test_splash_set_status_updates_line():
             assert "Loading volumes" in str(status.content)
 
     asyncio.run(runner())
+
+
+def test_splash_visible_on_startup(snap_compare, tmp_archive):
+    """The branded splash (title, subtitle, 'Opening index…' status) renders
+    centered over the main screen. on_mount is overridden to push the splash
+    and stop, so it stays up for a deterministic screenshot regardless of the
+    minimum-display timing."""
+    from vtextract.tui.app import VtBrowseApp
+    from vtextract.tui.dialogs.splash import SplashScreen
+
+    class _FrozenApp(VtBrowseApp):
+        async def on_mount(self) -> None:
+            if self._initial_theme in self.available_themes:
+                self.theme = self._initial_theme
+            self._splash = SplashScreen()
+            self.push_screen(self._splash)
+
+    async def before(pilot):
+        await pilot.pause()
+
+    assert snap_compare(_FrozenApp(archive=tmp_archive), run_before=before)
