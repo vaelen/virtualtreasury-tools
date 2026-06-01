@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from vtextract.tui.app import VtBrowseApp
+
 
 FIXTURE = Path(__file__).resolve().parent.parent / "fixtures" / "archive"
 
@@ -31,3 +33,14 @@ def tmp_archive(tmp_path) -> Path:
     )
     assert result.returncode == 0, result.stderr
     return archive
+
+
+@pytest.fixture(autouse=True)
+def _instant_splash(monkeypatch):
+    """Every full-app TUI test mounts the startup splash (a modal pushed first
+    in on_mount). With the production 0.5s minimum it would still be on top
+    when a test interacts or screenshots. Force a zero minimum so the splash is
+    pushed and dismissed within on_mount, leaving the main screen active and
+    existing baselines unchanged. The dedicated splash render test overrides
+    on_mount to keep the splash up regardless."""
+    monkeypatch.setattr(VtBrowseApp, "SPLASH_MIN_SECONDS", 0.0)
