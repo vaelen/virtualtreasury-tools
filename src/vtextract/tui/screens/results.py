@@ -79,6 +79,7 @@ class ResultsScreen(CountFooterMixin, DataTable):
         Binding("enter", "view_first_match", "view"),
         Binding("space", "toggle_item", "toggle"),
         Binding("a", "toggle_all", "all"),
+        Binding("d", "cycle_sort", "sort"),
         Binding("escape", "back", "back"),
     ]
 
@@ -91,6 +92,7 @@ class ResultsScreen(CountFooterMixin, DataTable):
 
     def on_mount(self) -> None:
         self.add_columns("Sel", "ID", "Date", "Reference", "Title")
+        self.results = sort_results(self.results, self.sort_mode)
         self._populate()
         self._update_title()
         self._wire_count_footer()
@@ -152,6 +154,19 @@ class ResultsScreen(CountFooterMixin, DataTable):
                 self.bundle.toggle_item(r.isadg_id, refs)
             self.update_cell_at((row, 0), _sel_cell(not all_selected))
         self.app.bundle_changed()  # type: ignore[attr-defined]
+
+    def action_cycle_sort(self) -> None:
+        if not self.results:
+            return
+        current_id = self.results[self.cursor_row].isadg_id
+        self.sort_mode = self.sort_mode.next()
+        self.results = sort_results(self.results, self.sort_mode)
+        self._populate()
+        for i, r in enumerate(self.results):
+            if r.isadg_id == current_id:
+                self.move_cursor(row=i)
+                break
+        self._update_title()
 
     def action_back(self) -> None:
         self.app.open_volumes()  # type: ignore[attr-defined]
