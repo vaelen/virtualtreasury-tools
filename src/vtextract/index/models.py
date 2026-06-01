@@ -143,7 +143,7 @@ class VolumeHeader:
 class PageNav:
     volume: VolumeHeader
     previous: PageEntry | None
-    current: PageEntry | None
+    current: PageEntry
     next: PageEntry | None
 
 

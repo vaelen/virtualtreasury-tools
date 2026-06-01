@@ -130,7 +130,9 @@ class IndexClient:
             self._service = None
 
     def close(self) -> None:
-        self._pool.shutdown(wait=False)
+        # Close the read connection on its owning thread, then drain the pool.
+        self._pool.submit(self._reset_service)
+        self._pool.shutdown(wait=True)
 
     # ---------- in-process build ----------
 
