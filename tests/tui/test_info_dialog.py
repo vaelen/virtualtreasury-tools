@@ -8,20 +8,21 @@ import pytest
 async def test_item_info_body_shows_all_three_dates():
     # The item info panel surfaces content, created and estimated dates (with
     # the estimate's source), so the user can see which date drove a match.
+    from vtextract.index.models import ItemDetail
     from vtextract.tui.bundle import Bundle
     from vtextract.tui.dialogs.info import ItemInfoDialog
 
     class _FakeIndex:
         async def item(self, isadg_id):
-            return {
-                "isadg_id": isadg_id, "title": "T", "reference_code": "R",
-                "repository": "Repo",
-                "content_begin": None, "content_end": None,
-                "created_begin": "1737-01-18", "created_end": "1737-01-18",
-                "estimated_begin": "1776-01-01", "estimated_end": "1793-12-31",
-                "estimated_source": "volume",
-                "pages": [],
-            }
+            return ItemDetail(
+                isadg_id=isadg_id, title="T", reference_code="R",
+                description=None, repository="Repo",
+                content_begin=None, content_end=None,
+                created_begin="1737-01-18", created_end="1737-01-18",
+                estimated_begin="1776-01-01", estimated_end="1793-12-31",
+                estimated_source="volume",
+                pages=[],
+            )
 
     dialog = ItemInfoDialog(index=_FakeIndex(), bundle=Bundle(), isadg_id=521)
     body = await dialog._body()

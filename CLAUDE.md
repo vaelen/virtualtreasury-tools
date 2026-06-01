@@ -82,21 +82,27 @@ under `uv run pytest`. `archive/`, `.venv/`, and `*.egg-info/` are gitignored;
   query), and the detail's `id` is the canonical isadgID.
 - `cli.py` — argparse wiring; `_make_transport()` is a test seam (returns
   `None` in prod; tests monkeypatch it to inject an `httpx.MockTransport`).
-- `index/` (subpackage) — the `vtindex` CLI. `db.py` is the **single SQL choke
+- `index/` (subpackage) — the `vtindex` CLI. `service.py` is the **single public
+  entry point** (the `IndexService` facade: long-lived read connection, typed
+  DTOs, build entry point); both the CLI and the TUI consume it and nothing
+  else touches the backend. `db.py` is the **single SQL choke
   point** (SQLite + FTS5; analogous to `client.py`). `reader.py` is pure
   archive-file parsing (analogous to `schema.py`). `builder.py` does an
   incremental, stat-fingerprint build (analogous to `fetcher.py`). `query.py`
-  composes a search from `db` primitives. `cli.py` wires `build`/`search`/
-  `volumes`/`stats`. Build progress reuses `progress.BuildReporter`.
+  composes a search from `db` primitives. `cli.py` is thin presentation over
+  `service.py` (Rich tables + `--json`). Build progress reuses
+  `progress.BuildReporter`.
 - `tui/` (subpackage) — the `vtbrowse` TUI. **Architectural boundary:** `tui/`
   never imports `vtextract.index.{db,query,builder}` or
-  `vtextract.{fetcher,client}` directly. Instead it shells out: `IndexClient`
-  wraps `vtindex` subprocess calls; `ExtractClient` wraps `vtextract` subprocess
-  calls; `ArchiveReader` does direct on-disk file reads. CI enforces this with
-  `tests/test_no_direct_db.py`. Module map:
+  `vtextract.{fetcher,client}` directly. Index access goes through the shared
+  `vtextract.index.service` library (in-process); extraction still shells out
+  via `ExtractClient`; `ArchiveReader` does direct on-disk file reads. CI
+  enforces this with `tests/test_no_direct_db.py`. Module map:
   - `bundle.py` — selection model (the curated page list + load/save/merge).
-  - `index_client.py` — subprocess wrapper for `vtindex` (`build`, `search`,
-    `page`, `volumes`).
+  - `index_client.py` — the sole holder of an in-process `IndexService`
+    (`vtextract.index.service`); runs reads on a dedicated single-thread
+    executor and builds on a worker thread, returning typed DTOs and yielding
+    progress events. No longer a subprocess wrapper.
   - `extract_client.py` — subprocess wrapper for `vtextract` (`search` with a
     single clause; triggers index rebuild on completion).
   - `archive_reader.py` — direct file reads (metadata, page JSON, image paths).

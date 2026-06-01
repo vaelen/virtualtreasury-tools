@@ -58,6 +58,15 @@ class VolumeRow:
 
 
 @dataclass
+class PageFiles:
+    """Absolute paths to a page's on-disk artefacts, or None when absent."""
+
+    image: str | None = None
+    metadata: str | None = None
+    transcription: str | None = None
+
+
+@dataclass
 class SearchQuery:
     text: str | None = None
     fields: tuple[str, ...] = ("title", "description", "transcription")
@@ -106,3 +115,75 @@ class BuildStats:
     def processed(self) -> int:
         """Source files looked at this build (excludes vanished/removed)."""
         return self.added + self.updated + self.unchanged + self.skipped
+
+
+@dataclass
+class PageEntry:
+    """A page as returned by the index service. Different call sites populate
+    different subsets: page-nav and page-list fill ordinal/label/files; matched
+    pages and item pages fill role. Field names mirror the legacy JSON keys."""
+
+    root_id: str
+    page_key: str
+    ordinal: int | None = None
+    label: str | None = None
+    image: str | None = None
+    metadata: str | None = None
+    transcription: str | None = None
+    role: str | None = None
+
+
+@dataclass
+class VolumeHeader:
+    root_id: str
+    title: str | None = None
+
+
+@dataclass
+class PageNav:
+    volume: VolumeHeader
+    previous: PageEntry | None
+    current: PageEntry
+    next: PageEntry | None
+
+
+@dataclass
+class SearchHit:
+    isadg_id: int
+    title: str
+    reference_code: str
+    repository: str | None
+    content_date: str | None
+    created_date: str | None
+    estimated_date: str | None
+    estimated_source: str | None
+    matched_fields: list[str]
+    matched_pages: list[PageEntry]
+    score: float
+    path: str
+
+
+@dataclass
+class ItemDetail:
+    isadg_id: int
+    reference_code: str | None
+    title: str | None
+    description: str | None
+    repository: str | None
+    content_begin: str | None
+    content_end: str | None
+    created_begin: str | None
+    created_end: str | None
+    estimated_begin: str | None
+    estimated_end: str | None
+    estimated_source: str | None
+    pages: list[PageEntry]
+
+
+@dataclass
+class IndexStats:
+    items: int
+    volumes: int
+    pages: int
+    schema_version: str | None
+    stale: bool

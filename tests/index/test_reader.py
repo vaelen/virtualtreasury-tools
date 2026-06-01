@@ -6,6 +6,7 @@ from pathlib import Path
 from vtextract.index.reader import (
     compose_description,
     date_bounds,
+    page_files,
     read_item,
     read_transcription,
     read_volume,
@@ -106,3 +107,24 @@ def test_read_volume_without_pages_yields_empty_list(tmp_path):
 def test_read_transcription_reads_text():
     text = read_transcription(FIXTURE / "pages" / "volA" / "volA_p1.jpg.txt")
     assert "John Houston of Dublin" in text
+
+
+def test_page_files_resolves_existing_and_absent(tmp_path):
+    page_dir = tmp_path / "pages" / "volA"
+    page_dir.mkdir(parents=True)
+    (page_dir / "volA_p1.jpg.txt").write_text("hello")
+    pf = page_files(tmp_path, "volA", "volA_p1.jpg")
+    assert pf.transcription == str((page_dir / "volA_p1.jpg.txt").resolve())
+    assert pf.image is None
+    assert pf.metadata is None
+
+
+def test_page_files_resolves_image_and_metadata(tmp_path):
+    page_dir = tmp_path / "pages" / "volA"
+    page_dir.mkdir(parents=True)
+    (page_dir / "volA_p1.jpg").write_text("img")
+    (page_dir / "volA_p1.jpg.json").write_text("{}")
+    pf = page_files(tmp_path, "volA", "volA_p1.jpg")
+    assert pf.image == str((page_dir / "volA_p1.jpg").resolve())
+    assert pf.metadata == str((page_dir / "volA_p1.jpg.json").resolve())
+    assert pf.transcription is None

@@ -30,8 +30,13 @@ def _candidates(archive: Path) -> list[tuple[str, str, Path]]:
     return out
 
 
-def build(archive, *, rebuild: bool = False, reporter=None) -> BuildStats:
-    """(Re)build the index from the archive. Incremental unless rebuild=True."""
+def build(archive, *, rebuild: bool = False, reporter=None, cancel=None) -> BuildStats:
+    """(Re)build the index from the archive. Incremental unless rebuild=True.
+
+    ``cancel`` is an optional object with ``is_set() -> bool`` (e.g.
+    threading.Event); when it becomes set the file loop stops early and the
+    prune step is skipped so a cancelled build never deletes unseen sources.
+    """
     archive = Path(archive)
     db = IndexDB(archive / INDEX_RELPATH, rebuild=rebuild)
     stats = BuildStats()
@@ -42,6 +47,8 @@ def build(archive, *, rebuild: bool = False, reporter=None) -> BuildStats:
         if reporter is not None:
             reporter.start(len(candidates))
         for kind, relpath, abspath in candidates:
+            if cancel is not None and cancel.is_set():
+                break
             seen.add(relpath)
             st = abspath.stat()
             fp = (st.st_mtime, st.st_size)
@@ -64,10 +71,12 @@ def build(archive, *, rebuild: bool = False, reporter=None) -> BuildStats:
                 stats.updated += 1
             if reporter is not None:
                 reporter.advance()
-        # prune vanished sources
-        for relpath in set(fingerprints) - seen:
-            db.delete_source(relpath)
-            stats.removed += 1
+        # prune vanished sources — skip entirely if cancelled, since `seen` is
+        # only partial and would otherwise delete sources we never looked at.
+        if cancel is None or not cancel.is_set():
+            for relpath in set(fingerprints) - seen:
+                db.delete_source(relpath)
+                stats.removed += 1
         db.set_meta("item_count", str(db.counts()["items"]))
         db.commit()
     finally:

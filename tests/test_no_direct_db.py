@@ -1,11 +1,12 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
 # All rights reserved
 
-"""Enforces the architectural boundary documented in
-docs/superpowers/specs/2026-05-29-vtbrowse-tui-design.md §Architectural
-boundaries: vtbrowse never imports the index DB / query / builder / fetcher /
-HTTP client. If you need data from those modules, go through index_client,
-extract_client, or archive_reader."""
+"""Enforces the architectural boundary from
+docs/superpowers/specs/2026-06-01-index-service-library-design.md: vtbrowse
+accesses the index ONLY through the shared library (vtextract.index.service /
+vtextract.index.models). It never imports the index backend (db / query /
+builder) or the network layer (fetcher / client) directly. The single holder of
+an IndexService is tui/index_client.py."""
 
 from __future__ import annotations
 
@@ -81,7 +82,8 @@ def test_tui_does_not_import_forbidden_modules():
                         f"from vtextract import {forbidden}"
                     )
     assert not offenders, (
-        "vtbrowse modules must go through index_client / extract_client / "
-        "archive_reader instead of importing these directly:\n  "
+        "vtbrowse modules must go through vtextract.index.service (and "
+        "index.models) instead of importing the index backend or network layer "
+        "directly:\n  "
         + "\n  ".join(offenders)
     )

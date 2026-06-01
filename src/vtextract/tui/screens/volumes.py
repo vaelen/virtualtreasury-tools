@@ -22,14 +22,14 @@ class VolumesScreen(CountFooterMixin, DataTable):
     async def on_mount(self) -> None:
         self.add_columns("Root ID", "Items", "Title", "Reference")
         for v in await self.index.volumes():
-            title = v.get("title") or v.get("label") or v["root_id"]
+            title = v.title or v.label or v.root_id
             self.add_row(
-                v["root_id"],
-                str(v["item_count"]),
+                v.root_id,
+                str(v.item_count),
                 title,
-                v.get("reference_code") or "-",
+                v.reference_code or "-",
             )
-            self._row_root_ids.append(v["root_id"])
+            self._row_root_ids.append(v.root_id)
             self._row_titles.append(title)
         if self._row_root_ids:
             self.move_cursor(row=0)

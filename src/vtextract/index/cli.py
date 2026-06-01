@@ -14,10 +14,8 @@ from rich.table import Table
 
 from vtextract.config import load_config
 from vtextract.theme import THEMES, Theme, add_theme_args as _add_theme_args, highlight_terms as _highlight_title
-from vtextract.index.builder import INDEX_RELPATH, build, is_stale
-from vtextract.index.db import Fts5Unavailable, IndexDB, SchemaMismatch
-from vtextract.index.models import SearchQuery
-from vtextract.index.query import search
+from vtextract.index.models import ItemDetail, PageEntry, SearchHit, SearchQuery
+from vtextract.index.service import IndexService, IndexUnavailable
 from vtextract.progress import BuildReporter
 
 _FIELD_CHOICES = ("title", "description", "transcription")
@@ -53,14 +51,55 @@ def _parse_fields(value: str | None) -> tuple[str, ...]:
     return fields
 
 
+def _page_files_dict(e: PageEntry) -> dict:
+    return {
+        "root_id": e.root_id,
+        "page_key": e.page_key,
+        "image": e.image,
+        "metadata": e.metadata,
+        "transcription": e.transcription,
+    }
 
-def _open_for_read(archive: Path) -> IndexDB:
-    db_path = archive / INDEX_RELPATH
-    if not db_path.exists():
-        raise FileNotFoundError(
-            f"no index at {db_path}; run `vtindex build --archive {archive}` first."
-        )
-    return IndexDB(db_path)
+
+def _result_dict(h: SearchHit) -> dict:
+    return {
+        "isadg_id": h.isadg_id,
+        "title": h.title,
+        "reference_code": h.reference_code,
+        "repository": h.repository,
+        "content_date": h.content_date,
+        "created_date": h.created_date,
+        "estimated_date": h.estimated_date,
+        "estimated_source": h.estimated_source,
+        "matched_fields": h.matched_fields,
+        "matched_pages": [{**_page_files_dict(p), "role": p.role} for p in h.matched_pages],
+        "score": h.score,
+        "path": h.path,
+    }
+
+
+def _page_nav_dict(e: PageEntry | None) -> dict | None:
+    if e is None:
+        return None
+    return {**_page_files_dict(e), "ordinal": e.ordinal, "label": e.label}
+
+
+def _item_dict(d: ItemDetail) -> dict:
+    return {
+        "isadg_id": d.isadg_id,
+        "reference_code": d.reference_code,
+        "title": d.title,
+        "description": d.description,
+        "repository": d.repository,
+        "content_begin": d.content_begin,
+        "content_end": d.content_end,
+        "created_begin": d.created_begin,
+        "created_end": d.created_end,
+        "estimated_begin": d.estimated_begin,
+        "estimated_end": d.estimated_end,
+        "estimated_source": d.estimated_source,
+        "pages": [{"root_id": p.root_id, "page_key": p.page_key, "role": p.role} for p in d.pages],
+    }
 
 
 def _cmd_build(args) -> int:
@@ -75,10 +114,10 @@ def _cmd_build(args) -> int:
     if args.json_progress:
         from vtextract.progress import JsonBuildReporter
         with JsonBuildReporter() as reporter:
-            stats = build(archive, rebuild=args.rebuild, reporter=reporter)
+            stats = IndexService.build(archive, rebuild=args.rebuild, reporter=reporter)
     else:
         with BuildReporter() as reporter:
-            stats = build(archive, rebuild=args.rebuild, reporter=reporter)
+            stats = IndexService.build(archive, rebuild=args.rebuild, reporter=reporter)
     if stats.skipped and (stats.added + stats.updated + stats.unchanged) == 0:
         print(
             f"error: indexed nothing; {stats.skipped} source file(s) were skipped "
@@ -101,13 +140,13 @@ def _cmd_search(args) -> int:
         limit=args.limit,
         offset=args.offset,
     )
-    with _open_for_read(archive) as db:
-        if is_stale(db, archive):
+    with IndexService(archive) as svc:
+        if svc.is_stale():
             print("warning: index is stale; run `vtindex build` to refresh.",
                   file=sys.stderr)
-        results = search(db, query)
+        results = svc.search(query)
     if args.json:
-        print(json.dumps([_result_dict(r, archive) for r in results], indent=2))
+        print(json.dumps([_result_dict(r) for r in results], indent=2))
     else:
         _print_results_table(results, theme=THEMES[args.theme], query=args.query)
     return 0 if results else 1
@@ -115,8 +154,8 @@ def _cmd_search(args) -> int:
 
 def _cmd_volumes(args) -> int:
     archive = _resolve_archive(args)
-    with _open_for_read(archive) as db:
-        vols = db.volumes()
+    with IndexService(archive) as svc:
+        vols = svc.volumes()
     data = [
         {"root_id": v.root_id, "label": v.label,
          "reference_code": v.reference_code, "item_count": v.item_count,
@@ -161,71 +200,21 @@ def _print_volumes_table(vols, *, theme: Theme) -> None:
 
 def _cmd_stats(args) -> int:
     archive = _resolve_archive(args)
-    with _open_for_read(archive) as db:
-        counts = db.counts()
-        stale = is_stale(db, archive)
-        data = {
-            "items": counts["items"],
-            "volumes": counts["volumes"],
-            "pages": counts["pages"],
-            "schema_version": db.get_meta("schema_version"),
-            "stale": stale,
-        }
+    with IndexService(archive) as svc:
+        s = svc.stats()
+    data = {
+        "items": s.items,
+        "volumes": s.volumes,
+        "pages": s.pages,
+        "schema_version": s.schema_version,
+        "stale": s.stale,
+    }
     if args.json:
         print(json.dumps(data, indent=2))
     else:
         for k, v in data.items():
             print(f"{k}: {v}")
     return 0
-
-
-def _page_file(page_dir: Path, name: str) -> str | None:
-    """Absolute path to a page file, or None if it isn't in the archive."""
-    path = page_dir / name
-    return str(path.resolve()) if path.exists() else None
-
-
-def _page_dict(archive: Path, root_id: str, page_key: str) -> dict:
-    # Page store layout (see archive.py): image is `{page_key}`, transcription
-    # is `{page_key}.txt`, annotations/metadata is `{page_key}.json`.
-    page_dir = archive / "pages" / root_id
-    return {
-        "root_id": root_id,
-        "page_key": page_key,
-        "image": _page_file(page_dir, page_key),
-        "metadata": _page_file(page_dir, f"{page_key}.json"),
-        "transcription": _page_file(page_dir, f"{page_key}.txt"),
-    }
-
-
-def _result_dict(r, archive: Path) -> dict:
-    return {
-        "isadg_id": r.isadg_id,
-        "title": r.title,
-        "reference_code": r.reference_code,
-        "repository": r.repository,
-        "content_date": r.content_date,
-        "created_date": r.created_date,
-        "estimated_date": r.estimated_date,
-        "estimated_source": r.estimated_source,
-        "matched_fields": r.matched_fields,
-        "matched_pages": [
-            {**_page_dict(archive, rt, pk), "role": role}
-            for rt, pk, role in r.matched_pages
-        ],
-        "score": r.score,
-        "path": r.path,
-    }
-
-
-def _page_nav_dict(archive: Path, row: dict | None) -> dict | None:
-    """Page navigation entry: file paths (_page_dict) plus ordinal and label."""
-    if row is None:
-        return None
-    d = _page_dict(archive, row["root_id"], row["page_key"])
-    d["ordinal"] = row["ordinal"]
-    d["label"] = row["label"]
-    return d
 
 
 def _cmd_page(args) -> int:
@@ -237,57 +226,47 @@ def _cmd_page(args) -> int:
         print("error: argument must be <root_id>/<page_key>", file=sys.stderr)
         return 2
     root_id, page_key = args.ref.split("/", 1)
-    with _open_for_read(archive) as db:
-        if is_stale(db, archive):
+    with IndexService(archive) as svc:
+        if svc.is_stale():
             print("warning: index is stale; run `vtindex build` to refresh.",
                   file=sys.stderr)
-        current = db.get_page(root_id, page_key)
-        if current is None:
-            if args.json:
-                print(json.dumps(None))
-            else:
-                print(f"page not found: {args.ref}")
-            return 1
-        ordinal = current["ordinal"]
-        if ordinal is None:
-            print("warning: page ordering unavailable (re-extract this volume to "
-                  "regenerate volume.json).", file=sys.stderr)
-            previous = nxt = None
+        nav = svc.page(root_id, page_key)
+    if nav is None:
+        if args.json:
+            print(json.dumps(None))
         else:
-            previous = db.page_at_ordinal(root_id, ordinal - 1)
-            nxt = db.page_at_ordinal(root_id, ordinal + 1)
-        volume = db.volume(root_id) or {"root_id": root_id, "title": None}
-    nav = {
-        "volume": {"root_id": root_id, "title": volume.get("title")},
-        "previous": _page_nav_dict(archive, previous),
-        "current": _page_nav_dict(archive, current),
-        "next": _page_nav_dict(archive, nxt),
+            print(f"page not found: {args.ref}")
+        return 1
+    if nav.current.ordinal is None:
+        print("warning: page ordering unavailable (re-extract this volume to "
+              "regenerate volume.json).", file=sys.stderr)
+    data = {
+        "volume": {"root_id": nav.volume.root_id, "title": nav.volume.title},
+        "previous": _page_nav_dict(nav.previous),
+        "current": _page_nav_dict(nav.current),
+        "next": _page_nav_dict(nav.next),
     }
     if args.json:
-        print(json.dumps(nav, indent=2))
+        print(json.dumps(data, indent=2))
     else:
-        _print_page_nav(nav, volume.get("title"), theme=THEMES[args.theme])
+        _print_page_nav(data, nav.volume.title, theme=THEMES[args.theme])
     return 0
 
 
 def _cmd_pages(args) -> int:
     archive = _resolve_archive(args)
-    with _open_for_read(archive) as db:
-        if is_stale(db, archive):
+    with IndexService(archive) as svc:
+        if svc.is_stale():
             print("warning: index is stale; run `vtindex build` to refresh.",
                   file=sys.stderr)
-        rows = db.pages(args.root_id)
+        rows = svc.pages(args.root_id)
     if not rows:
         if args.json:
             print(json.dumps([]))
         else:
             print(f"no pages for volume {args.root_id}")
         return 1
-    enriched = [
-        {**_page_dict(archive, args.root_id, r["page_key"]),
-         "ordinal": r["ordinal"], "label": r["label"]}
-        for r in rows
-    ]
+    enriched = [_page_nav_dict(p) for p in rows]
     if args.json:
         print(json.dumps(enriched, indent=2))
     else:
@@ -320,17 +299,18 @@ def _print_page_list(rows, *, theme: Theme) -> None:
 
 def _cmd_item(args) -> int:
     archive = _resolve_archive(args)
-    with _open_for_read(archive) as db:
-        if is_stale(db, archive):
+    with IndexService(archive) as svc:
+        if svc.is_stale():
             print("warning: index is stale; run `vtindex build` to refresh.",
                   file=sys.stderr)
-        item = db.item(args.isadg_id)
-    if item is None:
+        detail = svc.item(args.isadg_id)
+    if detail is None:
         if args.json:
             print(json.dumps(None))
         else:
             print(f"item not found: {args.isadg_id}")
         return 1
+    item = _item_dict(detail)
     if args.json:
         print(json.dumps(item, indent=2))
     else:
@@ -485,7 +465,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     try:
         return args.func(args)
-    except (FileNotFoundError, SchemaMismatch, Fts5Unavailable) as exc:
+    except (FileNotFoundError, IndexUnavailable) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     except sqlite3.OperationalError as exc:

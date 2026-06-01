@@ -4,6 +4,7 @@
 import pytest
 from textual.app import App
 
+from vtextract.index.models import PageEntry, SearchHit
 from vtextract.tui.bundle import Bundle, PageRef
 from vtextract.tui.screens.results import ResultsScreen
 
@@ -26,11 +27,15 @@ async def test_results_catalog_falls_back_to_estimated_date():
     # the estimated date marked with square brackets (the ISAD(G) convention
     # for a supplied/estimated date).
     results = [
-        {"isadg_id": 100, "content_date": "1737", "estimated_date": "1700/1799",
-         "reference_code": "R1", "title": "Has a content date"},
-        {"isadg_id": 521, "content_date": None,
-         "estimated_date": "1776-01-01/1793-12-31",
-         "reference_code": "", "title": "Estimated only"},
+        SearchHit(isadg_id=100, content_date="1737", estimated_date="1700/1799",
+                  reference_code="R1", title="Has a content date",
+                  repository=None, created_date=None, estimated_source=None,
+                  matched_fields=[], matched_pages=[], score=1.0, path="items/100"),
+        SearchHit(isadg_id=521, content_date=None,
+                  estimated_date="1776-01-01/1793-12-31",
+                  reference_code="", title="Estimated only",
+                  repository=None, created_date=None, estimated_source=None,
+                  matched_fields=[], matched_pages=[], score=1.0, path="items/521"),
     ]
     async with _Harness(results).run_test() as pilot:
         table = pilot.app.query_one(ResultsScreen)
@@ -73,12 +78,16 @@ class _ToggleHarness(App):
 
 
 _TOGGLE_RESULTS = [
-    {"isadg_id": 1, "content_date": "1700", "estimated_date": None,
-     "reference_code": "R1", "title": "One",
-     "matched_pages": [{"root_id": "V", "page_key": "p1"}]},
-    {"isadg_id": 2, "content_date": "1701", "estimated_date": None,
-     "reference_code": "R2", "title": "Two",
-     "matched_pages": [{"root_id": "V", "page_key": "p2"}]},
+    SearchHit(isadg_id=1, content_date="1700", estimated_date=None,
+              reference_code="R1", title="One",
+              repository=None, created_date=None, estimated_source=None,
+              matched_fields=[], score=1.0, path="items/1",
+              matched_pages=[PageEntry(root_id="V", page_key="p1")]),
+    SearchHit(isadg_id=2, content_date="1701", estimated_date=None,
+              reference_code="R2", title="Two",
+              repository=None, created_date=None, estimated_source=None,
+              matched_fields=[], score=1.0, path="items/2",
+              matched_pages=[PageEntry(root_id="V", page_key="p2")]),
 ]
 
 
