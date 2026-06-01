@@ -7,7 +7,12 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from vtextract.tui.screens.results import SortMode, sort_results
+import pytest
+from textual.app import App
+
+from vtextract.index.models import SearchHit
+from vtextract.tui.bundle import Bundle
+from vtextract.tui.screens.results import ResultsScreen, SortMode, sort_results
 
 
 def _hit(isadg_id, score, content_date=None, estimated_date=None):
@@ -84,14 +89,6 @@ def test_mode_labels_for_title():
     assert SortMode.RELEVANCE.value == "relevance"
     assert SortMode.DATE_ASC.value == "date ↑"
     assert SortMode.DATE_DESC.value == "date ↓"
-
-
-import pytest
-from textual.app import App
-
-from vtextract.index.models import SearchHit
-from vtextract.tui.bundle import Bundle
-from vtextract.tui.screens.results import ResultsScreen
 
 
 class _SortHarness(App):
