@@ -71,8 +71,10 @@ class VtBrowseApp(App):
         border: round $primary;
         background: $surface;
     }
-    /* The splash centers its title + status within the box. */
+    /* The splash centers its title + status within the box; the brand title
+       is bold so it reads as a heading above the subtitle and status. */
     #splash-dialog { content-align: center middle; text-align: center; }
+    #splash-title { text-style: bold; }
 
     /* The two date inputs share their row instead of the first filling it
        and pushing the second off-screen. */
