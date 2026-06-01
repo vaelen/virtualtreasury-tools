@@ -6,6 +6,7 @@ from pathlib import Path
 from vtextract.index.reader import (
     compose_description,
     date_bounds,
+    page_files,
     read_item,
     read_transcription,
     read_volume,
@@ -109,7 +110,6 @@ def test_read_transcription_reads_text():
 
 
 def test_page_files_resolves_existing_and_absent(tmp_path):
-    from vtextract.index.reader import page_files
     page_dir = tmp_path / "pages" / "volA"
     page_dir.mkdir(parents=True)
     (page_dir / "volA_p1.jpg.txt").write_text("hello")
@@ -120,7 +120,6 @@ def test_page_files_resolves_existing_and_absent(tmp_path):
 
 
 def test_page_files_resolves_image_and_metadata(tmp_path):
-    from vtextract.index.reader import page_files
     page_dir = tmp_path / "pages" / "volA"
     page_dir.mkdir(parents=True)
     (page_dir / "volA_p1.jpg").write_text("img")
