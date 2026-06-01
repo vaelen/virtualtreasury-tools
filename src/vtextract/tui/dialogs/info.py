@@ -82,8 +82,9 @@ class PageInfoDialog(_InfoBase):
             "Contributing items",
         ]
         for iid in contributing:
-            item = await self.index.item(iid) or {}
-            lines.append(f"  {iid}  {item.get('title', '')}")
+            item = await self.index.item(iid)
+            title = item.title if item else ""
+            lines.append(f"  {iid}  {title or ''}")
         lines += ["", f"Files on disk (under {archive_root.name}/)"]
         for label, path in files:
             if path is None:
@@ -105,17 +106,17 @@ class VolumeInfoDialog(_InfoBase):
         return "Volume info"
 
     async def _body(self) -> str:
-        vols = {v["root_id"]: v for v in await self.index.volumes()}
-        v = vols.get(self.root_id) or {}
+        vols = {v.root_id: v for v in await self.index.volumes()}
+        v = vols.get(self.root_id)
         pages = await self.index.pages(self.root_id)
         in_bundle = sum(1 for p in self.bundle.effective_pages()
                         if p.root_id == self.root_id)
         return "\n".join([
             f"Root ID      {self.root_id}",
-            f"Title        {v.get('title') or '-'}",
-            f"Reference    {v.get('reference_code') or '-'}",
-            f"Label        {v.get('label') or '-'}",
-            f"Items        {v.get('item_count', 0)}",
+            f"Title        {(v.title if v else None) or '-'}",
+            f"Reference    {(v.reference_code if v else None) or '-'}",
+            f"Label        {(v.label if v else None) or '-'}",
+            f"Items        {v.item_count if v else 0}",
             f"Pages        {len(pages)}",
             f"In bundle    {in_bundle} pages from this volume",
         ])
@@ -136,24 +137,24 @@ class ItemInfoDialog(_InfoBase):
         if item is None:
             return f"item {self.isadg_id} not found"
         pages_block = "\n".join(
-            f"  {p['role']:7s}  {p['root_id']}/{p['page_key']}"
-            for p in item.get("pages", [])
+            f"  {p.role:7s}  {p.root_id}/{p.page_key}"
+            for p in item.pages
         )
         in_bundle = self.isadg_id in self.bundle.selected_items
-        est = _fmt_range(item.get("estimated_begin"), item.get("estimated_end"))
-        source = item.get("estimated_source")
+        est = _fmt_range(item.estimated_begin, item.estimated_end)
+        source = item.estimated_source
         if est != "-" and source:
             est = f"{est} (from {source})"
         return "\n".join([
-            f"ISADG ID     {item['isadg_id']}",
-            f"Title        {item.get('title', '-')}",
-            f"Reference    {item.get('reference_code', '-')}",
-            f"Repository   {item.get('repository') or '-'}",
-            f"Content date {_fmt_range(item.get('content_begin'), item.get('content_end'))}",
-            f"Created date {_fmt_range(item.get('created_begin'), item.get('created_end'))}",
+            f"ISADG ID     {item.isadg_id}",
+            f"Title        {item.title or '-'}",
+            f"Reference    {item.reference_code or '-'}",
+            f"Repository   {item.repository or '-'}",
+            f"Content date {_fmt_range(item.content_begin, item.content_end)}",
+            f"Created date {_fmt_range(item.created_begin, item.created_end)}",
             f"Estimated    {est}",
             "",
-            f"Pages ({len(item.get('pages', []))})",
+            f"Pages ({len(item.pages)})",
             pages_block,
             "",
             f"In bundle    {'yes (item selected)' if in_bundle else 'no'}",

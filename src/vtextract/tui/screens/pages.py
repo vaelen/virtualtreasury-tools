@@ -24,7 +24,7 @@ class PagesScreen(CountFooterMixin, DataTable):
         self.index = index
         self.bundle = bundle
         self.root_id = root_id
-        self._pages: list[dict] = []
+        self._pages: list = []
 
     async def on_mount(self) -> None:
         self.add_columns("#", "Page key", "Txt", "Img", "Sel")
@@ -35,13 +35,13 @@ class PagesScreen(CountFooterMixin, DataTable):
             self.move_cursor(row=0)
         self._wire_count_footer()
 
-    def _add(self, p: dict) -> None:
-        ref = PageRef(self.root_id, p["page_key"])
+    def _add(self, p) -> None:
+        ref = PageRef(self.root_id, p.page_key)
         self.add_row(
-            str(p["ordinal"]),
-            p["page_key"],
-            "•" if p.get("transcription") else "",
-            "•" if p.get("image") else "",
+            str(p.ordinal),
+            p.page_key,
+            "•" if p.transcription else "",
+            "•" if p.image else "",
             "*" if self.bundle.is_in_bundle(ref) else "",
         )
 
@@ -49,13 +49,13 @@ class PagesScreen(CountFooterMixin, DataTable):
         if not self._pages:
             return
         p = self._pages[self.cursor_row]
-        self.app.open_transcription(self.root_id, p["page_key"])  # type: ignore[attr-defined]
+        self.app.open_transcription(self.root_id, p.page_key)  # type: ignore[attr-defined]
 
     def action_toggle_select(self) -> None:
         if not self._pages:
             return
         p = self._pages[self.cursor_row]
-        ref = PageRef(self.root_id, p["page_key"])
+        ref = PageRef(self.root_id, p.page_key)
         self.bundle.toggle_page(ref)
         self.app.bundle_changed()  # type: ignore[attr-defined]
         self.update_cell_at(
@@ -66,7 +66,7 @@ class PagesScreen(CountFooterMixin, DataTable):
     def action_toggle_all(self) -> None:
         if not self._pages:
             return
-        refs = [PageRef(self.root_id, p["page_key"]) for p in self._pages]
+        refs = [PageRef(self.root_id, p.page_key) for p in self._pages]
         all_selected = all(self.bundle.is_in_bundle(ref) for ref in refs)
         for row, ref in enumerate(refs):
             in_bundle = self.bundle.is_in_bundle(ref)
@@ -85,4 +85,4 @@ class PagesScreen(CountFooterMixin, DataTable):
         if not self._pages:
             return None
         p = self._pages[self.cursor_row]
-        return ("page", self.root_id, p["page_key"])
+        return ("page", self.root_id, p.page_key)

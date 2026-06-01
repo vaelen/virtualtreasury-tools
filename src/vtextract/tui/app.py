@@ -103,7 +103,7 @@ class VtBrowseApp(App):
         self._initial_theme = initial_theme
         self.index = IndexClient(archive)
         self.bundle = Bundle()
-        self.last_results: list[dict] = []
+        self.last_results: list = []
         self.last_query: str | None = None
         self.current_root_id: str | None = None
         self.current_volume_title: str | None = None
@@ -133,6 +133,9 @@ class VtBrowseApp(App):
             )
             return
         self._finalize_startup(state)
+
+    def on_unmount(self) -> None:
+        self.index.close()
 
     def _on_index_prompt_dismissed(
         self, ok: bool | None, state: Literal["missing", "stale"],
@@ -167,7 +170,7 @@ class VtBrowseApp(App):
             stats = await self.index.stats()
         except IndexError:
             return "missing"
-        return "stale" if stats.get("stale") else "ok"
+        return "stale" if stats.stale else "ok"
 
     def _show_no_index_screen(self) -> None:
         pane = self.query_one(DocumentPane)
@@ -185,7 +188,7 @@ class VtBrowseApp(App):
             stats = await self.index.stats()
         except IndexError:
             return
-        is_stale = bool(stats.get("stale"))
+        is_stale = bool(stats.stale)
         if is_stale != self._stale_chip_visible:
             self._stale_chip_visible = is_stale
             self._refresh_header_chip()

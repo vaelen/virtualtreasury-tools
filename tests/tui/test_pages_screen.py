@@ -4,6 +4,7 @@
 import pytest
 from textual.app import App
 
+from vtextract.index.models import PageEntry
 from vtextract.tui.bundle import Bundle, PageRef
 from vtextract.tui.screens.pages import PagesScreen
 
@@ -36,8 +37,8 @@ class _PagesHarness(App):
 
 
 _PAGES = [
-    {"ordinal": 1, "page_key": "p1", "transcription": True, "image": True},
-    {"ordinal": 2, "page_key": "p2", "transcription": False, "image": True},
+    PageEntry(root_id="V", page_key="p1", ordinal=1, transcription="text", image="img"),
+    PageEntry(root_id="V", page_key="p2", ordinal=2, transcription=None, image="img"),
 ]
 
 
