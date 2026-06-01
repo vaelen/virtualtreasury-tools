@@ -87,14 +87,16 @@ def test_stats(built_archive):
 
 
 def test_build_then_reopen_reflects_new_item(built_archive):
-    import shutil
+    import json
     archive = built_archive["path"]
     svc = IndexService(archive)
     try:
         before = svc.stats().items
+        # Add a genuinely new item (distinct isadgID) so the count grows.
+        data = json.loads((archive / "items" / "300" / "metadata.json").read_text())
+        data["isadgID"] = 400
         (archive / "items" / "400").mkdir()
-        shutil.copy(archive / "items" / "300" / "metadata.json",
-                    archive / "items" / "400" / "metadata.json")
+        (archive / "items" / "400" / "metadata.json").write_text(json.dumps(data))
         IndexService.build(archive)
         svc.reopen()
         assert svc.stats().items == before + 1
