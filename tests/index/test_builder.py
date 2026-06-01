@@ -181,3 +181,31 @@ def test_estimated_date_computed_even_when_metadata_dates_present(tmp_path):
     assert row["estimated_begin"] == "1689-01-01"
     assert row["estimated_end"] == "1689-12-31"
     assert row["estimated_source"] == "volume"
+
+
+def test_build_cancel_stops_and_does_not_prune(tmp_path):
+    import shutil
+    import threading
+    from pathlib import Path
+    from vtextract.index.builder import INDEX_RELPATH, build
+    from vtextract.index.db import IndexDB
+
+    FIXTURE = Path(__file__).resolve().parent.parent / "fixtures" / "archive"
+    archive = tmp_path / "archive"
+    shutil.copytree(FIXTURE, archive)
+
+    # Full build first so source_file fingerprints exist.
+    build(archive)
+
+    # Now a cancel that is already set: the loop should process nothing new and,
+    # crucially, must NOT prune the existing source_file rows.
+    cancel = threading.Event()
+    cancel.set()
+    build(archive, cancel=cancel)
+
+    db = IndexDB(archive / INDEX_RELPATH)
+    try:
+        remaining = db.counts()["source_files"]
+    finally:
+        db.close()
+    assert remaining > 0, "cancelled build must not prune existing sources"
