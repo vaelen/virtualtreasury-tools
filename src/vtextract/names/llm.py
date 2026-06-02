@@ -54,6 +54,14 @@ Respond with JSON only, no prose, in exactly this form:
 {"people": [{"canonical": "...", "confidence": "low|medium|high", "aliases": [{"text": "...", "confidence": "low|medium|high"}]}]}
 """
 
+# Rate-limit handling: providers cap output tokens/requests per minute, so a
+# 429 needs a much longer, dedicated backoff than a transient transport blip.
+_RATE_LIMIT_BASE_DELAY = 5.0   # seconds; first wait when no Retry-After header
+_RATE_LIMIT_MAX_DELAY = 60.0   # cap per wait (per-minute windows reset by then)
+_RATE_LIMIT_RETRIES = 6        # extra attempts reserved for rate limits
+_RATE_LIMIT_HINTS = ("rate limit", "rate_limit", "too many requests",
+                     "tokens per minute", "requests per minute", "429")
+
 _CONNECTION_HINTS = ("connection", "refused", "max retries", "failed to connect",
                      "timed out", "timeout", "cannot connect", "connection error")
 _NOT_FOUND_HINTS = ("not found", "404", "try pulling", "no such model",
@@ -71,6 +79,10 @@ def friendly_error(exc: Exception, model: str, api_base: str | None) -> str:
     if isinstance(exc, (json.JSONDecodeError, ValidationError)) or "expecting value" in text:
         return (f"Model '{model}' did not return valid JSON in the required "
                 f"format, even after a retry. Try a different model.")
+    if _is_rate_limit(exc):
+        return (f"Hit the provider's rate limit for model '{model}', even after "
+                f"backing off and retrying. Slow down (fewer --workers) or wait "
+                f"and re-run; the page is left unwritten so it retries next run.")
     if any(h in text for h in _NOT_FOUND_HINTS):
         if is_ollama:
             return (f"Model '{model}' is not available locally. "
@@ -130,19 +142,61 @@ def _parse(content: str) -> list[Person]:
     return NameResponse.model_validate(_loads_lenient(content)).people
 
 
-def _complete(kwargs: dict, *, max_retries: int = 2) -> str:
-    last_exc: Exception | None = None
-    for attempt in range(max_retries + 1):
+def _is_rate_limit(exc: Exception) -> bool:
+    """True if exc is a provider rate-limit (429), typed or message-only."""
+    if isinstance(exc, litellm.RateLimitError):
+        return True
+    if getattr(exc, "status_code", None) == 429:
+        return True
+    return any(h in str(exc).lower() for h in _RATE_LIMIT_HINTS)
+
+
+def _retry_after_seconds(exc: Exception) -> float | None:
+    """Honor a numeric Retry-After header on a rate-limit response, if present."""
+    response = getattr(exc, "response", None)
+    headers = getattr(response, "headers", None)
+    if not headers:
+        return None
+    value = headers.get("retry-after")
+    if not value:
+        return None
+    try:
+        return float(value)  # delta-seconds form; HTTP-date form is ignored
+    except (TypeError, ValueError):
+        return None
+
+
+def _complete(kwargs: dict, *, max_retries: int = 2,
+              rate_limit_retries: int = _RATE_LIMIT_RETRIES) -> str:
+    """Call the model, retrying on transient errors.
+
+    Rate limits (429) get their own generous budget: we wait the server's
+    Retry-After if given, else an exponential backoff from
+    ``_RATE_LIMIT_BASE_DELAY`` up to ``_RATE_LIMIT_MAX_DELAY``. Other transport
+    errors keep the short ``2 ** attempt`` backoff. The two budgets are
+    independent so a slow rate-limit recovery never burns the transport retries.
+    """
+    attempt = 0
+    rl_attempt = 0
+    while True:
         try:
             response = litellm.completion(**kwargs)
             return response["choices"][0]["message"]["content"]
         except Exception as exc:  # transport / API error
-            last_exc = exc
-            if attempt < max_retries:
-                time.sleep(2 ** attempt)
+            if _is_rate_limit(exc):
+                if rl_attempt >= rate_limit_retries:
+                    raise
+                delay = _retry_after_seconds(exc)
+                if delay is None:
+                    delay = min(_RATE_LIMIT_BASE_DELAY * (2 ** rl_attempt),
+                                _RATE_LIMIT_MAX_DELAY)
+                rl_attempt += 1
+                time.sleep(delay)
             else:
-                raise
-    raise last_exc  # pragma: no cover
+                if attempt >= max_retries:
+                    raise
+                time.sleep(2 ** attempt)
+                attempt += 1
 
 
 def find_people(chunk_text: str, model: str, api_base: str | None = None) -> list[Person]:
