@@ -42,6 +42,10 @@ each invocation, so prefer it over activating the venv manually.
   already-archived resources and backfills missing transcriptions; with
   `--images` it also HEAD-verifies image sizes against disk and re-downloads
   mismatches. The full-archive `refresh` confirms first (`-y` to skip).
+  A `names` command (`vtextract names [refcodes/ids...] [--archive PATH]
+  [--model M] [--force]`) runs an LLM over page transcriptions to extract people
+  into `.names.json` sidecars; config is `[names]` in `~/.vt/vt.toml`. Then
+  `vtindex build` ingests them and `vtindex people "<name>"` searches.
 - **Index CLI:** `.venv/bin/vtindex build --archive ./archive` then
   `.venv/bin/vtindex search "<keyword>" --archive ./archive [--json]`, or
   `.venv/bin/vtindex page <rootID>/<page_key> --archive ./archive` for
@@ -92,6 +96,14 @@ under `uv run pytest`. `archive/`, `.venv/`, and `*.egg-info/` are gitignored;
   composes a search from `db` primitives. `cli.py` is thin presentation over
   `service.py` (Rich tables + `--json`). Build progress reuses
   `progress.BuildReporter`.
+- `names/` (subpackage) — the `vtextract names` person-NER pass. **The only LLM
+  call boundary** (LiteLLM via `names/llm.py`, analogous to `client.py` for
+  HTTP). `extractor.py` walks `archive/pages/**/*.jpg.txt`, extracts people once
+  per page (canonical name + aliases, within-page coreference + abbreviation
+  expansion), and writes durable `{page_key}.names.json` sidecars (resumable;
+  `--force` re-extracts). `chunking.py`/`merge.py`/`models.py` are pure helpers.
+  The sidecars are the precious source data; `vtindex build` ingests them into
+  the `person`/`person_alias` tables and `vtindex people "<name>"` searches them.
 - `tui/` (subpackage) — the `vtbrowse` TUI. **Architectural boundary:** `tui/`
   never imports `vtextract.index.{db,query,builder}` or
   `vtextract.{fetcher,client}` directly. Index access goes through the shared

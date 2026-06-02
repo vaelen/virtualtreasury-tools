@@ -44,3 +44,9 @@ improvement to consider.
 - [x] **Validate CLI numeric args.** `--page-size` accepts values `< 1` and
   `--context-pages` accepts negatives (the latter degrades gracefully to 0).
   Consider rejecting nonsensical values at parse time.
+
+## Person-NER follow-ups
+- vtbrowse (TUI) person-search pane over the index.
+- Cross-page coreference (global identity resolution across the archive).
+- Optional per-alias context snippets in sidecars for richer auditing.
+- Places / organisations extraction (schema + command generalise).
