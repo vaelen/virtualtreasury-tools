@@ -209,3 +209,20 @@ def test_build_cancel_stops_and_does_not_prune(tmp_path):
     finally:
         db.close()
     assert remaining > 0, "cancelled build must not prune existing sources"
+
+
+def test_build_ingests_names_sidecar(tmp_path):
+    from vtextract.index.builder import build, INDEX_RELPATH
+    from vtextract.index.db import IndexDB
+    pages = tmp_path / "pages" / "100"
+    pages.mkdir(parents=True)
+    (pages / "a.jpg.txt").write_text("Wm Young paid the toll.")
+    (pages / "a.jpg.names.json").write_text(
+        '{"schema":1,"model":"m","people":[{"canonical":"William Young",'
+        '"confidence":"high","aliases":[{"text":"Wm Young","confidence":"high"}]}]}'
+    )
+    stats = build(tmp_path)
+    assert stats.added >= 1
+    db = IndexDB(tmp_path / INDEX_RELPATH)
+    assert db.person_fts_search("Young")[0]["canonical"] == "William Young"
+    db.close()

@@ -9,7 +9,7 @@ from pathlib import Path
 from vtextract.index.dates import parse_year_range
 from vtextract.index.db import IndexDB
 from vtextract.index.models import BuildStats, ItemRow
-from vtextract.index.reader import read_item, read_transcription, read_volume
+from vtextract.index.reader import read_item, read_names, read_transcription, read_volume
 
 INDEX_RELPATH = Path("index") / "vtindex.sqlite3"
 
@@ -27,6 +27,8 @@ def _candidates(archive: Path) -> list[tuple[str, str, Path]]:
             out.append(("volume", f"pages/{vol.parent.name}/volume.json", vol))
         for txt in sorted(pages_dir.glob("*/*.jpg.txt")):
             out.append(("transcription", f"pages/{txt.parent.name}/{txt.name}", txt))
+        for side in sorted(pages_dir.glob("*/*.jpg.names.json")):
+            out.append(("names", f"pages/{side.parent.name}/{side.name}", side))
     return out
 
 
@@ -116,6 +118,10 @@ def _index_one(
         root_id = abspath.parent.name
         page_key = abspath.name[: -len(".txt")]  # strip .txt; page_key keeps .jpg
         db.upsert_transcription(root_id, page_key, read_transcription(abspath), fingerprint=fp)
+    elif kind == "names":
+        root_id = abspath.parent.name
+        page_key = abspath.name[: -len(".names.json")]  # page_key keeps .jpg
+        db.upsert_names(root_id, page_key, read_names(abspath), fingerprint=fp)
 
 
 def _populate_estimated_date(item: ItemRow, archive: Path) -> None:
