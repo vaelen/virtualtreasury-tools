@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Callable
@@ -83,23 +84,45 @@ def _write_sidecar_atomic(path: Path, model: str, people: list[Person]) -> None:
     os.replace(tmp, path)
 
 
+def _log_failure(
+    progress: Progress | None, txt_path: Path, exc: Exception | None,
+    model: str, api_base: str | None,
+) -> None:
+    """Report a per-page extraction failure to stderr.
+
+    Uses llm.friendly_error to classify the cause (connection, auth, bad
+    JSON, ...) so transient failures left for a later retry are diagnosable.
+    """
+    page = f"{txt_path.parent.name}/{txt_path.name[: -len(_TXT_SUFFIX)]}"
+    reason = llm_module.friendly_error(exc, model, api_base) if exc else "unknown error"
+    message = f"names: failed {page}: {reason}"
+    if progress is not None:
+        # print above the live progress bar instead of corrupting it
+        progress.console.print(message)
+    else:
+        print(message, file=sys.stderr)
+
+
 def _extract_one(
     txt_path: Path, *, model: str, api_base: str | None,
     chunk_size: int, overlap: int, find: FindFn,
 ) -> list[Person]:
-    """Extract people for one page. Raises if every chunk failed."""
+    """Extract people for one page.
+
+    Raises if *any* chunk fails: a page is all-or-nothing. Writing a sidecar
+    from a subset of chunks would silently drop the names in the failed
+    chunk(s) and mark the page done, so it would never be reprocessed.
+    """
     text = txt_path.read_text()
     groups: list[list[Person]] = []
-    errors = 0
-    successes = 0
-    for window, _offset in chunk_text(text, chunk_size, overlap):
+    chunks = chunk_text(text, chunk_size, overlap)
+    for index, (window, _offset) in enumerate(chunks):
         try:
             groups.append(find(window, model, api_base))
-            successes += 1
-        except Exception:
-            errors += 1
-    if successes == 0 and errors > 0:
-        raise RuntimeError(f"all {errors} chunk(s) failed for {txt_path}")
+        except Exception as exc:
+            raise RuntimeError(
+                f"chunk {index + 1}/{len(chunks)} failed for {txt_path}: {exc}"
+            ) from exc
     return merge_people(groups)
 
 
@@ -136,21 +159,23 @@ def extract(
             continue
         todo.append((page_key, txt))
 
-    def work(txt: Path) -> tuple[Path, list[Person] | None]:
+    def work(txt: Path) -> tuple[Path, list[Person] | None, Exception | None]:
         try:
-            return txt, _extract_one(
+            people = _extract_one(
                 txt, model=model, api_base=api_base,
                 chunk_size=chunk_size, overlap=overlap, find=find)
-        except Exception:
-            return txt, None
+            return txt, people, None
+        except Exception as exc:
+            return txt, None, exc
 
     def run(progress: Progress | None, task_id) -> None:
         with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
             futures = [ex.submit(work, txt) for _key, txt in todo]
             for fut in as_completed(futures):
-                txt, people = fut.result()
+                txt, people, exc = fut.result()
                 if people is None:
                     stats.failed += 1
+                    _log_failure(progress, txt, exc, model, api_base)
                 else:
                     _write_sidecar_atomic(sidecar_for(txt), model, people)
                     stats.extracted += 1

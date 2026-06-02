@@ -79,6 +79,39 @@ def test_extract_failure_leaves_no_sidecar(tmp_path):
     assert not (archive / "pages" / "100" / "a.jpg.names.json").exists()
 
 
+def test_extract_failure_logs_reason_to_stderr(tmp_path, capsys):
+    archive = _make_archive(tmp_path)
+
+    def boom(chunk_text, model, api_base=None):
+        raise RuntimeError("model down")
+
+    stats = extract(archive, model="m", find=boom, show_progress=False)
+    assert stats.failed == 2
+    err = capsys.readouterr().err
+    # each failed page is named, with the underlying reason surfaced
+    assert "a.jpg" in err and "b.jpg" in err
+    assert "model down" in err
+
+
+def test_extract_partial_chunk_failure_fails_whole_page(tmp_path):
+    # A page that splits into >1 chunk where one chunk's call fails must NOT
+    # write a degraded sidecar, or the page looks done and never gets retried.
+    archive = tmp_path
+    pages = archive / "pages" / "100"
+    pages.mkdir(parents=True)
+    (pages / "long.jpg.txt").write_text("AAAA BBBB")  # two chunks at chunk_size=5
+
+    def find(chunk_text, model, api_base=None):
+        if "BBBB" in chunk_text:
+            raise RuntimeError("chunk down")
+        return [Person(canonical="A A")]
+
+    stats = extract(archive, model="m", find=find, chunk_size=5, overlap=0,
+                    show_progress=False)
+    assert stats.failed == 1 and stats.extracted == 0
+    assert not (pages / "long.jpg.names.json").exists()
+
+
 def test_extract_scope_limits_pages(tmp_path):
     archive = _make_archive(tmp_path)
     stats = extract(archive, model="m", find=_fake_find_factory({}),
