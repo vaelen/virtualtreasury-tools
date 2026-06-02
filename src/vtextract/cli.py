@@ -13,7 +13,7 @@ import httpx
 
 from vtextract.archive import Archive
 from vtextract.client import Client
-from vtextract.config import default_config_path, load_config, make_token, set_token
+from vtextract.config import Config, default_config_path, load_config, make_token, set_token
 from vtextract.fetcher import fetch_resource
 from vtextract.models import BOOST_FOR_FIELD, FIELD_MAP, OPERANDS, Filter, SearchCriteria
 from vtextract.names import extractor as names_extractor
@@ -524,12 +524,45 @@ def _run_refresh(argv: list[str]) -> int:
     return 1 if failed else 0
 
 
+def _peek_config_path(argv: list[str]) -> Path | None:
+    """Resolve --config from argv before argparse runs (so -h can show the
+    configured model). Supports both `--config X` and `--config=X`."""
+    for i, arg in enumerate(argv):
+        if arg == "--config" and i + 1 < len(argv):
+            return Path(argv[i + 1])
+        if arg.startswith("--config="):
+            return Path(arg.split("=", 1)[1])
+    return None
+
+
+def _names_epilog(config: Config) -> str:
+    n = config.names.workers
+    workers = f"{n} worker{'' if n == 1 else 's'}"
+    return f"""\
+configured model: {config.names.model} ({workers})
+
+The model is any LiteLLM identifier. Set it in the [names] section of
+~/.vt/vt.toml, or override it per run with --model / -w:
+  [names]
+  model = "ollama/llama3.1"
+  workers = 4
+
+example models:
+  --model ollama/llama3.1               # local Ollama (no API key)
+  --model anthropic/claude-haiku-4-5    # Anthropic Haiku (ANTHROPIC_API_KEY)
+  --model openai/gpt-4o-mini            # OpenAI (OPENAI_API_KEY)
+"""
+
+
 def _run_names(argv: list[str]) -> int:
+    config = load_config(_peek_config_path(argv))
     parser = argparse.ArgumentParser(
         prog="vtextract names",
         description="Extract people from page transcriptions into per-page "
         "'.names.json' sidecars using an LLM. Resumable: skips pages that "
         "already have a sidecar (use --force to re-extract).",
+        epilog=_names_epilog(config),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "identifiers", nargs="*",
@@ -545,7 +578,6 @@ def _run_names(argv: list[str]) -> int:
                         help="Re-extract and overwrite existing sidecars.")
     args = parser.parse_args(argv)
 
-    config = load_config(Path(args.config) if args.config else None)
     archive = Path(args.archive) if args.archive else config.archive
     if not (archive / "pages").is_dir():
         print(f"no pages to process in {archive}", file=sys.stderr)

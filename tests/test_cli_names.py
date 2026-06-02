@@ -78,6 +78,38 @@ def test_names_command_scopes_to_identifier_pages(tmp_path, monkeypatch):
     assert not (pages / "p2.jpg.names.json").exists()
 
 
+def test_names_help_epilog_shows_config_and_examples(tmp_path, capsys):
+    cfg = tmp_path / "vt.toml"
+    cfg.write_text('[names]\nmodel = "test/model"\nworkers = 4\n')
+    with pytest.raises(SystemExit) as exc:
+        cli.run(["names", "--config", str(cfg), "-h"])
+    assert exc.value.code == 0
+    out = capsys.readouterr().out
+    # Reflects the configured model and worker count.
+    assert "test/model" in out
+    assert "4 workers" in out  # pluralized
+    # Explains where/how to set the model.
+    assert "[names]" in out
+    assert "vt.toml" in out
+    # Example models: a local llama, Anthropic Haiku, an OpenAI model.
+    assert "llama3.1" in out
+    assert "haiku" in out
+    assert "openai/" in out
+
+
+def test_names_help_epilog_defaults_without_config(tmp_path, capsys):
+    """With no [names] config, the epilog shows the built-in default model."""
+    cfg = tmp_path / "vt.toml"
+    cfg.write_text("")
+    with pytest.raises(SystemExit) as exc:
+        cli.run(["names", "--config", str(cfg), "-h"])
+    assert exc.value.code == 0
+    out = capsys.readouterr().out
+    assert "ollama/llama3.1" in out
+    assert "1 worker" in out
+    assert "1 workers" not in out  # singular, not pluralized
+
+
 def test_names_command_no_pages_returns_zero(tmp_path, monkeypatch):
     archive = tmp_path
     (archive / "pages").mkdir()
