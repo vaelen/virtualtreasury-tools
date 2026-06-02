@@ -25,6 +25,16 @@ class PersonRow:
 
 
 @dataclass
+class PersonHit:
+    canonical: str
+    confidence: str
+    root_id: str
+    page_key: str
+    items: list[int]   # isadg_ids referencing this page
+    score: float
+
+
+@dataclass
 class ItemRow:
     """A catalogued resource, flattened for indexing."""
 

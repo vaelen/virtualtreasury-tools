@@ -23,11 +23,13 @@ from vtextract.index.models import (
     ItemDetail,
     PageEntry,
     PageNav,
+    PersonHit,
     SearchHit,
     SearchQuery,
     VolumeHeader,
     VolumeInfo,
 )
+from vtextract.index.people import people_search as _people_search
 from vtextract.index.query import search as _query_search
 from vtextract.index.reader import page_files
 
@@ -114,6 +116,9 @@ class IndexService:
 
     def search(self, q: SearchQuery) -> list[SearchHit]:
         return [_hit_from_result(self.archive, r) for r in _query_search(self.db, q)]
+
+    def people(self, name: str, *, confidence: str | None = None) -> list[PersonHit]:
+        return _people_search(self.db, name, confidence=confidence)
 
     def volumes(self) -> list[VolumeInfo]:
         return self.db.volumes()

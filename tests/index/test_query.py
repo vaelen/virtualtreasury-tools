@@ -158,3 +158,45 @@ def test_search_result_carries_estimated_date_from_volume_title(tmp_path):
     r300 = next(r for r in results if r.isadg_id == 300)
     assert r300.estimated_date == "1689-01-01/1689-12-31"
     assert r300.estimated_source == "volume"
+
+
+def _people_db(tmp_path):
+    from vtextract.index.db import IndexDB
+    from vtextract.index.models import PersonRow
+    db = IndexDB(tmp_path / "i.sqlite3", rebuild=True)
+    # two people on one page; link the page to an item
+    db.upsert_names("100", "a.jpg",
+                    [PersonRow("William Young", "high", [("Wm Young", "high")]),
+                     PersonRow("Thomas Young", "low")],
+                    fingerprint=("pages/100/a.jpg.names.json", 1.0, 10))
+    db._conn.execute(
+        "INSERT INTO item_page (isadg_id, root_id, page_key, role) VALUES (?, ?, ?, ?)",
+        (42, "100", "a.jpg", "primary"))
+    db.commit()
+    return db
+
+
+def test_people_search_maps_to_items(tmp_path):
+    from vtextract.index.people import people_search
+    db = _people_db(tmp_path)
+    hits = people_search(db, "Young", confidence=None)
+    canon = {h.canonical: h for h in hits}
+    assert set(canon) == {"William Young", "Thomas Young"}
+    assert canon["William Young"].items == [42]
+    assert (canon["William Young"].root_id, canon["William Young"].page_key) == ("100", "a.jpg")
+    db.close()
+
+
+def test_people_search_confidence_filter(tmp_path):
+    from vtextract.index.people import people_search
+    db = _people_db(tmp_path)
+    hits = people_search(db, "Young", confidence="medium")
+    assert {h.canonical for h in hits} == {"William Young"}  # low-confidence dropped
+    db.close()
+
+
+def test_people_search_empty_query(tmp_path):
+    from vtextract.index.people import people_search
+    db = _people_db(tmp_path)
+    assert people_search(db, "", confidence=None) == []
+    db.close()
