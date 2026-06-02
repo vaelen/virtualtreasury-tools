@@ -128,3 +128,26 @@ def test_page_files_resolves_image_and_metadata(tmp_path):
     assert pf.image == str((page_dir / "volA_p1.jpg").resolve())
     assert pf.metadata == str((page_dir / "volA_p1.jpg.json").resolve())
     assert pf.transcription is None
+
+
+def test_read_names(tmp_path):
+    from vtextract.index.reader import read_names
+    side = tmp_path / "a.jpg.names.json"
+    side.write_text(
+        '{"schema": 1, "model": "m", "people": ['
+        '{"canonical": "William Young", "confidence": "high",'
+        ' "aliases": [{"text": "Wm Young", "confidence": "high"},'
+        '             {"text": "Young", "confidence": "low"}]}]}'
+    )
+    people = read_names(side)
+    assert len(people) == 1
+    assert people[0].canonical == "William Young"
+    assert people[0].confidence == "high"
+    assert people[0].aliases == [("Wm Young", "high"), ("Young", "low")]
+
+
+def test_read_names_empty(tmp_path):
+    from vtextract.index.reader import read_names
+    side = tmp_path / "b.jpg.names.json"
+    side.write_text('{"schema": 1, "model": "m", "people": []}')
+    assert read_names(side) == []

@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from vtextract.index.models import ItemRow, PageFiles, PageLink, VolumePage, VolumeRow
+from vtextract.index.models import ItemRow, PageFiles, PageLink, PersonRow, VolumePage, VolumeRow
 
 # Description is composed from these free-text fields, in this order. Each entry
 # is (detail array key, field on each array element); the identity-statement
@@ -97,6 +97,23 @@ def read_volume(volume_path: Path, *, root_id: str) -> VolumeRow:
 
 def read_transcription(txt_path: Path) -> str:
     return Path(txt_path).read_text()
+
+
+def read_names(sidecar_path: Path) -> list[PersonRow]:
+    """Parse a pages/<root_id>/<page_key>.names.json sidecar into PersonRows."""
+    data = json.loads(Path(sidecar_path).read_text())
+    rows: list[PersonRow] = []
+    for person in data.get("people") or []:
+        aliases = [
+            (a["text"], a.get("confidence", "medium"))
+            for a in person.get("aliases") or []
+        ]
+        rows.append(PersonRow(
+            canonical=person["canonical"],
+            confidence=person.get("confidence", "medium"),
+            aliases=aliases,
+        ))
+    return rows
 
 
 def _resolve(page_dir: Path, name: str) -> str | None:
