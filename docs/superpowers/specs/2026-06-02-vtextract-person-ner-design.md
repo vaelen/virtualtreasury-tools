@@ -20,7 +20,7 @@ split the existing `vtindex` already follows.
 This embeds the functionality of the standalone `name-grep` tool
 (`~/repos/name-grep`) into this repo; it does **not** depend on or shell out to
 that project. The relevant pieces (the person-NER LiteLLM wrapper, prompt,
-chunking) are ported into a new `entities/` subpackage.
+chunking) are ported into a new `names/` subpackage.
 
 ## Why "extract all people once" beats "search one name at a time"
 
@@ -76,7 +76,7 @@ even though no cross-page linking occurred.
 
 ## Architecture
 
-### New subpackage: `src/vtextract/entities/`
+### New subpackage: `src/vtextract/names/`
 
 The single boundary for LLM calls — analogous to `client.py` being the single
 VTRI-HTTP choke point. Nothing else in the codebase calls an LLM.
@@ -85,7 +85,7 @@ VTRI-HTTP choke point. Nothing else in the codebase calls an LLM.
 |---|---|
 | `llm.py` | Ported LiteLLM wrapper: the person-NER + canonicalization system prompt, lenient JSON parse, one reprompt on bad JSON, backoff retry on transport errors, `friendly_error`, `check_model` preflight. The **sole** LLM caller. |
 | `chunking.py` | Ported overlapping-window splitter. Page transcriptions are small (usually one chunk) but chunking is kept for safety; per-chunk results are merged before canonicalization is finalized. |
-| `extractor.py` | Orchestrate: enumerate `archive/pages/**/*.txt`, skip pages that already have a `.entities.json` (resume), `ThreadPoolExecutor` over the rest, write each sidecar atomically, emit progress via the existing `progress` module. |
+| `extractor.py` | Orchestrate: enumerate `archive/pages/**/*.txt`, skip pages that already have a `.names.json` (resume), `ThreadPoolExecutor` over the rest, write each sidecar atomically, emit progress via the existing `progress` module. |
 | `models.py` | `Person`, `Alias`, `Sidecar` dataclasses / Pydantic models for validation. |
 
 ### CLI
@@ -101,11 +101,11 @@ VTRI-HTTP choke point. Nothing else in the codebase calls an LLM.
 
 ### Config
 
-A new `[entities]` section in `~/.vt/vt.toml` (same config file as the rest of
+A new `[names]` section in `~/.vt/vt.toml` (same config file as the rest of
 vtextract — no new env vars, no second config):
 
 ```toml
-[entities]
+[names]
 model = "ollama/llama3.1"
 # api_base = "http://localhost:11434"
 chunk_size = 64000
@@ -115,7 +115,7 @@ workers = 1
 
 ### Sidecar (the precious, durable source data)
 
-Path: `archive/pages/{rootID}/{page_key}.entities.json`, adjacent to the
+Path: `archive/pages/{rootID}/{page_key}.names.json`, adjacent to the
 existing `{page_key}.txt` (transcription) and `{page_key}.json` (annotations).
 
 ```json
@@ -151,7 +151,7 @@ existing `{page_key}.txt` (transcription) and `{page_key}.json` (annotations).
 
 ### Index ingest + query (existing `vtindex` DB, new tables)
 
-- `index/reader.py` — add `read_entities(sidecar_path) -> Sidecar` (pure parse),
+- `index/reader.py` — add `read_names(sidecar_path) -> Sidecar` (pure parse),
   parallel to `read_transcription`.
 - `index/db.py` — new tables (the single SQL choke point):
   - `person(id, canonical, page_root_id, page_key, confidence)`
@@ -167,7 +167,7 @@ existing `{page_key}.txt` (transcription) and `{page_key}.json` (annotations).
 
 ### Boundaries preserved
 
-- `entities/llm.py` is the only LLM caller (new external-call choke point).
+- `names/llm.py` is the only LLM caller (new external-call choke point).
 - `vtindex` stays a pure archive-reader → derived-DB tool: it **reads** sidecars,
   never writes archive source data. Writing sidecars belongs to `vtextract`
   (like `fetcher` writing transcriptions).
@@ -176,11 +176,11 @@ existing `{page_key}.txt` (transcription) and `{page_key}.json` (annotations).
 
 ## Data flow
 
-1. `vtextract names` → config (`[entities]`) + page-transcription file list.
-2. Per page: read `.txt` → chunk → `entities.llm` per chunk → merge chunk
-   results → canonicalize/collapse within the page → write `.entities.json`.
+1. `vtextract names` → config (`[names]`) + page-transcription file list.
+2. Per page: read `.txt` → chunk → `names.llm` per chunk → merge chunk
+   results → canonicalize/collapse within the page → write `.names.json`.
    Skip if a sidecar already exists (unless `--force`).
-3. `vtindex build` → for each new/changed sidecar, `read_entities` → upsert
+3. `vtindex build` → for each new/changed sidecar, `read_names` → upsert
    `person` / `person_alias` rows + FTS.
 4. `vtindex people "<name>"` → FTS match over canonical + aliases → people →
    pages → items, filtered by `--confidence`.
@@ -228,7 +228,7 @@ chunk is skipped with a stderr warning. Transport errors retry with backoff.
 - LLM is **mocked** (inject the completion/find function), exactly as name-grep
   mocks it and as vtextract mocks HTTP via `MockTransport`. **No live LLM and no
   network in the suite** — consistent with the fixture-only tests today.
-- New fixtures: a couple of `.entities.json` sidecars under a fixture archive for
+- New fixtures: a couple of `.names.json` sidecars under a fixture archive for
   the reader/builder/query tests; canned LLM responses for the extractor tests.
 - Tests pass a `--config` path to a `tmp_path` file; the credential / model
   config is never hardcoded.
