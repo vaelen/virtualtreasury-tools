@@ -16,6 +16,7 @@ from vtextract.names import llm as llm_module
 from vtextract.names.chunking import chunk_text
 from vtextract.names.merge import merge_people
 from vtextract.names.models import SIDECAR_SCHEMA, NamesStats, Person
+from vtextract.schema import normalize_reference_code
 
 # (chunk_text, model, api_base) -> people for that chunk.
 FindFn = Callable[[str, str, "str | None"], "list[Person]"]
@@ -38,6 +39,31 @@ def page_transcriptions(archive: Path) -> list[tuple[str, str, Path]]:
         page_key = txt.name[: -len(_TXT_SUFFIX)]
         out.append((root_id, page_key, txt))
     return out
+
+
+def pages_for_resources(archive: Path, identifiers: list[str]) -> set[tuple[str, str]]:
+    """Resolve item identifiers (isadgIDs or reference codes) to their pages.
+
+    Returns the set of (root_id, page_key) referenced by the matching items'
+    metadata.json. Unknown identifiers contribute nothing.
+    """
+    want_ids = {tok for tok in identifiers if tok.isdigit()}
+    want_codes = {normalize_reference_code(tok) for tok in identifiers if not tok.isdigit()}
+    pages: set[tuple[str, str]] = set()
+    items_dir = Path(archive) / "items"
+    if not items_dir.is_dir():
+        return pages
+    for meta in items_dir.glob("*/metadata.json"):
+        try:
+            data = json.loads(meta.read_text())
+        except (OSError, ValueError):
+            continue
+        rid = str(data.get("isadgID"))
+        rc = normalize_reference_code(data.get("referenceCode") or "")
+        if rid in want_ids or meta.parent.name in want_ids or (rc and rc in want_codes):
+            for p in data.get("pages") or []:
+                pages.add((str(p["root_id"]), p["page_key"]))
+    return pages
 
 
 def sidecar_for(txt_path: Path) -> Path:
