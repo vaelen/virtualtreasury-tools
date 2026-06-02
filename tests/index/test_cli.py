@@ -423,3 +423,33 @@ def test_page_theme_flags_accepted(tmp_path, capsys):
         code = main(["page", "volA/volA_p1.jpg", flag, "--archive", str(archive)])
         assert code == 0
         assert "volA_p1.jpg" in capsys.readouterr().out
+
+
+def _build_people_archive(tmp_path):
+    from vtextract.index.builder import build
+    pages = tmp_path / "pages" / "100"
+    pages.mkdir(parents=True)
+    (pages / "a.jpg.txt").write_text("Wm Young paid the toll.")
+    (pages / "a.jpg.names.json").write_text(
+        '{"schema":1,"model":"m","people":[{"canonical":"William Young",'
+        '"confidence":"high","aliases":[{"text":"Wm Young","confidence":"high"}]}]}'
+    )
+    build(tmp_path)
+    return tmp_path
+
+
+def test_cli_people_json(tmp_path, capsys):
+    from vtextract.index.cli import main
+    archive = _build_people_archive(tmp_path)
+    rc = main(["people", "Young", "--archive", str(archive), "--json"])
+    assert rc == 0
+    import json
+    out = json.loads(capsys.readouterr().out)
+    assert out[0]["canonical"] == "William Young"
+
+
+def test_cli_people_no_match(tmp_path, capsys):
+    from vtextract.index.cli import main
+    archive = _build_people_archive(tmp_path)
+    rc = main(["people", "Nobody", "--archive", str(archive), "--json"])
+    assert rc == 1
