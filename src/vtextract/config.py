@@ -16,6 +16,17 @@ DEFAULT_USER_AGENT = (
 DEFAULT_INDEX_DB_NAME = "beyond_2022"
 DEFAULT_ARCHIVE = "~/.vt/archive"
 DEFAULT_BROWSE_THEME = "textual-dark"
+DEFAULT_NAMES_MODEL = "ollama/llama3.1"
+
+
+@dataclass
+class NamesConfig:
+    model: str = DEFAULT_NAMES_MODEL
+    api_base: str | None = None
+    chunk_size: int = 64000
+    overlap: int = 512
+    workers: int = 1
+    confidence: str | None = None
 
 
 def default_config_path() -> Path:
@@ -33,6 +44,7 @@ class Config:
     delay: float = 0.5
     max_retries: int = 3
     browse_theme: str = DEFAULT_BROWSE_THEME
+    names: NamesConfig = field(default_factory=NamesConfig)
 
 
 def make_token(username: str, password: str) -> str:
@@ -65,6 +77,7 @@ def load_config(path: Path | None = None) -> Config:
     token = auth.get("token")
     archive = data.get("archive", DEFAULT_ARCHIVE)
     browse = data.get("browse", {})
+    names = data.get("names", {})
 
     return Config(
         auth_header=f"Basic {token}" if token else None,
@@ -75,6 +88,14 @@ def load_config(path: Path | None = None) -> Config:
         delay=float(http.get("delay", 0.5)),
         max_retries=int(http.get("max_retries", 3)),
         browse_theme=browse.get("theme", DEFAULT_BROWSE_THEME),
+        names=NamesConfig(
+            model=names.get("model", DEFAULT_NAMES_MODEL),
+            api_base=names.get("api_base"),
+            chunk_size=int(names.get("chunk_size", 64000)),
+            overlap=int(names.get("overlap", 512)),
+            workers=int(names.get("workers", 1)),
+            confidence=names.get("confidence"),
+        ),
     )
 
 
