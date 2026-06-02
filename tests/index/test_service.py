@@ -109,3 +109,19 @@ def test_build_then_reopen_reflects_new_item(built_archive):
         assert svc.stats().items == before + 1
     finally:
         svc.close()
+
+
+def test_service_people(tmp_path):
+    from vtextract.index.builder import build
+    from vtextract.index.service import IndexService
+    pages = tmp_path / "pages" / "100"
+    pages.mkdir(parents=True)
+    (pages / "a.jpg.txt").write_text("Wm Young paid the toll.")
+    (pages / "a.jpg.names.json").write_text(
+        '{"schema":1,"model":"m","people":[{"canonical":"William Young",'
+        '"confidence":"high","aliases":[{"text":"Wm Young","confidence":"high"}]}]}'
+    )
+    build(tmp_path)
+    with IndexService(tmp_path) as svc:
+        hits = svc.people("Young", confidence=None)
+    assert hits[0].canonical == "William Young"

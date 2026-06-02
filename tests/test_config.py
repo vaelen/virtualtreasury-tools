@@ -119,3 +119,29 @@ def test_set_token_preserves_browse_theme(tmp_path):
     cfg = load_config(path)
     assert cfg.auth_header == "Basic bmV3OnRva2Vu"
     assert cfg.browse_theme == "dracula"
+
+
+def test_names_defaults_when_absent(tmp_path):
+    from vtextract.config import load_config
+    cfg = load_config(tmp_path / "missing.toml")
+    assert cfg.names.model == "ollama/llama3.1"
+    assert cfg.names.api_base is None
+    assert cfg.names.chunk_size == 64000
+    assert cfg.names.workers == 1
+
+
+def test_names_section_parsed(tmp_path):
+    from vtextract.config import load_config
+    p = tmp_path / "vt.toml"
+    p.write_text(
+        '[names]\n'
+        'model = "anthropic/claude-haiku-4-5"\n'
+        'api_base = "http://localhost:11434"\n'
+        'chunk_size = 8000\n'
+        'workers = 4\n'
+    )
+    cfg = load_config(p)
+    assert cfg.names.model == "anthropic/claude-haiku-4-5"
+    assert cfg.names.api_base == "http://localhost:11434"
+    assert cfg.names.chunk_size == 8000
+    assert cfg.names.workers == 4

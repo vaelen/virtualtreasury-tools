@@ -16,6 +16,25 @@ class PageLink:
 
 
 @dataclass
+class PersonRow:
+    """A person extracted from one page's names sidecar, flattened for indexing."""
+
+    canonical: str
+    confidence: str
+    aliases: list[tuple[str, str]] = field(default_factory=list)  # (text, confidence)
+
+
+@dataclass
+class PersonHit:
+    canonical: str
+    confidence: str
+    root_id: str
+    page_key: str
+    items: list[int]   # isadg_ids referencing this page
+    score: float
+
+
+@dataclass
 class ItemRow:
     """A catalogued resource, flattened for indexing."""
 

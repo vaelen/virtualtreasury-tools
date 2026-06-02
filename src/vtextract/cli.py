@@ -16,12 +16,18 @@ from vtextract.client import Client
 from vtextract.config import default_config_path, load_config, make_token, set_token
 from vtextract.fetcher import fetch_resource
 from vtextract.models import BOOST_FOR_FIELD, FIELD_MAP, OPERANDS, Filter, SearchCriteria
+from vtextract.names import extractor as names_extractor
 from vtextract.progress import JsonFetchReporter, Reporter
 from vtextract.search import criteria_to_params, iter_results
 
 
 def _make_transport() -> httpx.BaseTransport | None:
     """Seam for tests to inject a MockTransport. Returns None in production."""
+    return None
+
+
+def _make_find():
+    """Seam for tests to inject a fake find_people. Returns None in production."""
     return None
 
 
@@ -185,6 +191,7 @@ commands:
   get      download resources by reference code or id (vtextract get --help)
   auth     store credentials in the config file (vtextract auth [username])
   refresh  re-fetch metadata and verify images for the whole archive
+  names    extract people from transcriptions into per-page sidecars (LLM)
 """
 
 
@@ -203,6 +210,8 @@ def run(argv: list[str]) -> int:
         return _run_auth(rest)
     if command == "refresh":
         return _run_refresh(rest)
+    if command == "names":
+        return _run_names(rest)
     print(f"unknown command: {command}\n", file=sys.stderr)
     print(_USAGE, end="", file=sys.stderr)
     return 2
@@ -513,6 +522,58 @@ def _run_refresh(argv: list[str]) -> int:
         images=args.images, total=(len(hits), "items"),
     )
     return 1 if failed else 0
+
+
+def _run_names(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="vtextract names",
+        description="Extract people from page transcriptions into per-page "
+        "'.names.json' sidecars using an LLM. Resumable: skips pages that "
+        "already have a sidecar (use --force to re-extract).",
+    )
+    parser.add_argument(
+        "identifiers", nargs="*",
+        help="Optional reference codes and/or isadgIDs to scope the run to "
+        "those resources' pages (default: the whole archive).",
+    )
+    parser.add_argument("--archive", help="Archive dir (defaults to the config file's archive).")
+    parser.add_argument("--config", help="Config file path (default ~/.vt/vt.toml).")
+    parser.add_argument("--model", help="LiteLLM model name (overrides [names].model).")
+    parser.add_argument("-w", "--workers", type=_positive_int,
+                        help="Parallel workers (overrides [names].workers).")
+    parser.add_argument("--force", action="store_true",
+                        help="Re-extract and overwrite existing sidecars.")
+    args = parser.parse_args(argv)
+
+    config = load_config(Path(args.config) if args.config else None)
+    archive = Path(args.archive) if args.archive else config.archive
+    if not (archive / "pages").is_dir():
+        print(f"no pages to process in {archive}", file=sys.stderr)
+        return 0
+
+    scope_pages = (
+        names_extractor.pages_for_resources(archive, args.identifiers)
+        if args.identifiers else None
+    )
+    if args.identifiers and not scope_pages:
+        print("no archived pages match the given identifiers", file=sys.stderr)
+        return 0
+
+    model = args.model or config.names.model
+    workers = args.workers or config.names.workers
+    stats = names_extractor.extract(
+        archive, model=model, api_base=config.names.api_base,
+        chunk_size=config.names.chunk_size, overlap=config.names.overlap,
+        workers=workers, find=_make_find(), force=args.force,
+        scope_pages=scope_pages,
+    )
+    print(
+        f"names: {stats.extracted} extracted, {stats.skipped} skipped, "
+        f"{stats.failed} failed ({stats.people} people). "
+        f"Run `vtindex build --archive {archive}` to index them.",
+        file=sys.stderr,
+    )
+    return 1 if stats.failed else 0
 
 
 def main() -> None:

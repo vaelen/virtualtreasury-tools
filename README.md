@@ -260,6 +260,55 @@ it only reads files whose size/mtime changed since the last build.
   during extraction with `--context-pages >= 1`; re-extract an existing archive
   to populate ordering for older volumes.
 
+## Extracting people (names)
+
+`vtextract names` runs a local-or-remote LLM over the page transcriptions in an
+archive to pull out the people mentioned, writing a `<page_key>.names.json`
+sidecar next to each `<page_key>.jpg.txt`. Each person has a canonical name, an
+entry confidence, and the alias surface forms (with confidences) seen on that
+page. With no arguments it processes the whole archive; pass reference codes
+and/or isadgIDs to scope the run to just those resources' pages.
+
+```bash
+# extract people from every page transcription in the archive
+vtextract names --archive ./archive
+
+# scope to specific resources (reference codes and/or isadgIDs)
+vtextract names "TNA SO 1/14" 474234 --archive ./archive
+```
+
+The pass is resumable: a page that already has a `.names.json` sidecar is
+skipped, and a page whose extraction fails leaves no sidecar so a later run
+retries it. Use `--force` to re-extract and overwrite existing sidecars.
+`--model M` overrides the configured model and `-w/--workers N` the parallelism.
+
+Configure it with a `[names]` table in `~/.vt/vt.toml` (all optional, shown with
+their defaults):
+
+```toml
+[names]
+model      = "ollama/llama3.1"   # any LiteLLM model name
+api_base   = ""                  # override the model's API base URL (e.g. a local Ollama)
+chunk_size = 64000               # transcription chunk size (characters)
+overlap    = 512                 # overlap between chunks
+workers    = 1                   # parallel pages
+confidence = ""                  # default minimum confidence for `vtindex people` (low|medium|high)
+```
+
+After extracting, run `vtindex build` to ingest the sidecars into the index,
+then search people by canonical name **or** any alias surface form:
+
+```bash
+vtindex build --archive ./archive
+vtindex people "Houston" --archive ./archive
+vtindex people "Houston" --confidence high --json --archive ./archive
+```
+
+`--confidence low|medium|high` filters out matches below that minimum entry
+confidence; when omitted it falls back to `[names].confidence` from the config.
+Each result reports the volume/page where the person appears and the
+items that reference that page. `--json` emits structured output for scripting.
+
 ## Browsing the archive interactively
 
 `vtbrowse` is a keyboard-driven TUI (built with [Textual](https://textual.textualize.io/))

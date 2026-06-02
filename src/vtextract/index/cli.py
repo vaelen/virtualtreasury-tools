@@ -324,6 +324,52 @@ def _cmd_item(args) -> int:
     return 0
 
 
+def _cmd_people(args) -> int:
+    config = load_config(Path(args.config) if args.config else None)
+    archive = Path(args.archive) if args.archive else config.archive
+    confidence = args.confidence or config.names.confidence
+    with IndexService(archive) as svc:
+        if svc.is_stale():
+            print("warning: index is stale; run `vtindex build` to refresh.",
+                  file=sys.stderr)
+        hits = svc.people(args.query, confidence=confidence)
+    if args.json:
+        data = [
+            {"canonical": h.canonical, "confidence": h.confidence,
+             "root_id": h.root_id, "page_key": h.page_key,
+             "items": h.items, "score": h.score}
+            for h in hits
+        ]
+        print(json.dumps(data, indent=2))
+    else:
+        _print_people_table(hits, theme=THEMES[args.theme], query=args.query)
+    return 0 if hits else 1
+
+
+def _print_people_table(hits, *, theme: Theme, query: str | None) -> None:
+    if not hits:
+        print("no matches")
+        return
+    table = Table(
+        show_header=True,
+        header_style=theme.header_style,
+        border_style=theme.border_style,
+        row_styles=list(theme.row_styles),
+    )
+    table.add_column("Person")
+    table.add_column("Conf", no_wrap=True)
+    table.add_column("Page", no_wrap=True)
+    table.add_column("Items")
+    for h in hits:
+        table.add_row(
+            _highlight_title(h.canonical, query, theme.match_style),
+            h.confidence,
+            f"{h.root_id}/{h.page_key}",
+            ", ".join(str(i) for i in h.items) or "-",
+        )
+    Console(no_color=theme.no_color).print(table)
+
+
 def _print_page_nav(nav: dict, title: str | None, *, theme: Theme) -> None:
     table = Table(
         show_header=True,
@@ -453,6 +499,15 @@ def _build_parser() -> argparse.ArgumentParser:
     p_item.add_argument("--json", action="store_true")
     _add_theme_args(p_item)
     p_item.set_defaults(func=_cmd_item)
+
+    p_people = sub.add_parser("people", help="search extracted people by name")
+    p_people.add_argument("query", help="person name (matches canonical + aliases)")
+    _add_archive_args(p_people)
+    p_people.add_argument("--confidence", choices=("low", "medium", "high"),
+                          help="minimum entry confidence to include")
+    p_people.add_argument("--json", action="store_true")
+    _add_theme_args(p_people)
+    p_people.set_defaults(func=_cmd_people)
 
     return parser
 

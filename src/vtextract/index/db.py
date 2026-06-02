@@ -8,7 +8,7 @@ from pathlib import Path
 
 from vtextract.index.models import VolumeInfo
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 class Fts5Unavailable(RuntimeError):
@@ -79,6 +79,17 @@ CREATE INDEX ix_item_page_page ON item_page (root_id, page_key);
 CREATE INDEX ix_page_ordinal ON page (root_id, ordinal);
 CREATE VIRTUAL TABLE item_fts USING fts5(title, description);
 CREATE VIRTUAL TABLE transcription_fts USING fts5(text);
+CREATE TABLE person (
+    id INTEGER PRIMARY KEY,
+    canonical TEXT, root_id TEXT, page_key TEXT, confidence TEXT
+);
+CREATE TABLE person_alias (
+    person_id INTEGER, text TEXT, confidence TEXT
+);
+CREATE INDEX ix_person_page ON person (root_id, page_key);
+CREATE INDEX ix_person_alias_pid ON person_alias (person_id);
+CREATE VIRTUAL TABLE person_fts USING fts5(text);
+CREATE TABLE person_fts_map (rowid INTEGER PRIMARY KEY, person_id INTEGER);
 """
 
 
@@ -282,6 +293,49 @@ class IndexDB:
             self._conn.execute("DELETE FROM transcription_fts WHERE rowid=?", (r["rowid"],))
             self._conn.execute("DELETE FROM transcription_map WHERE rowid=?", (r["rowid"],))
 
+    # --- person (names sidecar) upsert / delete ---
+
+    def upsert_names(
+        self, root_id: str, page_key: str, people, *, fingerprint: tuple[str, float, int]
+    ) -> None:
+        path, mtime, size = fingerprint
+        self._delete_person_rows(root_id, page_key)
+        for person in people:
+            cur = self._conn.execute(
+                "INSERT INTO person (canonical, root_id, page_key, confidence) "
+                "VALUES (?, ?, ?, ?)",
+                (person.canonical, root_id, page_key, person.confidence),
+            )
+            person_id = cur.lastrowid
+            for text, confidence in person.aliases:
+                self._conn.execute(
+                    "INSERT INTO person_alias (person_id, text, confidence) VALUES (?, ?, ?)",
+                    (person_id, text, confidence),
+                )
+            # One FTS row per person: canonical plus every alias surface form, so
+            # any written form matches and results resolve back to the canonical.
+            fts_text = " ".join([person.canonical] + [t for t, _c in person.aliases])
+            fcur = self._conn.execute("INSERT INTO person_fts (text) VALUES (?)", (fts_text,))
+            self._conn.execute(
+                "INSERT INTO person_fts_map (rowid, person_id) VALUES (?, ?)",
+                (fcur.lastrowid, person_id),
+            )
+        self._set_fingerprint(path, "names", mtime, size)
+
+    def _delete_person_rows(self, root_id: str, page_key: str) -> None:
+        ids = [
+            r["id"] for r in self._conn.execute(
+                "SELECT id FROM person WHERE root_id=? AND page_key=?", (root_id, page_key))
+        ]
+        for pid in ids:
+            for fr in self._conn.execute(
+                "SELECT rowid FROM person_fts_map WHERE person_id=?", (pid,)
+            ):
+                self._conn.execute("DELETE FROM person_fts WHERE rowid=?", (fr["rowid"],))
+            self._conn.execute("DELETE FROM person_fts_map WHERE person_id=?", (pid,))
+            self._conn.execute("DELETE FROM person_alias WHERE person_id=?", (pid,))
+        self._conn.execute("DELETE FROM person WHERE root_id=? AND page_key=?", (root_id, page_key))
+
     # --- generic source deletion (used by build prune) ---
 
     def delete_source(self, path: str) -> None:
@@ -320,15 +374,21 @@ class IndexDB:
                 "DELETE FROM page WHERE root_id=? AND ordinal IS NULL AND has_text=0",
                 (root_id,),
             )
+        elif kind == "names":
+            # path = pages/<root_id>/<page_key>.names.json
+            parts = path.split("/")
+            root_id = parts[1]
+            page_key = parts[2][: -len(".names.json")]
+            self._delete_person_rows(root_id, page_key)
         self._conn.execute("DELETE FROM source_file WHERE path=?", (path,))
 
     # --- counts ---
 
     def counts(self) -> dict[str, int]:
         # Keys: items, volumes, pages, item_volume, item_page, source_files.
-        names = ["item", "volume", "page", "item_volume", "item_page", "source_file"]
+        names = ["item", "volume", "page", "item_volume", "item_page", "source_file", "person"]
         plural = {"item": "items", "volume": "volumes", "page": "pages",
-                  "source_file": "source_files"}
+                  "source_file": "source_files", "person": "people"}
         out = {}
         for name in names:
             key = plural.get(name, name)
@@ -366,6 +426,23 @@ class IndexDB:
             (query,),
         )
         return [(r["root_id"], r["page_key"], r["score"]) for r in rows]
+
+    def person_fts_search(self, text: str) -> list[dict]:
+        """Return [{person_id, root_id, page_key, canonical, confidence, score}]
+        for person FTS matches over canonical + alias text."""
+        query = fts_query(text)
+        if not query:
+            return []
+        rows = self._conn.execute(
+            "SELECT p.id AS person_id, p.root_id AS root_id, p.page_key AS page_key, "
+            "p.canonical AS canonical, p.confidence AS confidence, "
+            "bm25(person_fts) AS score FROM person_fts "
+            "JOIN person_fts_map m ON m.rowid = person_fts.rowid "
+            "JOIN person p ON p.id = m.person_id "
+            "WHERE person_fts MATCH ?",
+            (query,),
+        )
+        return [dict(r) for r in rows]
 
     def items_for_pages(
         self, pages: list[tuple[str, str]]

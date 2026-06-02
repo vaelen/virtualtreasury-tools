@@ -423,3 +423,84 @@ def test_page_theme_flags_accepted(tmp_path, capsys):
         code = main(["page", "volA/volA_p1.jpg", flag, "--archive", str(archive)])
         assert code == 0
         assert "volA_p1.jpg" in capsys.readouterr().out
+
+
+def _build_people_archive(tmp_path):
+    from vtextract.index.builder import build
+    pages = tmp_path / "pages" / "100"
+    pages.mkdir(parents=True)
+    (pages / "a.jpg.txt").write_text("Wm Young paid the toll.")
+    (pages / "a.jpg.names.json").write_text(
+        '{"schema":1,"model":"m","people":[{"canonical":"William Young",'
+        '"confidence":"high","aliases":[{"text":"Wm Young","confidence":"high"}]}]}'
+    )
+    build(tmp_path)
+    return tmp_path
+
+
+def test_cli_people_json(tmp_path, capsys):
+    from vtextract.index.cli import main
+    archive = _build_people_archive(tmp_path)
+    rc = main(["people", "Young", "--archive", str(archive), "--json"])
+    assert rc == 0
+    import json
+    out = json.loads(capsys.readouterr().out)
+    assert out[0]["canonical"] == "William Young"
+
+
+def test_cli_people_no_match(tmp_path, capsys):
+    from vtextract.index.cli import main
+    archive = _build_people_archive(tmp_path)
+    rc = main(["people", "Nobody", "--archive", str(archive), "--json"])
+    assert rc == 1
+
+
+def _build_mixed_confidence_archive(tmp_path):
+    """Archive whose sidecar carries one high- and one low-confidence person
+    sharing the surname 'Young' on the same page."""
+    from vtextract.index.builder import build
+    pages = tmp_path / "pages" / "100"
+    pages.mkdir(parents=True)
+    (pages / "a.jpg.txt").write_text("William Young and James Young paid the toll.")
+    (pages / "a.jpg.names.json").write_text(
+        '{"schema":1,"model":"m","people":['
+        '{"canonical":"William Young","confidence":"high","aliases":[]},'
+        '{"canonical":"James Young","confidence":"low","aliases":[]}]}'
+    )
+    build(tmp_path)
+    return tmp_path
+
+
+def _write_names_confidence_config(tmp_path, value: str) -> Path:
+    cfg = tmp_path / "vt.toml"
+    cfg.write_text(f'[names]\nconfidence = "{value}"\n')
+    return cfg
+
+
+def test_cli_people_config_confidence_floor(tmp_path, capsys):
+    """[names].confidence acts as the default display floor when no
+    --confidence flag is given."""
+    from vtextract.index.cli import main
+    archive = _build_mixed_confidence_archive(tmp_path)
+    cfg = _write_names_confidence_config(tmp_path, "high")
+    rc = main(["people", "Young", "--archive", str(archive),
+               "--config", str(cfg), "--json"])
+    assert rc == 0
+    import json
+    out = json.loads(capsys.readouterr().out)
+    canonicals = sorted(h["canonical"] for h in out)
+    assert canonicals == ["William Young"]
+
+
+def test_cli_people_flag_overrides_config_confidence(tmp_path, capsys):
+    """An explicit --confidence flag overrides the config floor."""
+    from vtextract.index.cli import main
+    archive = _build_mixed_confidence_archive(tmp_path)
+    cfg = _write_names_confidence_config(tmp_path, "high")
+    rc = main(["people", "Young", "--confidence", "low", "--archive", str(archive),
+               "--config", str(cfg), "--json"])
+    assert rc == 0
+    import json
+    out = json.loads(capsys.readouterr().out)
+    canonicals = sorted(h["canonical"] for h in out)
+    assert canonicals == ["James Young", "William Young"]
