@@ -325,12 +325,14 @@ def _cmd_item(args) -> int:
 
 
 def _cmd_people(args) -> int:
-    archive = _resolve_archive(args)
+    config = load_config(Path(args.config) if args.config else None)
+    archive = Path(args.archive) if args.archive else config.archive
+    confidence = args.confidence or config.names.confidence
     with IndexService(archive) as svc:
         if svc.is_stale():
             print("warning: index is stale; run `vtindex build` to refresh.",
                   file=sys.stderr)
-        hits = svc.people(args.query, confidence=args.confidence)
+        hits = svc.people(args.query, confidence=confidence)
     if args.json:
         data = [
             {"canonical": h.canonical, "confidence": h.confidence,

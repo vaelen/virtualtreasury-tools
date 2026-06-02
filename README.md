@@ -292,6 +292,7 @@ api_base   = ""                  # override the model's API base URL (e.g. a loc
 chunk_size = 64000               # transcription chunk size (characters)
 overlap    = 512                 # overlap between chunks
 workers    = 1                   # parallel pages
+confidence = ""                  # default minimum confidence for `vtindex people` (low|medium|high)
 ```
 
 After extracting, run `vtindex build` to ingest the sidecars into the index,
@@ -304,7 +305,8 @@ vtindex people "Houston" --confidence high --json --archive ./archive
 ```
 
 `--confidence low|medium|high` filters out matches below that minimum entry
-confidence; each result reports the volume/page where the person appears and the
+confidence; when omitted it falls back to `[names].confidence` from the config.
+Each result reports the volume/page where the person appears and the
 items that reference that page. `--json` emits structured output for scripting.
 
 ## Browsing the archive interactively
