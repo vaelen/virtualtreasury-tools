@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Callable
 
 from rich.console import Console
+from rich.progress import Progress
 from rich.table import Table
 
 from vtextract.config import load_config
@@ -132,6 +133,14 @@ def _input_txt_files(input_dir: Path) -> list[Path]:
     return sorted(p for p in Path(input_dir).glob("*.txt") if p.is_file())
 
 
+def _log_failure(progress: Progress | None, message: str) -> None:
+    """Report a failure, printing above a live progress bar if one is active."""
+    if progress is not None:
+        progress.console.print(message)
+    else:
+        print(message, file=sys.stderr)
+
+
 def run_model(
     input_dir: Path,
     model: str,
@@ -141,23 +150,30 @@ def run_model(
     api_base: str | None = None,
     force: bool = False,
     find: FindFn | None = None,
+    show_progress: bool = True,
 ) -> None:
     """Process every input ``*.txt`` for one model, sequentially.
 
     Skips files whose sidecar already exists unless ``force``. Records per-file
     wall time in ``times.json`` (rewritten after each file so a crash keeps
     completed timings). A file whose extraction fails is logged to stderr and
-    left without a sidecar or time entry, so a later run retries it.
+    left without a sidecar or time entry, so a later run retries it. When
+    ``show_progress`` and there is work to do, renders a Rich progress bar
+    (labelled with the model) over the files, as ``vtextract names`` does.
     """
     input_dir = Path(input_dir)
     md = model_dir(input_dir, model)
     md.mkdir(parents=True, exist_ok=True)
     times = load_times(md)
 
+    todo: list[tuple[Path, Path]] = []  # (txt_path, sidecar_path)
     for txt in _input_txt_files(input_dir):
         side = sidecar_path(md, txt.name)
         if side.exists() and not force:
             continue
+        todo.append((txt, side))
+
+    def process(txt: Path, side: Path, progress: Progress | None) -> None:
         start = time.perf_counter()
         try:
             people = extract_people(
@@ -165,12 +181,22 @@ def run_model(
                 chunk_size=chunk_size, overlap=overlap, api_base=api_base, find=find)
         except Exception as exc:
             reason = llm_module.friendly_error(exc, model, api_base)
-            print(f"namebench: failed {model} {txt.name}: {reason}", file=sys.stderr)
-            continue
+            _log_failure(progress, f"namebench: failed {model} {txt.name}: {reason}")
+            return
         elapsed = time.perf_counter() - start
         write_sidecar(side, model, people)
         times[txt.name] = elapsed
         write_times(md, times)
+
+    if show_progress and todo:
+        with Progress(console=Console(stderr=True)) as progress:
+            task_id = progress.add_task(model, total=len(todo))
+            for txt, side in todo:
+                process(txt, side, progress)
+                progress.advance(task_id)
+    else:
+        for txt, side in todo:
+            process(txt, side, None)
 
 
 @dataclass

@@ -152,7 +152,7 @@ def test_run_model_writes_sidecars_and_times(tmp_path):
         "Wm Young": [Person(canonical="William Young",
                             aliases=[{"text": "Wm Young", "confidence": "high"}])],
     })
-    run_model(inp, "anthropic/claude-haiku-4-5", find=find)
+    run_model(inp, "anthropic/claude-haiku-4-5", find=find, show_progress=False)
     md = model_dir(inp, "anthropic/claude-haiku-4-5")
     assert (md / "1.txt.names.json").exists()
     assert (md / "2.txt.names.json").exists()
@@ -173,7 +173,7 @@ def test_run_model_skips_existing_and_preserves_time(tmp_path):
     def find(chunk_text, model, api_base=None):
         calls.append(chunk_text)
         return []
-    run_model(inp, "m", find=find)
+    run_model(inp, "m", find=find, show_progress=False)
     # 1.txt skipped (find never saw its text); only 2.txt processed
     assert "Wm Young paid the toll." not in calls
     times = load_times(md)
@@ -191,7 +191,7 @@ def test_run_model_force_reprocesses(tmp_path):
     def find(chunk_text, model, api_base=None):
         seen.append(chunk_text)
         return []
-    run_model(inp, "m", find=find, force=True)
+    run_model(inp, "m", find=find, force=True, show_progress=False)
     assert any("Wm Young" in s for s in seen)  # 1.txt re-read despite sidecar
 
 
@@ -201,13 +201,22 @@ def test_run_model_logs_failure_and_continues(tmp_path, capsys):
         if "Wm Young" in chunk_text:
             raise RuntimeError("boom")
         return []
-    run_model(inp, "m", find=find)
+    run_model(inp, "m", find=find, show_progress=False)
     md = model_dir(inp, "m")
     assert not (md / "1.txt.names.json").exists()   # failed file: no sidecar
     assert "1.txt" not in load_times(md)             # and no time entry
     assert (md / "2.txt.names.json").exists()        # other file still processed
     err = capsys.readouterr().err
     assert "1.txt" in err
+
+
+def test_run_model_renders_progress_bar(tmp_path, capsys):
+    inp = _seed_inputs(tmp_path)
+    # show_progress defaults True -> a Rich bar labelled with the model is drawn
+    run_model(inp, "anthropic/claude-haiku-4-5", find=_fake_find_factory({}))
+    err = capsys.readouterr().err
+    assert "anthropic/claude-haiku-4-5" in err   # bar description names the model
+    assert "100%" in err                          # bar completed over the files
 
 
 from vtextract.namebench import discover_models, count_confidences, build_report
