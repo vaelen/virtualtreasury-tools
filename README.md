@@ -309,6 +309,43 @@ confidence; when omitted it falls back to `[names].confidence` from the config.
 Each result reports the volume/page where the person appears and the
 items that reference that page. `--json` emits structured output for scripting.
 
+### Benchmarking models (`vtnamebench`)
+
+`vtnamebench bench.toml` runs the exact `vtextract names` extraction over a
+folder of `.txt` files for several models and prints a comparison report.
+
+```toml
+# bench.toml
+input = "~/foo/bar"
+models = [
+  "anthropic/claude-haiku-4-5",
+  "anthropic/claude-sonnet-4-6",
+  "openai/gpt-4.1-mini",
+  "openai/gpt-4.1",
+  "ollama/llama3",
+]
+
+# Optional: a custom endpoint per model (e.g. a local Ollama server).
+# Models not listed here are routed by their `provider/` prefix.
+[api_base]
+"ollama/llama3" = "http://localhost:11434"
+```
+
+Run with `uv run vtnamebench bench.toml`. For each model it writes
+`<input>/models/<model>/<file>.txt.names.json` sidecars and a `times.json`
+(filename → seconds), skipping files already processed by that model
+(`--force` re-runs). Before processing a model it preflights/warms it (so the
+first file is not paying a local model's cold-start load cost, and auth/config
+errors surface immediately), and it evicts the previous local (Ollama) model
+before loading the next to ease GPU pressure.
+
+It then prints a table comparing the number of high/medium/low-confidence names
+(counting each person and each alias) and the per-file timing distribution —
+**min, max, median, mean** seconds — plus **ms/byte**, which normalizes for
+document length so models are comparable regardless of how long each
+transcription happens to be. The report includes any model with prior on-disk
+data, even if it was fully skipped this run.
+
 ## Browsing the archive interactively
 
 `vtbrowse` is a keyboard-driven TUI (built with [Textual](https://textual.textualize.io/))

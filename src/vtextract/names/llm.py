@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import time
 
+import httpx
 import litellm
 from pydantic import ValidationError
 
@@ -106,7 +107,12 @@ def friendly_error(exc: Exception, model: str, api_base: str | None) -> str:
 
 
 def check_model(model: str, api_base: str | None = None) -> str | None:
-    """Preflight the model with a tiny request; None if OK, else a diagnostic."""
+    """Preflight the model with a tiny request; None if OK, else a diagnostic.
+
+    For a local (Ollama) model this also warms it: the tiny request loads the
+    model into memory, so a caller's first real request is not paying the
+    cold-start load cost.
+    """
     kwargs: dict = {"model": model, "messages": [{"role": "user", "content": "ping"}],
                     "max_tokens": 1, "temperature": 0}
     if api_base:
@@ -116,6 +122,29 @@ def check_model(model: str, api_base: str | None = None) -> str | None:
         return None
     except Exception as exc:
         return friendly_error(exc, model, api_base)
+
+
+_OLLAMA_DEFAULT_BASE = "http://localhost:11434"
+
+
+def unload(model: str, api_base: str | None = None) -> None:
+    """Best-effort: evict a loaded local (Ollama) model to free memory.
+
+    A ``keep_alive: 0`` request makes Ollama unload the model immediately,
+    easing GPU/RAM pressure before the next model loads. litellm strips Ollama's
+    ``keep_alive`` param, so we call Ollama's HTTP API directly. A no-op for
+    non-Ollama models. Never raises: eviction is advisory, so a failure here must
+    not abort the caller's work.
+    """
+    if not model.startswith("ollama/"):
+        return
+    base = (api_base or _OLLAMA_DEFAULT_BASE).rstrip("/")
+    name = model.split("/", 1)[1]  # Ollama's own API has no "ollama/" prefix
+    try:
+        httpx.post(f"{base}/api/generate",
+                   json={"model": name, "keep_alive": 0}, timeout=30.0)
+    except Exception:
+        pass
 
 
 def build_messages(chunk_text: str) -> list[dict]:

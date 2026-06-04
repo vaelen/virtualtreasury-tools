@@ -33,9 +33,12 @@ handling.
   (defaulting to `llm.find_people`) makes the extraction offline-testable, the
   same pattern `extractor.extract` uses.
 - `chunk_size` / `overlap` come from the user's `[names]` config defaults
-  (`load_config()` → `NamesConfig`, i.e. 64000 / 512). `api_base` stays `None`
-  so LiteLLM routes by the `provider/` prefix (models span Anthropic + OpenAI,
-  so a single `api_base` would not fit).
+  (`load_config()` → `NamesConfig`, i.e. 64000 / 512). By default `api_base` is
+  `None` so LiteLLM routes by the `provider/` prefix (cloud models span
+  Anthropic + OpenAI, so a single global `api_base` would not fit). Models that
+  need a custom endpoint (e.g. a local `ollama/...` server) get a **per-model**
+  `api_base` from the bench config's optional `[api_base]` table (see below);
+  models absent from that table keep provider routing.
 
 ## Config & I/O layout
 
@@ -48,10 +51,21 @@ models = [
   "anthropic/claude-sonnet-4-6",
   "openai/gpt-4.1-mini",
   "openai/gpt-4.1",
+  "ollama/llama3",
 ]
+
+# Optional: custom endpoint per model. Models absent here use provider routing.
+[api_base]
+"ollama/llama3" = "http://localhost:11434"
 ```
 
 - `input` is expanded (`~`) and resolved; it is the folder of `.txt` files.
+- `[api_base]` is an optional table mapping a model string (exactly as it
+  appears in `models`) to an endpoint URL. Defaults to empty. A model's
+  `api_base` is `bench.api_base.get(model)` (i.e. `None` when unlisted), passed
+  to `run_model`/`extract_people` and on to the `find` seam — the same
+  `api_base` `vtextract names` threads to LiteLLM. Must parse as a table of
+  string→string; anything else is a config error.
 - For each model, output goes to `<input>/models/<model>/`. The model string is
   used verbatim as a relative path, so `anthropic/claude-haiku-4-5` nests two
   levels (matches the example layout).
@@ -87,6 +101,16 @@ Example tree:
   (chunks within a file already run sequentially in the reused loop). Sequential
   processing gives clean per-file timing and avoids shared-credential rate-limit
   contention.
+- **Model lifecycle (production path only).** Before processing a model that has
+  work, the CLI evicts the previously-loaded local (Ollama) model via
+  `llm.unload` (a `keep_alive=0` request, a no-op for non-Ollama) to ease GPU
+  pressure, then preflights/warms the current model via `llm.check_model` (a
+  tiny request that loads it). This keeps a local model's **cold-start load cost
+  out of the first file's timing** and surfaces auth/config errors before
+  churning every file. A preflight error skips that model (its files retry next
+  run). The last local model is evicted when the run ends. Lifecycle management
+  is gated on the real provider being used (the CLI's `find` is `None`); an
+  injected `find` (tests) loads/evicts nothing.
 - Per unprocessed file: `t = perf_counter()`, run chunk→find→merge,
   `dt = perf_counter() - t`, write sidecar, set `times[name] = dt`, rewrite
   `times.json`.
@@ -103,13 +127,20 @@ that were fully skipped this run and models from prior runs:
   aggregate across its sidecars.
 - **Quality count:** every name — each person's `canonical` **and** each alias —
   is counted once, bucketed by *its own* `confidence` into high/medium/low.
-- **Avg time/file:** mean of that model's `times.json` values (files with a
-  recorded time).
-- Rendered as a Rich table, one row per model:
+- **Timing distribution:** from that model's `times.json` values — `min`, `max`,
+  `median`, and `mean` seconds. Median is reported alongside mean because a few
+  long transcriptions skew the mean upward.
+- **Length-normalized throughput (`ms/byte`):** total recorded seconds across
+  the model's timed files divided by the total byte size of those input files,
+  in milliseconds per byte. This makes models comparable independent of how long
+  each document happens to be (the dominant source of per-file timing variance).
+- Rendered as a Rich table (fixed wide width so model names never truncate when
+  piped), one row per model:
 
-  | Model | Files | High | Med | Low | Total | Avg s/file |
+  | Model | Files | High | Med | Low | Total | Min s | Max s | Median s | Mean s | ms/byte |
 
-- Models with no on-disk data are omitted.
+- Models with no on-disk data are omitted. Timing columns are `n/a` when no
+  `times.json` entries exist.
 
 Model directories are discovered by walking `<input>/models/` for directories
 containing a `times.json` or any `*.names.json`, reconstructing the model string
