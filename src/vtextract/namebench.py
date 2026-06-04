@@ -108,3 +108,53 @@ def extract_people(
         except Exception as exc:
             raise RuntimeError(f"chunk {index + 1}/{len(chunks)} failed: {exc}") from exc
     return merge_people(groups)
+
+
+import sys
+import time
+
+
+def _input_txt_files(input_dir: Path) -> list[Path]:
+    """Top-level ``*.txt`` files in the input folder, sorted by name."""
+    return sorted(p for p in Path(input_dir).glob("*.txt") if p.is_file())
+
+
+def run_model(
+    input_dir: Path,
+    model: str,
+    *,
+    chunk_size: int = 64000,
+    overlap: int = 512,
+    api_base: str | None = None,
+    force: bool = False,
+    find: FindFn | None = None,
+) -> None:
+    """Process every input ``*.txt`` for one model, sequentially.
+
+    Skips files whose sidecar already exists unless ``force``. Records per-file
+    wall time in ``times.json`` (rewritten after each file so a crash keeps
+    completed timings). A file whose extraction fails is logged to stderr and
+    left without a sidecar or time entry, so a later run retries it.
+    """
+    input_dir = Path(input_dir)
+    md = model_dir(input_dir, model)
+    md.mkdir(parents=True, exist_ok=True)
+    times = load_times(md)
+
+    for txt in _input_txt_files(input_dir):
+        side = sidecar_path(md, txt.name)
+        if side.exists() and not force:
+            continue
+        start = time.perf_counter()
+        try:
+            people = extract_people(
+                txt.read_text(), model,
+                chunk_size=chunk_size, overlap=overlap, api_base=api_base, find=find)
+        except Exception as exc:
+            reason = llm_module.friendly_error(exc, model, api_base)
+            print(f"namebench: failed {model} {txt.name}: {reason}", file=sys.stderr)
+            continue
+        elapsed = time.perf_counter() - start
+        write_sidecar(side, model, people)
+        times[txt.name] = elapsed
+        write_times(md, times)

@@ -107,3 +107,76 @@ def test_extract_people_propagates_chunk_failure(tmp_path):
         assert False, "expected the failure to propagate"
     except Exception as exc:
         assert "bad json" in str(exc)
+
+
+from vtextract.namebench import run_model
+
+
+def _seed_inputs(tmp_path):
+    (tmp_path / "1.txt").write_text("Wm Young paid the toll.")
+    (tmp_path / "2.txt").write_text("nothing here")
+    return tmp_path
+
+
+def test_run_model_writes_sidecars_and_times(tmp_path):
+    inp = _seed_inputs(tmp_path)
+    find = _fake_find_factory({
+        "Wm Young": [Person(canonical="William Young",
+                            aliases=[{"text": "Wm Young", "confidence": "high"}])],
+    })
+    run_model(inp, "anthropic/claude-haiku-4-5", find=find)
+    md = model_dir(inp, "anthropic/claude-haiku-4-5")
+    assert (md / "1.txt.names.json").exists()
+    assert (md / "2.txt.names.json").exists()
+    times = load_times(md)
+    assert set(times) == {"1.txt", "2.txt"}
+    assert all(isinstance(v, (int, float)) and v >= 0 for v in times.values())
+
+
+def test_run_model_skips_existing_and_preserves_time(tmp_path):
+    inp = _seed_inputs(tmp_path)
+    md = model_dir(inp, "m")
+    md.mkdir(parents=True)
+    # pre-existing sidecar + recorded time for 1.txt
+    write_sidecar(sidecar_path(md, "1.txt"), "m", [])
+    write_times(md, {"1.txt": 99.0})
+
+    calls = []
+    def find(chunk_text, model, api_base=None):
+        calls.append(chunk_text)
+        return []
+    run_model(inp, "m", find=find)
+    # 1.txt skipped (find never saw its text); only 2.txt processed
+    assert "Wm Young paid the toll." not in calls
+    times = load_times(md)
+    assert times["1.txt"] == 99.0          # preserved
+    assert "2.txt" in times                # newly recorded
+
+
+def test_run_model_force_reprocesses(tmp_path):
+    inp = _seed_inputs(tmp_path)
+    md = model_dir(inp, "m")
+    md.mkdir(parents=True)
+    write_sidecar(sidecar_path(md, "1.txt"), "m", [])
+
+    seen = []
+    def find(chunk_text, model, api_base=None):
+        seen.append(chunk_text)
+        return []
+    run_model(inp, "m", find=find, force=True)
+    assert any("Wm Young" in s for s in seen)  # 1.txt re-read despite sidecar
+
+
+def test_run_model_logs_failure_and_continues(tmp_path, capsys):
+    inp = _seed_inputs(tmp_path)
+    def find(chunk_text, model, api_base=None):
+        if "Wm Young" in chunk_text:
+            raise RuntimeError("boom")
+        return []
+    run_model(inp, "m", find=find)
+    md = model_dir(inp, "m")
+    assert not (md / "1.txt.names.json").exists()   # failed file: no sidecar
+    assert "1.txt" not in load_times(md)             # and no time entry
+    assert (md / "2.txt.names.json").exists()        # other file still processed
+    err = capsys.readouterr().err
+    assert "1.txt" in err
