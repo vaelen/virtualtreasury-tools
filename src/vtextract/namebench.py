@@ -6,10 +6,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import statistics
 import sys
 import time
 import tomllib
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -23,7 +25,6 @@ from vtextract.names import llm as llm_module
 from vtextract.names.chunking import chunk_text
 from vtextract.names.merge import merge_people
 from vtextract.names.models import (
-    CONFIDENCE_LEVELS,
     SIDECAR_SCHEMA,
     Person,
 )
@@ -59,6 +60,12 @@ def load_bench_config(path: Path) -> BenchConfig:
 
 _SIDECAR_SUFFIX = ".names.json"
 _TIMES_NAME = "times.json"
+
+# A trivial one-sentence document sent to a model before its real files. The
+# first call to a model (especially a cold local one) pays load/connection
+# latency that would otherwise pollute the timed run, so we send this first and
+# throw the result away -- it is never timed and never written as a sidecar.
+WARMUP_TEXT = "John Smith met Mary Jones in Dublin in 1850."
 
 
 def model_dir(input_dir: Path, model: str) -> Path:
@@ -169,6 +176,27 @@ def partition_files(
     return todo, done
 
 
+def warm_up(
+    model: str,
+    *,
+    chunk_size: int = 64000,
+    overlap: int = 512,
+    api_base: str | None = None,
+    find: FindFn | None = None,
+) -> None:
+    """Prime a model with ``WARMUP_TEXT`` so its first *timed* file is warm.
+
+    Runs the real extraction path but records nothing: the result and any error
+    are discarded (a genuine problem resurfaces on the first real file, or was
+    already caught by ``check_model``). Never raises.
+    """
+    try:
+        extract_people(WARMUP_TEXT, model, chunk_size=chunk_size,
+                       overlap=overlap, api_base=api_base, find=find)
+    except Exception:
+        pass
+
+
 def run_model(
     input_dir: Path,
     model: str,
@@ -188,6 +216,9 @@ def run_model(
     left without a sidecar or time entry, so a later run retries it. When
     ``show_progress`` and there is work to do, renders a Rich progress bar
     (labelled with the model) over the files, as ``vtextract names`` does.
+
+    When there is work to do, sends an uncounted/untimed ``WARMUP_TEXT`` request
+    first so cold-start latency does not skew the first file's timing.
     """
     input_dir = Path(input_dir)
     md = model_dir(input_dir, model)
@@ -195,6 +226,9 @@ def run_model(
     times = load_times(md)
 
     todo, _done = partition_files(input_dir, model, force=force)
+    if todo:
+        warm_up(model, chunk_size=chunk_size, overlap=overlap,
+                api_base=api_base, find=find)
 
     def process(txt: Path, side: Path, progress: Progress | None) -> None:
         start = time.perf_counter()
@@ -226,10 +260,21 @@ def run_model(
 class ReportRow:
     model: str
     files: int
-    high: int
-    medium: int
-    low: int
-    total: int
+    # Files where the model returned zero persons (recall / "gave up" signal).
+    empty_files: int
+    # Extraction volume: distinct persons and their aliases, summed over files.
+    persons: int
+    aliases: int
+    # Shape ratios. aliases_per_person is None when no persons were found.
+    aliases_per_person: float | None
+    persons_per_file: float | None
+    # Quality vs the cross-model consensus ground truth (a name is "true" when a
+    # strict majority of models extracted it from that file). None when there is
+    # no consensus to score against (e.g. a lone model). precision = found names
+    # that are consensus; recall = consensus names found; f1 their harmonic mean.
+    precision: float | None
+    recall: float | None
+    f1: float | None
     # Per-file wall-time distribution (seconds); None when no timings recorded.
     min_s: float | None
     max_s: float | None
@@ -237,6 +282,10 @@ class ReportRow:
     mean_s: float | None
     # Length-normalized throughput: total time / total input bytes, in ms/byte.
     ms_per_byte: float | None
+    # Output-normalized throughput: total time / persons, in seconds/name.
+    # More meaningful than ms/byte because generation latency scales with the
+    # number of names emitted, not the input length. None without persons/times.
+    s_per_name: float | None
 
 
 def discover_models(input_dir: Path) -> list[str]:
@@ -255,71 +304,166 @@ def discover_models(input_dir: Path) -> list[str]:
     return sorted(found)
 
 
-def count_confidences(people: list[Person]) -> dict[str, int]:
-    """Bucket every name -- each person's canonical AND each alias -- by its own
-    confidence into high/medium/low."""
-    counts = {level: 0 for level in CONFIDENCE_LEVELS}
-    for person in people:
-        counts[person.confidence] += 1
-        for alias in person.aliases:
-            counts[alias.confidence] += 1
-    return counts
+def count_names(people: list[Person]) -> tuple[int, int]:
+    """Return ``(persons, aliases)``: how many people were extracted and the
+    total number of aliases across them (the canonical name is not an alias)."""
+    persons = len(people)
+    aliases = sum(len(person.aliases) for person in people)
+    return persons, aliases
+
+
+_HONORIFICS = re.compile(
+    r"\b(?:esq(?:uire|r)?|mr|mrs|miss|ms|sir|lord|lady|capt|col|dr|rev|widow"
+    r"|mons|madam|corp|sgt|gen|maj|lt)\b\.?",
+    re.IGNORECASE,
+)
+
+
+def normalize_name(name: str) -> str:
+    """Fold a canonical name to a comparison key for cross-model agreement:
+    lowercase, drop honorifics/titles and punctuation, collapse whitespace."""
+    s = _HONORIFICS.sub(" ", name.lower())
+    s = re.sub(r"[^a-z0-9 ]", " ", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+@dataclass
+class _ModelData:
+    """One model's on-disk aggregates, kept for the cross-model consensus pass."""
+    files: int = 0
+    empty_files: int = 0
+    persons: int = 0
+    aliases: int = 0
+    name_sets: dict[str, set[str]] = None  # input file -> normalized name keys
+    total_s: float = 0.0
+    total_bytes: int = 0
+    timing: list[float] = None
+
+
+def _read_model_data(input_dir: Path, model: str) -> _ModelData:
+    """Read every sidecar + times.json for one model into a ``_ModelData``."""
+    md = model_dir(input_dir, model)
+    data = _ModelData(name_sets={})
+    for side in sorted(md.glob("*" + _SIDECAR_SUFFIX)):
+        try:
+            payload = json.loads(side.read_text())
+        except (OSError, ValueError):
+            continue
+        data.files += 1
+        people = [Person.model_validate(p) for p in payload.get("people", [])]
+        p_count, a_count = count_names(people)
+        if p_count == 0:
+            data.empty_files += 1
+        data.persons += p_count
+        data.aliases += a_count
+        txt_name = side.name[: -len(_SIDECAR_SUFFIX)]
+        keys = {k for k in (normalize_name(p.canonical) for p in people) if k}
+        data.name_sets[txt_name] = keys
+    times = load_times(md)
+    data.timing = list(times.values())
+    for name, secs in times.items():
+        try:
+            data.total_bytes += (Path(input_dir) / name).stat().st_size
+        except OSError:
+            continue  # input file gone; can't length-normalize this one
+        data.total_s += secs
+    return data
+
+
+def _consensus_truth(per_model: dict[str, _ModelData]) -> dict[str, set[str]]:
+    """Per input file, the set of normalized names a strict majority of the
+    models that processed that file agreed on -- the scoring ground truth."""
+    files: set[str] = set()
+    for data in per_model.values():
+        files |= set(data.name_sets)
+    truth: dict[str, set[str]] = {}
+    for fname in files:
+        present = [d for d in per_model.values() if fname in d.name_sets]
+        majority = max(2, len(present) // 2 + 1)
+        votes: Counter[str] = Counter()
+        for d in present:
+            votes.update(d.name_sets[fname])  # a set: one vote per model
+        truth[fname] = {name for name, n in votes.items() if n >= majority}
+    return truth
+
+
+def _score(data: _ModelData, truth: dict[str, set[str]]
+           ) -> tuple[float | None, float | None, float | None]:
+    """Precision/recall/F1 of one model's names against the consensus truth.
+
+    All three are None when no consensus names exist to score against (so a lone
+    model, or an all-empty corpus, reports no quality metrics rather than 0s).
+    """
+    hits = found = expected = 0
+    for fname, names in data.name_sets.items():
+        t = truth.get(fname, set())
+        hits += len(names & t)
+        found += len(names)
+        expected += len(t)
+    if expected == 0:
+        return None, None, None
+    precision = hits / found if found else 0.0
+    recall = hits / expected
+    denom = precision + recall
+    f1 = (2 * precision * recall / denom) if denom else 0.0
+    return precision, recall, f1
 
 
 def build_report(input_dir: Path) -> list[ReportRow]:
-    """One ReportRow per model dir with on-disk data, aggregated from sidecars."""
+    """One ReportRow per model dir with on-disk data, aggregated from sidecars.
+
+    Quality columns (precision/recall/F1) are scored against a cross-model
+    consensus ground truth, so this reads every model before emitting any row.
+    """
+    models = discover_models(input_dir)
+    per_model = {m: _read_model_data(input_dir, m) for m in models}
+    truth = _consensus_truth(per_model)
+
     rows: list[ReportRow] = []
-    for model in discover_models(input_dir):
-        md = model_dir(input_dir, model)
-        totals = {level: 0 for level in CONFIDENCE_LEVELS}
-        files = 0
-        for side in sorted(md.glob("*" + _SIDECAR_SUFFIX)):
-            try:
-                data = json.loads(side.read_text())
-            except (OSError, ValueError):
-                continue
-            files += 1
-            people = [Person.model_validate(p) for p in data.get("people", [])]
-            for level, n in count_confidences(people).items():
-                totals[level] += n
-        times = load_times(md)
-        vals = list(times.values())
-        # Length-normalize: total seconds over total input bytes of timed files.
-        total_s = 0.0
-        total_bytes = 0
-        for name, secs in times.items():
-            try:
-                total_bytes += (Path(input_dir) / name).stat().st_size
-            except OSError:
-                continue  # input file gone; can't normalize this one
-            total_s += secs
-        ms_per_byte = (total_s * 1000.0 / total_bytes) if total_bytes else None
+    for model in models:
+        data = per_model[model]
+        precision, recall, f1 = _score(data, truth)
+        vals = data.timing
+        ms_per_byte = (data.total_s * 1000.0 / data.total_bytes
+                       ) if data.total_bytes else None
         rows.append(ReportRow(
-            model=model, files=files,
-            high=totals["high"], medium=totals["medium"], low=totals["low"],
-            total=totals["high"] + totals["medium"] + totals["low"],
+            model=model, files=data.files, empty_files=data.empty_files,
+            persons=data.persons, aliases=data.aliases,
+            aliases_per_person=(data.aliases / data.persons) if data.persons else None,
+            persons_per_file=(data.persons / data.files) if data.files else None,
+            precision=precision, recall=recall, f1=f1,
             min_s=min(vals) if vals else None,
             max_s=max(vals) if vals else None,
             median_s=statistics.median(vals) if vals else None,
             mean_s=statistics.mean(vals) if vals else None,
-            ms_per_byte=ms_per_byte))
+            ms_per_byte=ms_per_byte,
+            s_per_name=(data.total_s / data.persons) if (data.persons and vals) else None))
     return rows
 
 
 def render_report(rows: list[ReportRow], console: Console | None = None) -> None:
-    """Print a Rich table comparing models on name counts and timing stats.
+    """Print a Rich table comparing models on extraction volume and timing.
+
+    Quality columns (P/R/F1) score each model against a cross-model consensus
+    ground truth (a name is "true" when a strict majority of models extracted it
+    from a file). Count columns describe *what* each model extracted: persons,
+    aliases, the alias-to-person ratio, persons-per-file, and how many files came
+    back empty (a recall / "gave up" signal). Confidence labels are deliberately
+    omitted -- they are model-specific and not comparable across providers.
 
     Timing columns are the per-file wall-time distribution (min/max/median/mean
-    seconds) plus ms/byte, which normalizes for document length so models are
-    comparable independent of how long each transcription happens to be.
+    seconds) plus two normalizations: ms/byte (per input length) and s/name (per
+    person emitted). s/name is usually the more meaningful of the two, since
+    generation latency scales with the number of names produced, not input size.
     """
-    # Fixed wide width so the 11-column table never truncates model names when
-    # the output is piped/captured (where Rich would otherwise assume 80 cols).
-    console = console or Console(width=200)
+    # Fixed wide width so the table never truncates model names when the output
+    # is piped/captured (where Rich would otherwise assume 80 cols).
+    console = console or Console(width=220)
     table = Table(title="Name-extraction model comparison")
     table.add_column("Model", justify="left", no_wrap=True)
-    for col in ("Files", "High", "Med", "Low", "Total",
-                "Min s", "Max s", "Median s", "Mean s", "ms/byte"):
+    for col in ("P", "R", "F1", "Files", "Empty", "Persons", "Aliases",
+                "Al/Per", "Per/File", "Min s", "Max s", "Median s", "Mean s",
+                "ms/byte", "s/name"):
         table.add_column(col, justify="right")
 
     def fmt(v: float | None, spec: str = "{:.2f}") -> str:
@@ -327,9 +471,11 @@ def render_report(rows: list[ReportRow], console: Console | None = None) -> None
 
     for r in rows:
         table.add_row(
-            r.model, str(r.files), str(r.high), str(r.medium), str(r.low),
-            str(r.total), fmt(r.min_s), fmt(r.max_s), fmt(r.median_s),
-            fmt(r.mean_s), fmt(r.ms_per_byte, "{:.3f}"))
+            r.model, fmt(r.precision), fmt(r.recall), fmt(r.f1),
+            str(r.files), str(r.empty_files), str(r.persons),
+            str(r.aliases), fmt(r.aliases_per_person), fmt(r.persons_per_file),
+            fmt(r.min_s), fmt(r.max_s), fmt(r.median_s), fmt(r.mean_s),
+            fmt(r.ms_per_byte, "{:.3f}"), fmt(r.s_per_name))
     if not rows:
         console.print("namebench: no model data found.")
         return

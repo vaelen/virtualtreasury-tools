@@ -137,7 +137,7 @@ def test_extract_people_propagates_chunk_failure():
         assert "bad json" in str(exc)
 
 
-from vtextract.namebench import run_model
+from vtextract.namebench import run_model, WARMUP_TEXT
 
 
 def _seed_inputs(tmp_path):
@@ -159,6 +159,52 @@ def test_run_model_writes_sidecars_and_times(tmp_path):
     times = load_times(md)
     assert set(times) == {"1.txt", "2.txt"}
     assert all(isinstance(v, (int, float)) and v >= 0 for v in times.values())
+
+
+def test_run_model_warms_up_before_timed_files(tmp_path):
+    inp = _seed_inputs(tmp_path)   # 1.txt, 2.txt
+    seen = []
+    def find(chunk_text, model, api_base=None):
+        seen.append(chunk_text)
+        return []
+    run_model(inp, "m", find=find, show_progress=False)
+    md = model_dir(inp, "m")
+    # the warm-up document is sent FIRST, before any real input file
+    assert seen[0] == WARMUP_TEXT
+    # ...but it is neither timed nor written as a sidecar
+    assert set(load_times(md)) == {"1.txt", "2.txt"}   # no warm-up time entry
+    assert sorted(p.name for p in md.glob("*.names.json")) == [
+        "1.txt.names.json", "2.txt.names.json"]        # no warm-up sidecar
+
+
+def test_run_model_no_warmup_when_nothing_to_do(tmp_path):
+    inp = _seed_inputs(tmp_path)
+    md = model_dir(inp, "m")
+    md.mkdir(parents=True)
+    write_sidecar(sidecar_path(md, "1.txt"), "m", [])
+    write_sidecar(sidecar_path(md, "2.txt"), "m", [])   # everything already done
+    seen = []
+    def find(chunk_text, model, api_base=None):
+        seen.append(chunk_text)
+        return []
+    run_model(inp, "m", find=find, show_progress=False)
+    assert seen == []   # nothing to process -> no warm-up call either
+
+
+def test_run_model_warmup_failure_does_not_abort(tmp_path):
+    inp = _seed_inputs(tmp_path)
+    calls = []
+    def find(chunk_text, model, api_base=None):
+        calls.append(chunk_text)
+        if chunk_text == WARMUP_TEXT:
+            raise RuntimeError("cold start blew up")
+        return []
+    run_model(inp, "m", find=find, show_progress=False)
+    md = model_dir(inp, "m")
+    # warm-up raised but was swallowed; the real files still processed
+    assert calls[0] == WARMUP_TEXT
+    assert (md / "1.txt.names.json").exists()
+    assert (md / "2.txt.names.json").exists()
 
 
 def test_run_model_skips_existing_and_preserves_time(tmp_path):
@@ -219,19 +265,28 @@ def test_run_model_renders_progress_bar(tmp_path, capsys):
     assert "100%" in err                          # bar completed over the files
 
 
-from vtextract.namebench import discover_models, count_confidences, build_report
+from vtextract.namebench import (
+    discover_models, count_names, normalize_name, build_report,
+)
 
 
-def test_count_confidences_buckets_persons_and_aliases():
+def test_normalize_name_strips_titles_and_punctuation():
+    assert normalize_name("Mr. William Young, Esq.") == "william young"
+    assert normalize_name("Capt. Skinner") == "skinner"
+    assert normalize_name("J. Smith") == "j smith"
+    # same person, different surface forms collapse to one key
+    assert normalize_name("Widow Burton") == normalize_name("burton")
+
+
+def test_count_names_counts_persons_and_aliases():
     people = [
         Person(canonical="William Young", confidence="high",
                aliases=[{"text": "Wm Young", "confidence": "high"},
                         {"text": "Young", "confidence": "low"}]),
         Person(canonical="J. Smith", confidence="medium", aliases=[]),
     ]
-    counts = count_confidences(people)
-    # persons: high(William) + medium(J.Smith); aliases: high(Wm) + low(Young)
-    assert counts == {"high": 2, "medium": 1, "low": 1}
+    # 2 persons; 2 aliases (both on William Young, none on J. Smith)
+    assert count_names(people) == (2, 2)
 
 
 def test_discover_models_finds_dirs_with_data(tmp_path):
@@ -257,16 +312,23 @@ def test_build_report_aggregates_per_model(tmp_path):
     md.mkdir(parents=True)
     write_sidecar(sidecar_path(md, "1.txt"), "m", [
         Person(canonical="William Young", confidence="high",
-               aliases=[{"text": "Wm Young", "confidence": "high"}])])
-    write_sidecar(sidecar_path(md, "2.txt"), "m", [])
+               aliases=[{"text": "Wm Young", "confidence": "high"},
+                        {"text": "Young", "confidence": "low"}]),
+        Person(canonical="J. Smith", confidence="medium", aliases=[])])
+    write_sidecar(sidecar_path(md, "2.txt"), "m", [])   # an "empty" extraction
     write_times(md, {"1.txt": 1.0, "2.txt": 3.0})
     rows = build_report(inp)
     assert len(rows) == 1
     row = rows[0]
     assert row.model == "m"
     assert row.files == 2
-    assert row.high == 2 and row.medium == 0 and row.low == 0
-    assert row.total == 2
+    assert row.empty_files == 1            # 2.txt produced no persons
+    assert row.persons == 2                # William Young + J. Smith
+    assert row.aliases == 2                # both on William Young
+    assert row.aliases_per_person == 1.0   # 2 aliases / 2 persons
+    assert row.persons_per_file == 1.0     # 2 persons / 2 files
+    # P/R/F1 need cross-model consensus; with a single model there is none
+    assert row.precision is None and row.recall is None and row.f1 is None
     # timing distribution
     assert row.min_s == 1.0
     assert row.max_s == 3.0
@@ -274,17 +336,55 @@ def test_build_report_aggregates_per_model(tmp_path):
     assert row.mean_s == 2.0
     # ms/byte = (1.0 + 3.0) s * 1000 / (100 + 300) bytes = 10.0
     assert row.ms_per_byte == 10.0
+    # s/name = (1.0 + 3.0) s / 2 persons = 2.0 (latency is output-bound)
+    assert row.s_per_name == 2.0
 
 
-def test_build_report_timing_none_without_times(tmp_path):
+def test_build_report_ratios_none_without_data(tmp_path):
     inp = tmp_path
     md = model_dir(inp, "m")
     md.mkdir(parents=True)
-    write_sidecar(sidecar_path(md, "1.txt"), "m", [])   # sidecar but no times.json
+    write_sidecar(sidecar_path(md, "1.txt"), "m", [])   # sidecar, no persons, no times
     row = build_report(inp)[0]
+    assert row.persons == 0 and row.aliases == 0
+    assert row.empty_files == 1
+    assert row.aliases_per_person is None   # no persons -> undefined
+    assert row.persons_per_file == 0.0      # 0 persons / 1 file
+    assert row.precision is None and row.recall is None and row.f1 is None
     assert row.min_s is None and row.max_s is None
     assert row.median_s is None and row.mean_s is None
     assert row.ms_per_byte is None
+    assert row.s_per_name is None           # no persons (and no times) -> undefined
+
+
+def test_build_report_precision_recall_against_consensus(tmp_path):
+    inp = tmp_path
+    (inp / "1.txt").write_text("doc")
+
+    def seed(model, names):
+        md = model_dir(inp, model)
+        md.mkdir(parents=True)
+        write_sidecar(sidecar_path(md, "1.txt"), model,
+                      [Person(canonical=n, confidence="high", aliases=[])
+                       for n in names])
+
+    # 3 models, majority = 2. Consensus truth = {John Smith, Mary Jones}.
+    # "Ghost" (only model a) is a singleton -> excluded, a false positive for a.
+    seed("a", ["John Smith", "Mary Jones", "Ghost"])
+    seed("b", ["John Smith", "Mary Jones"])
+    seed("c", ["John Smith"])
+    rows = {r.model: r for r in build_report(inp)}
+
+    # a: found 3, hits 2 -> P = 2/3, R = 2/2 = 1.0
+    assert rows["a"].precision == 2 / 3
+    assert rows["a"].recall == 1.0
+    # b: found 2, both consensus -> P = R = F1 = 1.0
+    assert rows["b"].precision == 1.0 and rows["b"].recall == 1.0
+    assert rows["b"].f1 == 1.0
+    # c: found 1 (John Smith), hits 1 -> P = 1.0, R = 1/2 = 0.5
+    assert rows["c"].precision == 1.0
+    assert rows["c"].recall == 0.5
+    assert abs(rows["c"].f1 - (2 * 1.0 * 0.5 / 1.5)) < 1e-9
 
 
 from vtextract.namebench import main
