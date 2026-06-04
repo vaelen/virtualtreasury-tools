@@ -250,6 +250,9 @@ def test_discover_models_finds_dirs_with_data(tmp_path):
 
 def test_build_report_aggregates_per_model(tmp_path):
     inp = tmp_path
+    # input files of known sizes for the length-normalized (ms/byte) metric
+    (inp / "1.txt").write_text("x" * 100)
+    (inp / "2.txt").write_text("x" * 300)
     md = model_dir(inp, "m")
     md.mkdir(parents=True)
     write_sidecar(sidecar_path(md, "1.txt"), "m", [
@@ -264,7 +267,24 @@ def test_build_report_aggregates_per_model(tmp_path):
     assert row.files == 2
     assert row.high == 2 and row.medium == 0 and row.low == 0
     assert row.total == 2
-    assert row.avg_seconds == 2.0
+    # timing distribution
+    assert row.min_s == 1.0
+    assert row.max_s == 3.0
+    assert row.median_s == 2.0
+    assert row.mean_s == 2.0
+    # ms/byte = (1.0 + 3.0) s * 1000 / (100 + 300) bytes = 10.0
+    assert row.ms_per_byte == 10.0
+
+
+def test_build_report_timing_none_without_times(tmp_path):
+    inp = tmp_path
+    md = model_dir(inp, "m")
+    md.mkdir(parents=True)
+    write_sidecar(sidecar_path(md, "1.txt"), "m", [])   # sidecar but no times.json
+    row = build_report(inp)[0]
+    assert row.min_s is None and row.max_s is None
+    assert row.median_s is None and row.mean_s is None
+    assert row.ms_per_byte is None
 
 
 from vtextract.namebench import main
@@ -406,3 +426,58 @@ def test_main_announces_pending_and_done_split(tmp_path, capsys):
     main([str(cfg)], find=_fake_find_factory({}))
     err = capsys.readouterr().err
     assert "1 to process, 1 already done" in err
+
+
+# --- model lifecycle (warm-up + unload) -----------------------------------
+# These exercise the production path (find=None), monkeypatching the LLM
+# choke-point functions so nothing touches the network.
+
+def test_main_warms_up_then_unloads_local_models(tmp_path, monkeypatch):
+    import vtextract.names.llm as llm
+    inp = tmp_path / "data"
+    inp.mkdir()
+    (inp / "1.txt").write_text("hi")
+    cfg = tmp_path / "bench.toml"
+    cfg.write_text(
+        f'input = "{inp}"\n'
+        'models = ["ollama/a", "ollama/b"]\n'
+        '\n[api_base]\n'
+        '"ollama/a" = "http://localhost:11434"\n'
+        '"ollama/b" = "http://localhost:11434"\n'
+    )
+    warmed: list[str] = []
+    unloaded: list[str] = []
+    monkeypatch.setattr(llm, "find_people", lambda chunk, model, api_base=None: [])
+    monkeypatch.setattr(llm, "check_model",
+                        lambda model, api_base=None: warmed.append(model) or None)
+    monkeypatch.setattr(llm, "unload",
+                        lambda model, api_base=None: unloaded.append(model))
+
+    rc = main([str(cfg)])   # find=None -> production lifecycle path
+    assert rc == 0
+    assert warmed == ["ollama/a", "ollama/b"]      # each warmed before its files
+    # a is evicted before b loads; b is evicted at the end
+    assert unloaded == ["ollama/a", "ollama/b"]
+
+
+def test_main_skips_model_when_preflight_fails(tmp_path, monkeypatch, capsys):
+    import vtextract.names.llm as llm
+    inp = tmp_path / "data"
+    inp.mkdir()
+    (inp / "1.txt").write_text("hi")
+    cfg = tmp_path / "bench.toml"
+    cfg.write_text(f'input = "{inp}"\nmodels = ["openai/x"]\n')
+
+    processed: list[str] = []
+    monkeypatch.setattr(llm, "find_people",
+                        lambda chunk, model, api_base=None: processed.append(model) or [])
+    monkeypatch.setattr(llm, "check_model",
+                        lambda model, api_base=None: "Authentication failed for 'openai/x'.")
+    monkeypatch.setattr(llm, "unload", lambda model, api_base=None: None)
+
+    rc = main([str(cfg)])
+    assert rc == 0
+    err = capsys.readouterr().err
+    assert "skipping openai/x" in err
+    assert processed == []   # files never processed when preflight fails
+    assert not sidecar_path(model_dir(inp, "openai/x"), "1.txt").exists()

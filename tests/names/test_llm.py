@@ -156,3 +156,32 @@ def test_complete_transport_error_keeps_short_backoff(monkeypatch):
 def test_friendly_error_rate_limit():
     msg = llm.friendly_error(_rate_limit_error(), "anthropic/claude-haiku-4-5", None)
     assert "rate limit" in msg.lower()
+
+
+def test_unload_noop_for_non_ollama(monkeypatch):
+    calls = []
+    monkeypatch.setattr(llm.httpx, "post", lambda *a, **k: calls.append((a, k)))
+    llm.unload("openai/gpt-4.1")
+    assert calls == []   # remote models are not locally loaded
+
+
+def test_unload_posts_keep_alive_zero_to_ollama(monkeypatch):
+    seen = {}
+    def fake_post(url, json=None, timeout=None):
+        seen["url"] = url
+        seen["json"] = json
+        return None
+    monkeypatch.setattr(llm.httpx, "post", fake_post)
+    llm.unload("ollama/qwen2.5:7b", "http://localhost:11434")
+    assert seen["url"] == "http://localhost:11434/api/generate"
+    assert seen["json"] == {"model": "qwen2.5:7b", "keep_alive": 0}  # prefix dropped
+
+
+def test_unload_defaults_base_and_swallows_errors(monkeypatch):
+    seen = {}
+    def fake_post(url, json=None, timeout=None):
+        seen["url"] = url
+        raise RuntimeError("ollama down")
+    monkeypatch.setattr(llm.httpx, "post", fake_post)
+    llm.unload("ollama/x")   # no api_base -> default localhost; must not raise
+    assert seen["url"] == "http://localhost:11434/api/generate"

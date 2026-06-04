@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import statistics
 import sys
 import time
 import tomllib
@@ -133,6 +134,11 @@ def _input_txt_files(input_dir: Path) -> list[Path]:
     return sorted(p for p in Path(input_dir).glob("*.txt") if p.is_file())
 
 
+def _is_ollama(model: str) -> bool:
+    """True for locally-served Ollama models (which load/unload on the GPU)."""
+    return model.startswith("ollama/")
+
+
 def _log_failure(progress: Progress | None, message: str) -> None:
     """Report a failure, printing above a live progress bar if one is active."""
     if progress is not None:
@@ -224,7 +230,13 @@ class ReportRow:
     medium: int
     low: int
     total: int
-    avg_seconds: float | None   # None when no timings recorded
+    # Per-file wall-time distribution (seconds); None when no timings recorded.
+    min_s: float | None
+    max_s: float | None
+    median_s: float | None
+    mean_s: float | None
+    # Length-normalized throughput: total time / total input bytes, in ms/byte.
+    ms_per_byte: float | None
 
 
 def discover_models(input_dir: Path) -> list[str]:
@@ -270,26 +282,54 @@ def build_report(input_dir: Path) -> list[ReportRow]:
             people = [Person.model_validate(p) for p in data.get("people", [])]
             for level, n in count_confidences(people).items():
                 totals[level] += n
-        times = list(load_times(md).values())
-        avg = sum(times) / len(times) if times else None
+        times = load_times(md)
+        vals = list(times.values())
+        # Length-normalize: total seconds over total input bytes of timed files.
+        total_s = 0.0
+        total_bytes = 0
+        for name, secs in times.items():
+            try:
+                total_bytes += (Path(input_dir) / name).stat().st_size
+            except OSError:
+                continue  # input file gone; can't normalize this one
+            total_s += secs
+        ms_per_byte = (total_s * 1000.0 / total_bytes) if total_bytes else None
         rows.append(ReportRow(
             model=model, files=files,
             high=totals["high"], medium=totals["medium"], low=totals["low"],
             total=totals["high"] + totals["medium"] + totals["low"],
-            avg_seconds=avg))
+            min_s=min(vals) if vals else None,
+            max_s=max(vals) if vals else None,
+            median_s=statistics.median(vals) if vals else None,
+            mean_s=statistics.mean(vals) if vals else None,
+            ms_per_byte=ms_per_byte))
     return rows
 
 
 def render_report(rows: list[ReportRow], console: Console | None = None) -> None:
-    """Print a Rich table comparing models on name counts and avg time/file."""
-    console = console or Console()
+    """Print a Rich table comparing models on name counts and timing stats.
+
+    Timing columns are the per-file wall-time distribution (min/max/median/mean
+    seconds) plus ms/byte, which normalizes for document length so models are
+    comparable independent of how long each transcription happens to be.
+    """
+    # Fixed wide width so the 11-column table never truncates model names when
+    # the output is piped/captured (where Rich would otherwise assume 80 cols).
+    console = console or Console(width=200)
     table = Table(title="Name-extraction model comparison")
-    for col in ("Model", "Files", "High", "Med", "Low", "Total", "Avg s/file"):
-        table.add_column(col, justify="right" if col != "Model" else "left")
+    table.add_column("Model", justify="left", no_wrap=True)
+    for col in ("Files", "High", "Med", "Low", "Total",
+                "Min s", "Max s", "Median s", "Mean s", "ms/byte"):
+        table.add_column(col, justify="right")
+
+    def fmt(v: float | None, spec: str = "{:.2f}") -> str:
+        return "n/a" if v is None else spec.format(v)
+
     for r in rows:
-        avg = "n/a" if r.avg_seconds is None else f"{r.avg_seconds:.2f}"
-        table.add_row(r.model, str(r.files), str(r.high), str(r.medium),
-                      str(r.low), str(r.total), avg)
+        table.add_row(
+            r.model, str(r.files), str(r.high), str(r.medium), str(r.low),
+            str(r.total), fmt(r.min_s), fmt(r.max_s), fmt(r.median_s),
+            fmt(r.mean_s), fmt(r.ms_per_byte, "{:.3f}"))
     if not rows:
         console.print("namebench: no model data found.")
         return
@@ -320,19 +360,43 @@ def main(argv: list[str] | None = None, *, find: FindFn | None = None) -> int:
 
     names_cfg = load_config().names  # reuse chunk_size/overlap from [names]
     total = len(bench.models)
+    # Manage real local models (warm-up + unload) only on the production path;
+    # an injected `find` (tests) talks to no real provider, so there is nothing
+    # to load or evict. prev_local holds the (model, api_base) currently resident.
+    manage = find is None
+    prev_local: tuple[str, str | None] | None = None
+
     for i, model in enumerate(bench.models, 1):
+        api_base = bench.api_base.get(model)
         todo, done = partition_files(bench.input, model, force=args.force)
-        if todo:
-            print(f"namebench: testing {model} ({i}/{total}): "
-                  f"{len(todo)} to process, {done} already done", file=sys.stderr)
-        else:
+        if not todo:
             print(f"namebench: {model} ({i}/{total}): all {done} already done, "
                   f"skipping", file=sys.stderr)
+            continue
+        print(f"namebench: testing {model} ({i}/{total}): "
+              f"{len(todo)} to process, {done} already done", file=sys.stderr)
+
+        if manage:
+            # Free the GPU/RAM held by the previous local model before loading
+            # this one, then warm up / preflight this model so its first file is
+            # not paying the cold-start load cost (and auth errors surface now).
+            if prev_local and prev_local[0] != model:
+                llm_module.unload(*prev_local)
+                prev_local = None
+            error = llm_module.check_model(model, api_base)
+            if error:
+                print(f"namebench: skipping {model}: {error}", file=sys.stderr)
+                continue
+            if _is_ollama(model):
+                prev_local = (model, api_base)
+
         run_model(
             bench.input, model,
             chunk_size=names_cfg.chunk_size, overlap=names_cfg.overlap,
-            api_base=bench.api_base.get(model),
-            force=args.force, find=find)
+            api_base=api_base, force=args.force, find=find)
+
+    if manage and prev_local:
+        llm_module.unload(*prev_local)   # evict the last local model on the way out
 
     render_report(build_report(bench.input))
     return 0

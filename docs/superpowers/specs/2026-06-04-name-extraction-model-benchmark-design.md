@@ -101,6 +101,16 @@ Example tree:
   (chunks within a file already run sequentially in the reused loop). Sequential
   processing gives clean per-file timing and avoids shared-credential rate-limit
   contention.
+- **Model lifecycle (production path only).** Before processing a model that has
+  work, the CLI evicts the previously-loaded local (Ollama) model via
+  `llm.unload` (a `keep_alive=0` request, a no-op for non-Ollama) to ease GPU
+  pressure, then preflights/warms the current model via `llm.check_model` (a
+  tiny request that loads it). This keeps a local model's **cold-start load cost
+  out of the first file's timing** and surfaces auth/config errors before
+  churning every file. A preflight error skips that model (its files retry next
+  run). The last local model is evicted when the run ends. Lifecycle management
+  is gated on the real provider being used (the CLI's `find` is `None`); an
+  injected `find` (tests) loads/evicts nothing.
 - Per unprocessed file: `t = perf_counter()`, run chunk→find→merge,
   `dt = perf_counter() - t`, write sidecar, set `times[name] = dt`, rewrite
   `times.json`.
@@ -117,13 +127,20 @@ that were fully skipped this run and models from prior runs:
   aggregate across its sidecars.
 - **Quality count:** every name — each person's `canonical` **and** each alias —
   is counted once, bucketed by *its own* `confidence` into high/medium/low.
-- **Avg time/file:** mean of that model's `times.json` values (files with a
-  recorded time).
-- Rendered as a Rich table, one row per model:
+- **Timing distribution:** from that model's `times.json` values — `min`, `max`,
+  `median`, and `mean` seconds. Median is reported alongside mean because a few
+  long transcriptions skew the mean upward.
+- **Length-normalized throughput (`ms/byte`):** total recorded seconds across
+  the model's timed files divided by the total byte size of those input files,
+  in milliseconds per byte. This makes models comparable independent of how long
+  each document happens to be (the dominant source of per-file timing variance).
+- Rendered as a Rich table (fixed wide width so model names never truncate when
+  piped), one row per model:
 
-  | Model | Files | High | Med | Low | Total | Avg s/file |
+  | Model | Files | High | Med | Low | Total | Min s | Max s | Median s | Mean s | ms/byte |
 
-- Models with no on-disk data are omitted.
+- Models with no on-disk data are omitted. Timing columns are `n/a` when no
+  `times.json` entries exist.
 
 Model directories are discovered by walking `<input>/models/` for directories
 containing a `times.json` or any `*.names.json`, reconstructing the model string

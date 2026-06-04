@@ -334,9 +334,17 @@ models = [
 Run with `uv run vtnamebench bench.toml`. For each model it writes
 `<input>/models/<model>/<file>.txt.names.json` sidecars and a `times.json`
 (filename → seconds), skipping files already processed by that model
-(`--force` re-runs). It then prints a table comparing the number of high/
-medium/low-confidence names (counting each person and each alias) and the
-average time per file, including any model with prior on-disk data.
+(`--force` re-runs). Before processing a model it preflights/warms it (so the
+first file is not paying a local model's cold-start load cost, and auth/config
+errors surface immediately), and it evicts the previous local (Ollama) model
+before loading the next to ease GPU pressure.
+
+It then prints a table comparing the number of high/medium/low-confidence names
+(counting each person and each alias) and the per-file timing distribution —
+**min, max, median, mean** seconds — plus **ms/byte**, which normalizes for
+document length so models are comparable regardless of how long each
+transcription happens to be. The report includes any model with prior on-disk
+data, even if it was fully skipped this run.
 
 ## Browsing the archive interactively
 
