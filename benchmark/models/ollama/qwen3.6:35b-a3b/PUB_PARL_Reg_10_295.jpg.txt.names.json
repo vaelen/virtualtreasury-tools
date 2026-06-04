@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "model": "ollama/qwen3.6:35b-a3b",
+  "people": [
+    {
+      "canonical": "Dunn",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. DUNN",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Clarendon",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Lord Clarendon",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Curran",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. CURRAN",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}
