@@ -153,6 +153,63 @@ def test_complete_transport_error_keeps_short_backoff(monkeypatch):
     assert sleeps == [1, 2]  # unchanged transport backoff (2**0, 2**1)
 
 
+def test_offending_param_detects_deprecated_temperature():
+    exc = RuntimeError("AnthropicException - `temperature` is deprecated for this model.")
+    assert llm._offending_param(exc) == "temperature"
+    # an unrelated error names no droppable param
+    assert llm._offending_param(RuntimeError("connection refused")) is None
+
+
+def test_complete_drops_deprecated_param_and_retries(monkeypatch):
+    monkeypatch.setattr(llm, "_unsupported_params", {})
+    monkeypatch.setattr(llm.time, "sleep", lambda s: None)
+    seen = []
+
+    def fake_completion(**kwargs):
+        seen.append(dict(kwargs))
+        if "temperature" in kwargs:   # this model rejects temperature
+            raise RuntimeError("`temperature` is deprecated for this model.")
+        return _ok_response()
+
+    monkeypatch.setattr(llm.litellm, "completion", fake_completion)
+    out = llm._complete(
+        {"model": "anthropic/claude-opus-4-8", "messages": [], "temperature": 0})
+    assert out == '{"people": []}'
+    assert len(seen) == 2                    # rejected once, then retried
+    assert "temperature" not in seen[1]      # dropped on the retry
+    # remembered so later calls for this model skip it up front
+    assert "temperature" in llm._unsupported_params["anthropic/claude-opus-4-8"]
+
+
+def test_complete_skips_known_unsupported_param_up_front(monkeypatch):
+    # model already known to reject temperature -> never sent, no failed attempt
+    monkeypatch.setattr(llm, "_unsupported_params", {"m": {"temperature"}})
+    seen = []
+
+    def fake_completion(**kwargs):
+        seen.append(dict(kwargs))
+        return _ok_response()
+
+    monkeypatch.setattr(llm.litellm, "completion", fake_completion)
+    llm._complete({"model": "m", "messages": [], "temperature": 0})
+    assert len(seen) == 1                    # no rejected first call
+    assert "temperature" not in seen[0]      # stripped before sending
+
+
+def test_check_model_recovers_from_deprecated_temperature(monkeypatch):
+    monkeypatch.setattr(llm, "_unsupported_params", {})
+    monkeypatch.setattr(llm.time, "sleep", lambda s: None)
+
+    def fake_completion(**kwargs):
+        if "temperature" in kwargs:
+            raise RuntimeError("`temperature` is deprecated for this model.")
+        return _ok_response()
+
+    monkeypatch.setattr(llm.litellm, "completion", fake_completion)
+    # preflight must succeed (None) by dropping temperature, not skip the model
+    assert llm.check_model("anthropic/claude-opus-4-8") is None
+
+
 def test_friendly_error_rate_limit():
     msg = llm.friendly_error(_rate_limit_error(), "anthropic/claude-haiku-4-5", None)
     assert "rate limit" in msg.lower()

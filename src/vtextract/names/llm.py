@@ -70,6 +70,41 @@ _NOT_FOUND_HINTS = ("not found", "404", "try pulling", "no such model",
 _AUTH_HINTS = ("authenticationerror", "unauthorized", "api key", "api-key",
                "401", "403", "permission denied", "invalid key")
 
+# Tuning params we send that some (newer) models reject. When a provider rejects
+# one, we drop it, retry, and remember not to send it again this process -- so we
+# don't pay a failed request on every later call. (Claude Opus 4.8, e.g.,
+# deprecates `temperature`.)
+_DROPPABLE_PARAMS = ("temperature",)
+_UNSUPPORTED_PARAM_HINTS = ("deprecated", "not supported", "unsupported",
+                            "not permitted", "is not allowed", "does not support",
+                            "unrecognized", "unexpected keyword")
+
+# model -> set of param names that model rejected this process.
+_unsupported_params: dict[str, set[str]] = {}
+
+
+def _offending_param(exc: Exception) -> str | None:
+    """Name of a tuning param the model rejected, so the caller can drop it.
+
+    Returns a param from ``_DROPPABLE_PARAMS`` only when the error reads like a
+    "param X is deprecated/unsupported" complaint, else None.
+    """
+    text = str(exc).lower()
+    if not any(h in text for h in _UNSUPPORTED_PARAM_HINTS):
+        return None
+    for param in _DROPPABLE_PARAMS:
+        if param in text:
+            return param
+    return None
+
+
+def _strip_unsupported(kwargs: dict) -> dict:
+    """Drop params the model has already rejected once this process."""
+    bad = _unsupported_params.get(kwargs.get("model"))
+    if bad:
+        return {k: v for k, v in kwargs.items() if k not in bad}
+    return kwargs
+
 
 def friendly_error(exc: Exception, model: str, api_base: str | None) -> str:
     """Translate a litellm/transport exception into an actionable message."""
@@ -118,7 +153,10 @@ def check_model(model: str, api_base: str | None = None) -> str | None:
     if api_base:
         kwargs["api_base"] = api_base
     try:
-        litellm.completion(**kwargs)
+        # Route through _complete so a model that rejects a tuning param (e.g.
+        # Opus deprecating temperature) is recovered here, not skipped. No
+        # retries: preflight should surface a real error promptly.
+        _complete(kwargs, max_retries=0, rate_limit_retries=0)
         return None
     except Exception as exc:
         return friendly_error(exc, model, api_base)
@@ -205,6 +243,7 @@ def _complete(kwargs: dict, *, max_retries: int = 2,
     errors keep the short ``2 ** attempt`` backoff. The two budgets are
     independent so a slow rate-limit recovery never burns the transport retries.
     """
+    kwargs = _strip_unsupported(dict(kwargs))
     attempt = 0
     rl_attempt = 0
     while True:
@@ -212,6 +251,13 @@ def _complete(kwargs: dict, *, max_retries: int = 2,
             response = litellm.completion(**kwargs)
             return response["choices"][0]["message"]["content"]
         except Exception as exc:  # transport / API error
+            param = _offending_param(exc)
+            if param and param in kwargs:
+                # Model rejects this tuning param: drop it, remember for later
+                # calls, and retry now (does not consume a retry budget).
+                _unsupported_params.setdefault(kwargs["model"], set()).add(param)
+                del kwargs[param]
+                continue
             if _is_rate_limit(exc):
                 if rl_attempt >= rate_limit_retries:
                     raise
