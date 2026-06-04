@@ -141,6 +141,28 @@ def _log_failure(progress: Progress | None, message: str) -> None:
         print(message, file=sys.stderr)
 
 
+def partition_files(
+    input_dir: Path, model: str, *, force: bool = False,
+) -> tuple[list[tuple[Path, Path]], int]:
+    """Split a model's input files into (todo, done_count).
+
+    ``todo`` is the list of (txt_path, sidecar_path) needing extraction (sidecar
+    missing, or every file when ``force``); ``done_count`` is how many already
+    have a sidecar. This is the single definition of the skip rule, shared by
+    ``run_model`` and the CLI's per-model progress line.
+    """
+    md = model_dir(input_dir, model)
+    todo: list[tuple[Path, Path]] = []
+    done = 0
+    for txt in _input_txt_files(input_dir):
+        side = sidecar_path(md, txt.name)
+        if side.exists() and not force:
+            done += 1
+        else:
+            todo.append((txt, side))
+    return todo, done
+
+
 def run_model(
     input_dir: Path,
     model: str,
@@ -166,12 +188,7 @@ def run_model(
     md.mkdir(parents=True, exist_ok=True)
     times = load_times(md)
 
-    todo: list[tuple[Path, Path]] = []  # (txt_path, sidecar_path)
-    for txt in _input_txt_files(input_dir):
-        side = sidecar_path(md, txt.name)
-        if side.exists() and not force:
-            continue
-        todo.append((txt, side))
+    todo, _done = partition_files(input_dir, model, force=force)
 
     def process(txt: Path, side: Path, progress: Progress | None) -> None:
         start = time.perf_counter()
@@ -304,7 +321,13 @@ def main(argv: list[str] | None = None, *, find: FindFn | None = None) -> int:
     names_cfg = load_config().names  # reuse chunk_size/overlap from [names]
     total = len(bench.models)
     for i, model in enumerate(bench.models, 1):
-        print(f"namebench: testing {model} ({i}/{total})", file=sys.stderr)
+        todo, done = partition_files(bench.input, model, force=args.force)
+        if todo:
+            print(f"namebench: testing {model} ({i}/{total}): "
+                  f"{len(todo)} to process, {done} already done", file=sys.stderr)
+        else:
+            print(f"namebench: {model} ({i}/{total}): all {done} already done, "
+                  f"skipping", file=sys.stderr)
         run_model(
             bench.input, model,
             chunk_size=names_cfg.chunk_size, overlap=names_cfg.overlap,

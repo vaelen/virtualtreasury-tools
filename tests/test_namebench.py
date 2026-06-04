@@ -371,3 +371,38 @@ def test_main_announces_each_model_to_stderr(tmp_path, capsys):
     # report on stdout stays clean/pipeable)
     assert "anthropic/claude-haiku-4-5" in err
     assert "openai/gpt-4.1" in err
+
+
+def test_main_announces_skip_when_all_done(tmp_path, capsys):
+    inp = tmp_path / "data"
+    inp.mkdir()
+    (inp / "1.txt").write_text("hi")
+    md = model_dir(inp, "m")
+    md.mkdir(parents=True)
+    write_sidecar(sidecar_path(md, "1.txt"), "m", [])   # already processed
+    cfg = tmp_path / "bench.toml"
+    cfg.write_text(f'input = "{inp}"\nmodels = ["m"]\n')
+
+    calls = []
+    def find(chunk_text, model, api_base=None):
+        calls.append(chunk_text)
+        return []
+    main([str(cfg)], find=find)
+    err = capsys.readouterr().err
+    assert "all 1 already done, skipping" in err
+    assert calls == []   # nothing was re-processed
+
+
+def test_main_announces_pending_and_done_split(tmp_path, capsys):
+    inp = tmp_path / "data"
+    inp.mkdir()
+    (inp / "1.txt").write_text("hi")
+    (inp / "2.txt").write_text("yo")
+    md = model_dir(inp, "m")
+    md.mkdir(parents=True)
+    write_sidecar(sidecar_path(md, "1.txt"), "m", [])   # 1 done, 1 pending
+    cfg = tmp_path / "bench.toml"
+    cfg.write_text(f'input = "{inp}"\nmodels = ["m"]\n')
+    main([str(cfg)], find=_fake_find_factory({}))
+    err = capsys.readouterr().err
+    assert "1 to process, 1 already done" in err
