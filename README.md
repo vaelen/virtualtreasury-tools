@@ -322,7 +322,13 @@ models = [
   "anthropic/claude-sonnet-4-6",
   "openai/gpt-4.1-mini",
   "openai/gpt-4.1",
+  "ollama/llama3",
 ]
+
+# Optional: a custom endpoint per model (e.g. a local Ollama server).
+# Models not listed here are routed by their `provider/` prefix.
+[api_base]
+"ollama/llama3" = "http://localhost:11434"
 ```
 
 Run with `uv run vtnamebench bench.toml`. For each model it writes

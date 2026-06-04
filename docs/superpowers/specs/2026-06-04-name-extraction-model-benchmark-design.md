@@ -33,9 +33,12 @@ handling.
   (defaulting to `llm.find_people`) makes the extraction offline-testable, the
   same pattern `extractor.extract` uses.
 - `chunk_size` / `overlap` come from the user's `[names]` config defaults
-  (`load_config()` → `NamesConfig`, i.e. 64000 / 512). `api_base` stays `None`
-  so LiteLLM routes by the `provider/` prefix (models span Anthropic + OpenAI,
-  so a single `api_base` would not fit).
+  (`load_config()` → `NamesConfig`, i.e. 64000 / 512). By default `api_base` is
+  `None` so LiteLLM routes by the `provider/` prefix (cloud models span
+  Anthropic + OpenAI, so a single global `api_base` would not fit). Models that
+  need a custom endpoint (e.g. a local `ollama/...` server) get a **per-model**
+  `api_base` from the bench config's optional `[api_base]` table (see below);
+  models absent from that table keep provider routing.
 
 ## Config & I/O layout
 
@@ -48,10 +51,21 @@ models = [
   "anthropic/claude-sonnet-4-6",
   "openai/gpt-4.1-mini",
   "openai/gpt-4.1",
+  "ollama/llama3",
 ]
+
+# Optional: custom endpoint per model. Models absent here use provider routing.
+[api_base]
+"ollama/llama3" = "http://localhost:11434"
 ```
 
 - `input` is expanded (`~`) and resolved; it is the folder of `.txt` files.
+- `[api_base]` is an optional table mapping a model string (exactly as it
+  appears in `models`) to an endpoint URL. Defaults to empty. A model's
+  `api_base` is `bench.api_base.get(model)` (i.e. `None` when unlisted), passed
+  to `run_model`/`extract_people` and on to the `find` seam — the same
+  `api_base` `vtextract names` threads to LiteLLM. Must parse as a table of
+  string→string; anything else is a config error.
 - For each model, output goes to `<input>/models/<model>/`. The model string is
   used verbatim as a relative path, so `anthropic/claude-haiku-4-5` nests two
   levels (matches the example layout).

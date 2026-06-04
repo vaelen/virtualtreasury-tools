@@ -38,6 +38,34 @@ def test_load_bench_config_rejects_empty_models(tmp_path):
         assert "models" in str(exc)
 
 
+def test_load_bench_config_defaults_api_base_empty(tmp_path):
+    cfg = tmp_path / "bench.toml"
+    cfg.write_text('input = "."\nmodels = ["m"]\n')
+    assert load_bench_config(cfg).api_base == {}
+
+
+def test_load_bench_config_parses_api_base_table(tmp_path):
+    cfg = tmp_path / "bench.toml"
+    cfg.write_text(
+        'input = "."\n'
+        'models = ["anthropic/claude-haiku-4-5", "ollama/llama3"]\n'
+        '\n[api_base]\n'
+        '"ollama/llama3" = "http://localhost:11434"\n'
+    )
+    bc = load_bench_config(cfg)
+    assert bc.api_base == {"ollama/llama3": "http://localhost:11434"}
+
+
+def test_load_bench_config_rejects_non_table_api_base(tmp_path):
+    cfg = tmp_path / "bench.toml"
+    cfg.write_text('input = "."\nmodels = ["m"]\napi_base = "http://x"\n')
+    try:
+        load_bench_config(cfg)
+        assert False, "expected ValueError"
+    except ValueError as exc:
+        assert "api_base" in str(exc)
+
+
 import json
 
 from vtextract.namebench import (
@@ -283,3 +311,26 @@ def test_main_errors_on_bad_config(tmp_path, capsys):
     rc = main([str(cfg)], find=_fake_find_factory({}))
     assert rc != 0
     assert "input" in capsys.readouterr().err
+
+
+def test_main_passes_per_model_api_base_to_find(tmp_path):
+    inp = tmp_path / "data"
+    inp.mkdir()
+    (inp / "1.txt").write_text("hi")
+    cfg = tmp_path / "bench.toml"
+    cfg.write_text(
+        f'input = "{inp}"\n'
+        'models = ["anthropic/claude-haiku-4-5", "ollama/llama3"]\n'
+        '\n[api_base]\n'
+        '"ollama/llama3" = "http://localhost:11434"\n'
+    )
+    seen: dict[str, str | None] = {}
+
+    def find(chunk_text, model, api_base=None):
+        seen[model] = api_base
+        return []
+    rc = main([str(cfg)], find=find)
+    assert rc == 0
+    # listed model gets its endpoint; unlisted cloud model stays provider-routed
+    assert seen["ollama/llama3"] == "http://localhost:11434"
+    assert seen["anthropic/claude-haiku-4-5"] is None

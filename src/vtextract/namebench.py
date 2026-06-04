@@ -31,10 +31,12 @@ from vtextract.names.models import (
 class BenchConfig:
     input: Path
     models: list[str]
+    api_base: dict[str, str]   # model -> endpoint; unlisted models route by prefix
 
 
 def load_bench_config(path: Path) -> BenchConfig:
-    """Parse the benchmark TOML: an ``input`` folder and a ``models`` list."""
+    """Parse the benchmark TOML: an ``input`` folder, a ``models`` list, and an
+    optional ``[api_base]`` table mapping a model to a custom endpoint."""
     with Path(path).open("rb") as fh:
         data = tomllib.load(fh)
     raw_input = data.get("input")
@@ -43,7 +45,14 @@ def load_bench_config(path: Path) -> BenchConfig:
     models = data.get("models") or []
     if not isinstance(models, list) or not models:
         raise ValueError("bench config must set a non-empty 'models' list")
-    return BenchConfig(input=Path(raw_input).expanduser(), models=[str(m) for m in models])
+    api_base = data.get("api_base", {})
+    if not isinstance(api_base, dict):
+        raise ValueError("bench config 'api_base' must be a table of model -> URL")
+    return BenchConfig(
+        input=Path(raw_input).expanduser(),
+        models=[str(m) for m in models],
+        api_base={str(k): str(v) for k, v in api_base.items()},
+    )
 
 
 _SIDECAR_SUFFIX = ".names.json"
@@ -268,6 +277,7 @@ def main(argv: list[str] | None = None, *, find: FindFn | None = None) -> int:
         run_model(
             bench.input, model,
             chunk_size=names_cfg.chunk_size, overlap=names_cfg.overlap,
+            api_base=bench.api_base.get(model),
             force=args.force, find=find)
 
     render_report(build_report(bench.input))
