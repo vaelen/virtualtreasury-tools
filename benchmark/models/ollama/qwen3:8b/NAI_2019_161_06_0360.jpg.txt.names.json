@@ -1,0 +1,136 @@
+{
+  "schema": 1,
+  "model": "ollama/qwen3:8b",
+  "people": [
+    {
+      "canonical": "B. Eglish",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "B. Eglish",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Sunnell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Murrowes",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "T. Murrowes",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "C. Wexford",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "C. Wexford",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Colclough",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Colclough",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "B. Shilmaliere",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "B. Shilmaliere",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "I. Carroll",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "I. Carroll",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "K. J. S.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "K. J. S.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Grey",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "T. Grey",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Harbert",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Harbert",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Sunnott",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "John Sunnott",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Cole",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley Cole",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

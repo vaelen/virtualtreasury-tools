@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "model": "ollama/gemma3:12b",
+  "people": [
+    {
+      "canonical": "Lord Palmerston",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Lord Palmerston",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Mr. Lynch",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. Lynch",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Sir I. G. Booth",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Sir I. G. Booth",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Bishoprick of Elphin",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Bishoprick of Elphin",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Assistant Commissioner",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Assistant Commissioner",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Rev. Charles Clarke",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Rev. Chailes Clarke",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Power",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Power",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Mr. Dodwell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. Dodwell",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

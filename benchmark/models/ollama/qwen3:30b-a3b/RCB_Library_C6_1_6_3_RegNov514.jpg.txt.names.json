@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "model": "ollama/qwen3:30b-a3b",
+  "people": [
+    {
+      "canonical": "George Arpum",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Georgium Arpum Dub",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

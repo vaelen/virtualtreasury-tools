@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "model": "ollama/gemma3:12b",
+  "people": [
+    {
+      "canonical": "John Sunnell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "high"
+        },
+        {
+          "text": "J. Sunnott",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Murrowes",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "T. Murrowes",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Colclough",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley Colclough",
+          "confidence": "high"
+        },
+        {
+          "text": "Dudley Cole",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard Puttrell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard Puttrell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Harbert",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Harbert",
+          "confidence": "low"
+        },
+        {
+          "text": "Harbert Esqr",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "James",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Jam",
+          "confidence": "low"
+        },
+        {
+          "text": "K. J. S.",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "John",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "John",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "B. Eglish",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "B. Eglish",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "B. Shilmaliere",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "B. Shilmaliere",
+          "confidence": "low"
+        }
+      ]
+    }
+  ]
+}

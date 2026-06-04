@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "model": "ollama/mistral-nemo:12b",
+  "people": [
+    {
+      "canonical": "John Sunnell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "high"
+        },
+        {
+          "text": "K. J. S.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Grey Gent",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "T. Grey Gent",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

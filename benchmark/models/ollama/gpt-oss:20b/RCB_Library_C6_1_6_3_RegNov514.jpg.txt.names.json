@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "model": "ollama/gpt-oss:20b",
+  "people": [
+    {
+      "canonical": "George Arpum Dub",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Georgium Arpum Dub",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dulachio",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "St Dulachio",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

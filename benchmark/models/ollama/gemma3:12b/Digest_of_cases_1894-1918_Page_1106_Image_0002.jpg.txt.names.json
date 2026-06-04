@@ -1,0 +1,136 @@
+{
+  "schema": 1,
+  "model": "ollama/gemma3:12b",
+  "people": [
+    {
+      "canonical": "Irland",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Irland",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Hanrahan",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Hanrahan",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Cadle",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Cadle",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Monahan",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Monahan",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Pigot",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Pigot",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Ball",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Ball",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Crosthwaite",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Crosthwaite",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Bailey",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Bailey",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Carmichael Ferrall",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Carmichael Ferrall",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Thynne",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Thynne",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Campbell",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Campbell",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Arklow",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Arklow",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Lady Superiores",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Lady Superiores",
+          "confidence": "low"
+        }
+      ]
+    }
+  ]
+}

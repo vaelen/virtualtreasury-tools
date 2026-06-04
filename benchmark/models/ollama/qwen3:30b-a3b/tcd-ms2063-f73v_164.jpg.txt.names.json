@@ -1,0 +1,336 @@
+{
+  "schema": 1,
+  "model": "ollama/qwen3:30b-a3b",
+  "people": [
+    {
+      "canonical": "And. Trinkey",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "And. Trinkey",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Jos Evans",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Jos: Evans",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Peter Bayly",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Peter Bayly",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "George Hervit",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "George Hervit",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Luther Slator",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Luther Slator",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Mats. Scarbrow",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mats. Scarbrow",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Abraham Smith",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Abraham Smith",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Portoplo",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Portoplo",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Mc Daniel",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Mc Daniel",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Russell L",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Col. Russell L",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Keating",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Tho: Keating",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert Monsey",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Robt. Monsey",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Peter Hewling",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Peter Hewling",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Rich. Ireland",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Rich. Ireland",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William Fielding",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Will: Fielding",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Rich. Jackson",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Rich. Jackson",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Roger Prence",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Roger Prence",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Berry",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Berry",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Woodgate",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Woodgate",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Moses Seix",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Moses Seix",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "James Westby",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "James Westby",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Edwards",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Edwards",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Keating",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Keating",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Deacon",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Henry Deacon",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Darby Quin",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Darby Quin",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Ann Mc Daniell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Ann Mc Daniell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Hoult",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Tho: Hoult",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Luke Fullam",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Luke Fullam",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Joseph Gallucy",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Joseph Gallucy",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Steph Governeer",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Steph Governeer",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William Fisher",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Wm. Fisher",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Gideon Delauneisg.",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Gideon Delauneisg.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hen. Cooly",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hen. Cooly Esq.",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

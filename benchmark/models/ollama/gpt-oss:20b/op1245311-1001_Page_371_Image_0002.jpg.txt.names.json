@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "model": "ollama/gpt-oss:20b",
+  "people": [
+    {
+      "canonical": "Lord Palmerston",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Lord Palmerston",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Lynch",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. Lynch",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "I. G. Booth",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Sir I. G. Booth, Bart",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dodwell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. Dodwell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Chailes Clarke",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Rer. Chailes Clarke",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Bar. Carbery",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Bar. Carbery",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Power",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Power, Exd.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Bar Bolrothery",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Bar Bolrothery",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

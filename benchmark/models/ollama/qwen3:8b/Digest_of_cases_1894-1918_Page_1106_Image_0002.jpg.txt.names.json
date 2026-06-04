@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "model": "ollama/qwen3:8b",
+  "people": [
+    {
+      "canonical": "Ruane",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "R. (Ruane)",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Bannon",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Bannon",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hanrahan",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hanrahan",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Monahan",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Monahan, C.J.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Pigot",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Pigot, C.B.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Ball",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Ball, J.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Bailey",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Bailey",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Carmichael Ferrall",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Carmichael Ferrall",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Crosthwaite",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Crosthwaite",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Campbell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Campbell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thynne",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thynne",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

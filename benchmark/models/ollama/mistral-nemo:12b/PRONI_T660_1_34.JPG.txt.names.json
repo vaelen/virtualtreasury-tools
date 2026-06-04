@@ -1,0 +1,154 @@
+{
+  "schema": 1,
+  "model": "ollama/mistral-nemo:12b",
+  "people": [
+    {
+      "canonical": "Thomas de la Felde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thomas de la Felde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Reginal de la Felde",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Reginal de la Felde",
+          "confidence": "medium"
+        },
+        {
+          "text": "Reginald de la Felde",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Hugh Cretage",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hugh Cretage",
+          "confidence": "high"
+        },
+        {
+          "text": "Hugh Cretage, late Chef Sarjeant of Cross Meath",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert Kysok",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Robert Kysok",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William de la Felde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William de la Felde",
+          "confidence": "high"
+        },
+        {
+          "text": "William de la ffelde",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard de la Felde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard de la Felde",
+          "confidence": "high"
+        },
+        {
+          "text": "Richard de la ffelde",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas de la Felde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas de la Felde",
+          "confidence": "high"
+        },
+        {
+          "text": "Nicholas de la ffelde",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard White of Killest",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Richard White of Killest",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "John de la Felde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John de la Felde",
+          "confidence": "high"
+        },
+        {
+          "text": "John de la ffeld is deceased",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Lynham",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Henry Lynham deceased",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Friar Thomas Sourlag, Abbt of the house of St. Thomas the Martyr next Dolin",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Friar Thomas Sourlag, Abbt of the house of St. Thomas the Martyr next Dolin",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas Serle",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Nicholas Serle",
+          "confidence": "medium"
+        },
+        {
+          "text": "Nicholas Serle, pledges and mandators of the foresa William",
+          "confidence": "low"
+        }
+      ]
+    }
+  ]
+}

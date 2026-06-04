@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "model": "ollama/granite3.3:8b",
+  "people": [
+    {
+      "canonical": "Reginald de la Mathfeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Reginald de la Mathfeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas de la ffield",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thomas de la ffield",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hugh Cretage",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hugh Cretage",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert Kysok",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Robert Kysok",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}
