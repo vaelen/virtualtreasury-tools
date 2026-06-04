@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "model": "ollama/qwen3:14b",
+  "people": [
+    {
+      "canonical": "Ruane",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "R.",
+          "confidence": "medium"
+        },
+        {
+          "text": "Ruane",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hanrahan",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hanrahan",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Cadle",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Cadle",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Crosthwaite",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Crosthwaite",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Bailey",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Bailey",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Carmichael Ferrall",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Carmichael Ferrall",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Campbell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Campbell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thynne",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "R.",
+          "confidence": "medium"
+        },
+        {
+          "text": "Thynne",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

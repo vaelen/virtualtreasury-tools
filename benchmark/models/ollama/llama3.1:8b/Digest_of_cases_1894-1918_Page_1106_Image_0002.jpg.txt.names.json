@@ -1,0 +1,161 @@
+{
+  "schema": 1,
+  "model": "ollama/llama3.1:8b",
+  "people": [
+    {
+      "canonical": "Ruane",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "R. (Ruane)",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Ballina Urban Council",
+      "confidence": "low",
+      "aliases": []
+    },
+    {
+      "canonical": "Bannon",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Appellant: Bannon",
+          "confidence": "high"
+        },
+        {
+          "text": "App., 1900) 2 I. R. 455",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Hanrahan",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Appellant: Hanrahan",
+          "confidence": "high"
+        },
+        {
+          "text": "App., 1900)",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Monahan",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "C.J. Monahan",
+          "confidence": "high"
+        },
+        {
+          "text": "Monahan, C.J.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Pigot",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "C.B. Pigot",
+          "confidence": "high"
+        },
+        {
+          "text": "Pigot, C.B.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Ball",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "J. Ball",
+          "confidence": "high"
+        },
+        {
+          "text": "Ball, J.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Cadle",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Appellant: Cadle",
+          "confidence": "high"
+        },
+        {
+          "text": "K. B., 37 J. L. T. R. 82",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Crosthwaite",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Ex. Ch.; 1864) 17 I. C. L. R. 157, 463",
+          "confidence": "low"
+        },
+        {
+          "text": "R. v. Crosthwaite Ex.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Bailey",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Appellant: Bailey",
+          "confidence": "high"
+        },
+        {
+          "text": "48 I. L. T. R. 170",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Carmichael Ferrall",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Respondent: Carmichael Ferrall",
+          "confidence": "high"
+        },
+        {
+          "text": "App., 1900) 48 I. L. T. R. 170",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Thynne",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "R. (Thynne)",
+          "confidence": "high"
+        },
+        {
+          "text": "K. B., 37 I. L. T. R. 89",
+          "confidence": "low"
+        }
+      ]
+    }
+  ]
+}

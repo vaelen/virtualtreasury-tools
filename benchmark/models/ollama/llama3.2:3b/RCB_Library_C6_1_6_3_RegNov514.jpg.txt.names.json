@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "model": "ollama/llama3.2:3b",
+  "people": [
+    {
+      "canonical": "Georgius Arpum Dub",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Georgium Arpum Dub",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

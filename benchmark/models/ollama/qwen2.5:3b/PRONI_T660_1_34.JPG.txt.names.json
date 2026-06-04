@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "model": "ollama/qwen2.5:3b",
+  "people": [
+    {
+      "canonical": "Thomas de la ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thomas de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Reginal de la Mathfeld",
+      "confidence": "medium",
+      "aliases": []
+    },
+    {
+      "canonical": "Hugh Cretage",
+      "confidence": "low",
+      "aliases": []
+    },
+    {
+      "canonical": "Robert Kysok",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Robert Kysok",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William de la ffelde",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "William de la ffelde",
+          "confidence": "medium"
+        },
+        {
+          "text": "Wm de la ffelde",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas de la ffelde",
+      "confidence": "medium",
+      "aliases": []
+    },
+    {
+      "canonical": "John de la ffeld",
+      "confidence": "low",
+      "aliases": []
+    },
+    {
+      "canonical": "William Nugent",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William Nugent",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Lynham",
+      "confidence": "low",
+      "aliases": []
+    },
+    {
+      "canonical": "Friar Thomas Sourlag",
+      "confidence": "medium",
+      "aliases": []
+    },
+    {
+      "canonical": "Nicholas Serle",
+      "confidence": "low",
+      "aliases": []
+    }
+  ]
+}

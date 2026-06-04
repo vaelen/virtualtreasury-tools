@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "model": "gemini/gemini-2.5-pro",
+  "people": [
+    {
+      "canonical": "Ruane",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Ruane",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Bannon",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Bannon",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hanrahan",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Hanrahan",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Monahan",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Monahan, C.J.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Pigot",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Pigot, C.B.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Ball",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Ball, J.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Crosthwaite",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Crosthwaite",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Bailey",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Bailey",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Carmichael Ferrall",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Carmichael Ferrall",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thynne",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Thynne",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Cadle",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Cadle",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Campbell",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Campbell",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

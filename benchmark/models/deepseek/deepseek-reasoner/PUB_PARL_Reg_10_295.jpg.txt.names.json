@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "model": "deepseek/deepseek-reasoner",
+  "people": [
+    {
+      "canonical": "Dunn",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. DUNN",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Curran",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. CURRAN",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Clarendon",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Lord Clarendon",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

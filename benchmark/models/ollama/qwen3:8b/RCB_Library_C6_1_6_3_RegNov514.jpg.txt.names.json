@@ -3,6 +3,26 @@
   "model": "ollama/qwen3:8b",
   "people": [
     {
+      "canonical": "Capelle de Balgryfyne",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Capelle de Balgryfyne",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Vicana",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Vicana",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
       "canonical": "George Arpum Dub",
       "confidence": "high",
       "aliases": [

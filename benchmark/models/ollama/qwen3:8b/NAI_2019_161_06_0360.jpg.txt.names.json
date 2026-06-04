@@ -4,11 +4,11 @@
   "people": [
     {
       "canonical": "B. Eglish",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "B. Eglish",
-          "confidence": "high"
+          "confidence": "low"
         }
       ]
     },
@@ -24,31 +24,31 @@
     },
     {
       "canonical": "T. Murrowes",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "T. Murrowes",
-          "confidence": "high"
+          "confidence": "low"
         }
       ]
     },
     {
       "canonical": "C. Wexford",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "C. Wexford",
-          "confidence": "high"
+          "confidence": "low"
         }
       ]
     },
     {
       "canonical": "Dudley",
-      "confidence": "high",
+      "confidence": "low",
       "aliases": [
         {
           "text": "Dudley",
-          "confidence": "high"
+          "confidence": "low"
         }
       ]
     },
@@ -57,38 +57,28 @@
       "confidence": "medium",
       "aliases": [
         {
-          "text": "Colclough",
-          "confidence": "high"
+          "text": "Colclough Esqr.",
+          "confidence": "medium"
         }
       ]
     },
     {
       "canonical": "B. Shilmaliere",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "B. Shilmaliere",
-          "confidence": "high"
+          "confidence": "low"
         }
       ]
     },
     {
       "canonical": "I. Carroll",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "I. Carroll",
-          "confidence": "high"
-        }
-      ]
-    },
-    {
-      "canonical": "K. J. S.",
-      "confidence": "medium",
-      "aliases": [
-        {
-          "text": "K. J. S.",
-          "confidence": "high"
+          "confidence": "low"
         }
       ]
     },
@@ -97,8 +87,18 @@
       "confidence": "medium",
       "aliases": [
         {
-          "text": "T. Grey",
-          "confidence": "high"
+          "text": "T. Grey Gent",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "K. J. S.",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "K. J. S.",
+          "confidence": "low"
         }
       ]
     },
@@ -107,17 +107,17 @@
       "confidence": "medium",
       "aliases": [
         {
-          "text": "Harbert",
-          "confidence": "high"
+          "text": "Harbert Esqr.",
+          "confidence": "medium"
         }
       ]
     },
     {
       "canonical": "John Sunnott",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
-          "text": "John Sunnott",
+          "text": "John Sunnott Gent",
           "confidence": "high"
         }
       ]
@@ -129,6 +129,36 @@
         {
           "text": "Dudley Cole",
           "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Streameston",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Streameston",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Barrols",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Barrols",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Clowne",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Clowne",
+          "confidence": "low"
         }
       ]
     }

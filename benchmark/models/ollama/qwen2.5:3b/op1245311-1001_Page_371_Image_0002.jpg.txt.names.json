@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "model": "ollama/qwen2.5:3b",
+  "people": [
+    {
+      "canonical": "Chailes Clarke",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Chas Clarke",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "John Power",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Power",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

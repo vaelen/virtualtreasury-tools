@@ -7,7 +7,7 @@
       "confidence": "medium",
       "aliases": [
         {
-          "text": "Mr. Ball",
+          "text": "Ball",
           "confidence": "high"
         }
       ]
@@ -64,7 +64,7 @@
     },
     {
       "canonical": "Esqr Delane",
-      "confidence": "high",
+      "confidence": "medium",
       "aliases": [
         {
           "text": "Esqr Delane",
@@ -84,7 +84,7 @@
     },
     {
       "canonical": "Mr. Suxberry",
-      "confidence": "high",
+      "confidence": "medium",
       "aliases": [
         {
           "text": "Mr. Suxberry",
@@ -94,7 +94,7 @@
     },
     {
       "canonical": "Jos: Evans",
-      "confidence": "high",
+      "confidence": "medium",
       "aliases": [
         {
           "text": "Jos: Evans",
@@ -184,7 +184,7 @@
     },
     {
       "canonical": "Esqr Cadogan",
-      "confidence": "high",
+      "confidence": "medium",
       "aliases": [
         {
           "text": "Esqr Cadogan",
@@ -588,6 +588,26 @@
       "aliases": [
         {
           "text": "Wm. Fisher",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Gideon Delauneisg.",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Gideon Delauneisg.",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Barry",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Barry",
           "confidence": "high"
         }
       ]

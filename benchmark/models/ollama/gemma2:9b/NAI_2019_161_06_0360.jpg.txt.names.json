@@ -28,7 +28,7 @@
       "aliases": [
         {
           "text": "T. Murrowes",
-          "confidence": "medium"
+          "confidence": "high"
         }
       ]
     },
@@ -48,7 +48,7 @@
       "aliases": [
         {
           "text": "B. Shilmaliere",
-          "confidence": "low"
+          "confidence": "high"
         }
       ]
     },
@@ -58,7 +58,7 @@
       "aliases": [
         {
           "text": "I. Carroll",
-          "confidence": "low"
+          "confidence": "high"
         }
       ]
     },
@@ -68,7 +68,7 @@
       "aliases": [
         {
           "text": "T. Grey Gent",
-          "confidence": "low"
+          "confidence": "medium"
         }
       ]
     },
@@ -77,27 +77,27 @@
       "confidence": "low",
       "aliases": [
         {
-          "text": "Harbert Esqr",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "John Sunnott",
-      "confidence": "medium",
-      "aliases": [
-        {
-          "text": "John Sunnott Gent",
+          "text": "Harbert Esqr & ",
           "confidence": "medium"
         }
       ]
     },
     {
-      "canonical": "Dudley Cole",
-      "confidence": "medium",
+      "canonical": "John Sunnott",
+      "confidence": "low",
       "aliases": [
         {
-          "text": "Dudley Cole",
+          "text": "John Sunnott Gent",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Cole",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Dudley Cole  ough Esqr.",
           "confidence": "medium"
         }
       ]

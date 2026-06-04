@@ -74,11 +74,11 @@
     },
     {
       "canonical": "Esqr Delane",
-      "confidence": "high",
+      "confidence": "low",
       "aliases": [
         {
           "text": "Esqr Delane",
-          "confidence": "high"
+          "confidence": "low"
         }
       ]
     },
@@ -94,91 +94,91 @@
     },
     {
       "canonical": "Mr. Suxberry",
-      "confidence": "high",
+      "confidence": "low",
       "aliases": [
         {
           "text": "Mr. Suxberry",
-          "confidence": "high"
+          "confidence": "low"
         }
       ]
     },
     {
       "canonical": "Jos: Evans",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "Jos: Evans",
-          "confidence": "medium"
+          "confidence": "low"
         }
       ]
     },
     {
       "canonical": "Peter Bayly",
-      "confidence": "high",
+      "confidence": "medium",
       "aliases": [
         {
           "text": "Peter Bayly",
-          "confidence": "high"
+          "confidence": "medium"
         }
       ]
     },
     {
       "canonical": "Capt. Cully",
-      "confidence": "high",
+      "confidence": "medium",
       "aliases": [
         {
           "text": "Capt. Cully",
-          "confidence": "high"
+          "confidence": "medium"
         }
       ]
     },
     {
       "canonical": "George Hervit",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "George Hervit",
-          "confidence": "medium"
+          "confidence": "low"
         }
       ]
     },
     {
       "canonical": "Luther Slator",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "Luther Slator",
-          "confidence": "medium"
+          "confidence": "low"
         }
       ]
     },
     {
-      "canonical": "esqr Cadogan",
+      "canonical": "esqr: Cadogan",
       "confidence": "low",
       "aliases": [
         {
-          "text": "esqr Cadogan",
+          "text": "esqr: Cadogan",
           "confidence": "low"
         }
       ]
     },
     {
       "canonical": "Mr. Allaway",
-      "confidence": "high",
+      "confidence": "low",
       "aliases": [
         {
           "text": "Mr. Allaway",
-          "confidence": "high"
+          "confidence": "low"
         }
       ]
     },
     {
       "canonical": "Abraham Smith",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "Abraham Smith",
-          "confidence": "medium"
+          "confidence": "low"
         }
       ]
     },
@@ -214,51 +214,51 @@
     },
     {
       "canonical": "Mr. Letore",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "Mr. Letore",
-          "confidence": "medium"
+          "confidence": "low"
         }
       ]
     },
     {
       "canonical": "Mr. Felter",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "Mr. Felter",
-          "confidence": "medium"
+          "confidence": "low"
         }
       ]
     },
     {
       "canonical": "Mr. Tyson",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "Mr. Tyson",
-          "confidence": "medium"
+          "confidence": "low"
         }
       ]
     },
     {
       "canonical": "Mr. Roland",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "Mr. Roland",
-          "confidence": "medium"
+          "confidence": "low"
         }
       ]
     },
     {
       "canonical": "Mr. Gearett",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "Mr. Gearett",
-          "confidence": "medium"
+          "confidence": "low"
         }
       ]
     },
@@ -314,11 +314,11 @@
     },
     {
       "canonical": "Peter Hewling",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "Peter Hewling",
-          "confidence": "medium"
+          "confidence": "low"
         }
       ]
     },
@@ -374,21 +374,21 @@
     },
     {
       "canonical": "Roger Prence",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "Roger Prence",
-          "confidence": "medium"
+          "confidence": "low"
         }
       ]
     },
     {
       "canonical": "John Berry",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "John Berry",
-          "confidence": "medium"
+          "confidence": "low"
         }
       ]
     },
@@ -433,31 +433,31 @@
       ]
     },
     {
-      "canonical": "Henry Deacon",
+      "canonical": "Mr. Keating",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Keating",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Steph Governeer",
       "confidence": "low",
       "aliases": [
         {
-          "text": "Henry Deacon",
+          "text": "Steph Governeer",
           "confidence": "low"
         }
       ]
     },
     {
-      "canonical": "Darby Quin",
+      "canonical": "Wm. Fisher",
       "confidence": "low",
       "aliases": [
         {
-          "text": "Darby Quin",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "Corp. Hethrington",
-      "confidence": "low",
-      "aliases": [
-        {
-          "text": "Corp. Hethrington",
+          "text": "Wm. Fisher",
           "confidence": "low"
         }
       ]
@@ -503,21 +503,11 @@
       ]
     },
     {
-      "canonical": "Steph Governeer",
+      "canonical": "Gideon Delauneisg.",
       "confidence": "low",
       "aliases": [
         {
-          "text": "Steph Governeer",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "Wm. Fisher",
-      "confidence": "low",
-      "aliases": [
-        {
-          "text": "Wm. Fisher",
+          "text": "Gideon Delauneisg.",
           "confidence": "low"
         }
       ]

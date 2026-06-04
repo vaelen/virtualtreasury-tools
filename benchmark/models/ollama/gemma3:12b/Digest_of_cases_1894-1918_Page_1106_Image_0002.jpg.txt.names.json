@@ -111,26 +111,6 @@
           "confidence": "low"
         }
       ]
-    },
-    {
-      "canonical": "Arklow",
-      "confidence": "low",
-      "aliases": [
-        {
-          "text": "Arklow",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "Lady Superiores",
-      "confidence": "low",
-      "aliases": [
-        {
-          "text": "Lady Superiores",
-          "confidence": "low"
-        }
-      ]
     }
   ]
 }

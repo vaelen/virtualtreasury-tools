@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "model": "deepseek/deepseek-reasoner",
+  "people": [
+    {
+      "canonical": "John Sunnell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Murrowes",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "T. Murrowes",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Colclough",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley Colclough Esqr.",
+          "confidence": "high"
+        },
+        {
+          "text": "Dudley Cole",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "I. Carroll",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "I. Carroll",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Grey",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "T. Grey Gent",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Richard",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Harbert",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Harbert Esqr",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Puttrell",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Puttrell",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "John Sunnott",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnott Gent",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

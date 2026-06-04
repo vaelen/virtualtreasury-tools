@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "model": "anthropic/claude-opus-4-8",
+  "people": [
+    {
+      "canonical": "John Sunnell",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Murrowes",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "T. Murrowes",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Colclough",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley Colclough Esqr.",
+          "confidence": "high"
+        },
+        {
+          "text": "Dudley Coleough Esqr.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "I. Carroll",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "I. Carroll",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Grey",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "T. Grey Gent",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard Puttrell",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Richard Puttrell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Harbert",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Harbert Esqr",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "John Sunnott",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "John Sunnott Gent",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

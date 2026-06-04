@@ -294,7 +294,7 @@
     },
     {
       "canonical": "McDaniel John",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "John Mc Daniel",
@@ -324,7 +324,7 @@
     },
     {
       "canonical": "Keating Thomas",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "Tho: Keating ",
@@ -334,7 +334,7 @@
     },
     {
       "canonical": "Monsey Robert",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "Robt. Monsey ",
@@ -344,7 +344,7 @@
     },
     {
       "canonical": "Hewling Peter",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "Peter Hewling",
@@ -354,7 +354,7 @@
     },
     {
       "canonical": "Ireland Richard",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "Rich. Ireland ",
@@ -364,7 +364,7 @@
     },
     {
       "canonical": "Fielding William",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "Will: Fielding ",
@@ -394,7 +394,7 @@
     },
     {
       "canonical": "Jackson Richard",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "Rich. Jackson ",
@@ -404,7 +404,7 @@
     },
     {
       "canonical": "Prence Roger",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "Roger Prence",
@@ -414,7 +414,7 @@
     },
     {
       "canonical": "Berry John",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "John Berry",
@@ -424,7 +424,7 @@
     },
     {
       "canonical": "Woodgate John",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "John Woodgate",
@@ -444,7 +444,7 @@
     },
     {
       "canonical": "Westby James",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "James Westby ",
@@ -464,7 +464,7 @@
     },
     {
       "canonical": "Edwards John",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "John Edwards",
@@ -474,7 +474,7 @@
     },
     {
       "canonical": "Keating John",
-      "confidence": "low",
+      "confidence": "medium",
       "aliases": [
         {
           "text": "John Keating ",
@@ -484,7 +484,7 @@
     },
     {
       "canonical": "Deacon Henry",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "Henry Deacon",
@@ -524,7 +524,7 @@
     },
     {
       "canonical": "Hoult Thomas",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "Tho: Hoult",
@@ -564,7 +564,7 @@
     },
     {
       "canonical": "Fisher William",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "Wm. Fisher",

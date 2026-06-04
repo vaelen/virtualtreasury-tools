@@ -3,19 +3,29 @@
   "model": "ollama/phi4",
   "people": [
     {
-      "canonical": "Reginald de la Feld",
+      "canonical": "Thomas de la Feld",
       "confidence": "high",
       "aliases": [
         {
-          "text": "Reginal de la Mathfeld",
+          "text": "Thomas de la ffeld",
           "confidence": "medium"
         }
       ]
     },
     {
-      "canonical": "Thomas de la Feld",
+      "canonical": "Reginal de la Mathfeld",
       "confidence": "high",
       "aliases": []
+    },
+    {
+      "canonical": "Hugh Cretage",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Chef Sarjeant of Cross Meath",
+          "confidence": "medium"
+        }
+      ]
     },
     {
       "canonical": "Robert Kysok",

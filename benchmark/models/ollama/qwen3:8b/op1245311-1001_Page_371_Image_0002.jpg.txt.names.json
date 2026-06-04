@@ -9,10 +9,16 @@
         {
           "text": "Lord Palmerston",
           "confidence": "high"
-        },
+        }
+      ]
+    },
+    {
+      "canonical": "I. G. Booth",
+      "confidence": "medium",
+      "aliases": [
         {
-          "text": "Palmerston",
-          "confidence": "high"
+          "text": "Sir I. G. Booth, Bart",
+          "confidence": "medium"
         }
       ]
     },
@@ -22,17 +28,11 @@
       "aliases": [
         {
           "text": "Mr. Lynch",
-          "confidence": "high"
-        }
-      ]
-    },
-    {
-      "canonical": "Booth",
-      "confidence": "high",
-      "aliases": [
+          "confidence": "medium"
+        },
         {
-          "text": "Sir I. G. Booth, Bart",
-          "confidence": "high"
+          "text": "Mr. Lynch, his lordshp\u2019s agent",
+          "confidence": "medium"
         }
       ]
     },
@@ -42,17 +42,7 @@
       "aliases": [
         {
           "text": "John Power, Exd.",
-          "confidence": "high"
-        }
-      ]
-    },
-    {
-      "canonical": "Dodwell",
-      "confidence": "high",
-      "aliases": [
-        {
-          "text": "Mr. Dodwell",
-          "confidence": "high"
+          "confidence": "medium"
         }
       ]
     }

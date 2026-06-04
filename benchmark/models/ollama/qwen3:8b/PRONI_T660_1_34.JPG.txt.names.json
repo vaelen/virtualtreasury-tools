@@ -63,15 +63,31 @@
       ]
     },
     {
-      "canonical": "Thomas Sourlag",
+      "canonical": "John de la ffeld",
       "confidence": "high",
       "aliases": [
         {
-          "text": "Friar Thom as Sourlag",
-          "confidence": "medium"
-        },
+          "text": "John de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Lynham",
+      "confidence": "high",
+      "aliases": [
         {
-          "text": "Abbt of the house of St. Thomas the Martyr next Dolin",
+          "text": "Henry Lynham",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Friar Thom as Sourlag",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Friar Thom as Sourlag",
           "confidence": "medium"
         }
       ]

@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "model": "deepseek/deepseek-chat",
+  "people": [
+    {
+      "canonical": "Ruane",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "R. (Ruane)",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Bannon",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Bannon",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Hanrahan",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Hanrahan",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Cadle",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Cadle",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Crosthwaite",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "R. v. Crosthwaite",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Bailey",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Bailey",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Carmichael Ferrall",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Carmichael Ferrall",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Thynne",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "R. (Thynne)",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Campbell",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Campbell",
+          "confidence": "low"
+        }
+      ]
+    }
+  ]
+}

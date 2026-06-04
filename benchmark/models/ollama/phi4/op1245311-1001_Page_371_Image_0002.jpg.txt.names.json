@@ -7,8 +7,12 @@
       "confidence": "high",
       "aliases": [
         {
-          "text": "Rev. Charles Clarke",
+          "text": "Rev Charles Clarke",
           "confidence": "medium"
+        },
+        {
+          "text": "Charles Clarke",
+          "confidence": "high"
         }
       ]
     },
@@ -17,8 +21,8 @@
       "confidence": "high",
       "aliases": [
         {
-          "text": "Mr. John Power",
-          "confidence": "medium"
+          "text": "John Power",
+          "confidence": "high"
         }
       ]
     }

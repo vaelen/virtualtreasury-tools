@@ -55,7 +55,12 @@
     {
       "canonical": "Richard de la ffelde",
       "confidence": "high",
-      "aliases": []
+      "aliases": [
+        {
+          "text": "Richard de la ffelde",
+          "confidence": "high"
+        }
+      ]
     },
     {
       "canonical": "Richard White",

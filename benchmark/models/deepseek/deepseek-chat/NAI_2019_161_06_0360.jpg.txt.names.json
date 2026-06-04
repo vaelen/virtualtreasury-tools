@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "model": "deepseek/deepseek-chat",
+  "people": [
+    {
+      "canonical": "John Sunnell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "high"
+        },
+        {
+          "text": "John Sunnott",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Colclough",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley Colclough Esqr.",
+          "confidence": "high"
+        },
+        {
+          "text": "Dudley Cole",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "I. Carroll",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "I. Carroll",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Grey",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "T. Grey",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard Puttrell",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Richard",
+          "confidence": "low"
+        },
+        {
+          "text": "Puttrell",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Harbert",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Harbert Esqr",
+          "confidence": "low"
+        }
+      ]
+    }
+  ]
+}

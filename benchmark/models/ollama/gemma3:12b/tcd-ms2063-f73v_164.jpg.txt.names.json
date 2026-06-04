@@ -3,11 +3,11 @@
   "model": "ollama/gemma3:12b",
   "people": [
     {
-      "canonical": "Baker",
+      "canonical": "Ball",
       "confidence": "low",
       "aliases": [
         {
-          "text": "Baker",
+          "text": "Mr. Ball",
           "confidence": "low"
         }
       ]
@@ -587,11 +587,21 @@
       ]
     },
     {
-      "canonical": "Alcocke",
+      "canonical": "Shannoes",
       "confidence": "low",
       "aliases": [
         {
-          "text": "Wr. Alcocke",
+          "text": "Wr Shannoes",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Channocinhrafter",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Mr. Channocinhrafter",
           "confidence": "low"
         }
       ]
@@ -617,6 +627,36 @@
       ]
     },
     {
+      "canonical": "Alcocke",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Wr. Alcocke",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Borr",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Madam Borr",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Whitell",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Dr. Whitell",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
       "canonical": "Harman",
       "confidence": "low",
       "aliases": [
@@ -631,17 +671,7 @@
       "confidence": "low",
       "aliases": [
         {
-          "text": "Larchdeacon",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "Shains",
-      "confidence": "low",
-      "aliases": [
-        {
-          "text": "Arth Shains",
+          "text": "Larchdeacon handcock",
           "confidence": "low"
         }
       ]
@@ -652,26 +682,6 @@
       "aliases": [
         {
           "text": "Lord Dillon",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "Channocinhrafter",
-      "confidence": "low",
-      "aliases": [
-        {
-          "text": "Mr. Channocinhrafter",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "Whitell",
-      "confidence": "low",
-      "aliases": [
-        {
-          "text": "Dr. Whitell",
           "confidence": "low"
         }
       ]

@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "model": "anthropic/claude-opus-4-8",
+  "people": [
+    {
+      "canonical": "Georgius Arpe",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Georgium Arpum",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

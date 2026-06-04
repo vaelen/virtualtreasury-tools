@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "model": "ollama/qwen3:14b",
+  "people": [
+    {
+      "canonical": "B. Eglish",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "B. Eglish",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Sunnell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Murrowes",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "T. Murrowes",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "C. Wexford",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "C. Wexford",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Colclough",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Colclough Esqr.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "B. Shilmaliere",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "B. Shilmaliere",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Grey",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "T. Grey Gent",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Harbert",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Harbert Esqr.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Cole",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley Cole",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Sunnott",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "John Sunnott Gent",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "K. J. S.",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "K. J. S.",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

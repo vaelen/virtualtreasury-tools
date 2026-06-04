@@ -1,0 +1,166 @@
+{
+  "schema": 1,
+  "model": "gemini/gemini-2.5-flash-lite",
+  "people": [
+    {
+      "canonical": "Ruane",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Ruane",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Ballina Urban Council",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Ballina Urban Council",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Cadle",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Cadle",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dublin Corporation",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dublin Corporation",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Monahan",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Monahan",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Pigot",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Pigot",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Ball",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Ball",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Crosthwaite",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Crosthwaite",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Bailey",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Bailey",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Carmichael Ferrall",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Carmichael Ferrall",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thynne",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thynne",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Local Government Board",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Local Government Board",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Bannon",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Bannon",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hanrahan",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hanrahan",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Campbell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Campbell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Arklow Harbour Commissioners",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Arklow Harbour Commissioners",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "model": "ollama/llama3.2:3b",
+  "people": [
+    {
+      "canonical": "Ruane Ruane",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "R. Ruane",
+          "confidence": "medium"
+        },
+        {
+          "text": "Ruane",
+          "confidence": "low"
+        }
+      ]
+    }
+  ]
+}

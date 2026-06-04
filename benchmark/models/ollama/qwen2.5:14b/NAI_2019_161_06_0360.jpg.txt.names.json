@@ -1,0 +1,128 @@
+{
+  "schema": 1,
+  "model": "ollama/qwen2.5:14b",
+  "people": [
+    {
+      "canonical": "John Sunnell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "high"
+        },
+        {
+          "text": "John Sunnott",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Murrowes",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "T. Murrowes",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "C. Wexford",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "C. Wexford",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Cole",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley",
+          "confidence": "medium"
+        },
+        {
+          "text": "Dudley Cole",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Colclough Esqr.",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Colclough Esqr.",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "B. Shilmaliere",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "B. Shilmaliere",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "I. Carroll",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "sd. I. Carroll",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Grey Gent",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "T. Grey Gent",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard Puttrell",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Richard",
+          "confidence": "medium"
+        },
+        {
+          "text": "Richard Puttrell",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Harbert Esqr.",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Harbert Esqr.",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Jam & Necd",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Jam & Necd",
+          "confidence": "low"
+        }
+      ]
+    }
+  ]
+}

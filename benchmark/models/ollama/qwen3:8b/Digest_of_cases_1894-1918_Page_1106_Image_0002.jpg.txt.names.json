@@ -3,16 +3,6 @@
   "model": "ollama/qwen3:8b",
   "people": [
     {
-      "canonical": "Ruane",
-      "confidence": "high",
-      "aliases": [
-        {
-          "text": "R. (Ruane)",
-          "confidence": "medium"
-        }
-      ]
-    },
-    {
       "canonical": "Bannon",
       "confidence": "high",
       "aliases": [
@@ -33,32 +23,12 @@
       ]
     },
     {
-      "canonical": "Monahan",
+      "canonical": "Cadle",
       "confidence": "high",
       "aliases": [
         {
-          "text": "Monahan, C.J.",
-          "confidence": "medium"
-        }
-      ]
-    },
-    {
-      "canonical": "Pigot",
-      "confidence": "high",
-      "aliases": [
-        {
-          "text": "Pigot, C.B.",
-          "confidence": "medium"
-        }
-      ]
-    },
-    {
-      "canonical": "Ball",
-      "confidence": "high",
-      "aliases": [
-        {
-          "text": "Ball, J.",
-          "confidence": "medium"
+          "text": "Cadle",
+          "confidence": "high"
         }
       ]
     },
@@ -83,16 +53,6 @@
       ]
     },
     {
-      "canonical": "Crosthwaite",
-      "confidence": "high",
-      "aliases": [
-        {
-          "text": "Crosthwaite",
-          "confidence": "high"
-        }
-      ]
-    },
-    {
       "canonical": "Campbell",
       "confidence": "high",
       "aliases": [
@@ -104,11 +64,21 @@
     },
     {
       "canonical": "Thynne",
-      "confidence": "high",
+      "confidence": "medium",
       "aliases": [
         {
           "text": "Thynne",
-          "confidence": "high"
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Ruane",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "R. (Ruane)",
+          "confidence": "medium"
         }
       ]
     }

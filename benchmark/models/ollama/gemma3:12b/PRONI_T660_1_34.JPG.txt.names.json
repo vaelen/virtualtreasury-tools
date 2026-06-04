@@ -3,7 +3,7 @@
   "model": "ollama/gemma3:12b",
   "people": [
     {
-      "canonical": "Reginald de la ffeld",
+      "canonical": "Reginald de la Feld",
       "confidence": "high",
       "aliases": [
         {
@@ -33,21 +33,17 @@
       ]
     },
     {
-      "canonical": "William de la ffelde",
+      "canonical": "William de la Feld",
       "confidence": "high",
       "aliases": [
         {
           "text": "William de la ffelde",
           "confidence": "high"
-        },
-        {
-          "text": "William",
-          "confidence": "medium"
         }
       ]
     },
     {
-      "canonical": "Richard de la ffelde",
+      "canonical": "Richard de la Feld",
       "confidence": "high",
       "aliases": [
         {
@@ -67,7 +63,7 @@
       ]
     },
     {
-      "canonical": "Nicholas de la ffelde",
+      "canonical": "Nicholas de la Feld",
       "confidence": "high",
       "aliases": [
         {
@@ -77,11 +73,21 @@
       ]
     },
     {
-      "canonical": "John de la ffeld",
+      "canonical": "John de la Feld",
       "confidence": "high",
       "aliases": [
         {
           "text": "John de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William Nugent",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William Nugent",
           "confidence": "high"
         }
       ]
@@ -102,7 +108,7 @@
       "aliases": [
         {
           "text": "Thom as Sourlag",
-          "confidence": "medium"
+          "confidence": "high"
         }
       ]
     },
@@ -112,16 +118,6 @@
       "aliases": [
         {
           "text": "Nicholas Serle",
-          "confidence": "high"
-        }
-      ]
-    },
-    {
-      "canonical": "William Nugent",
-      "confidence": "high",
-      "aliases": [
-        {
-          "text": "William Nugent",
           "confidence": "high"
         }
       ]

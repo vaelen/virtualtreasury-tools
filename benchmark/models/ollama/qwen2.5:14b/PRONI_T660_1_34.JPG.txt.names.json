@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "model": "ollama/qwen2.5:14b",
+  "people": [
+    {
+      "canonical": "Thomas de la ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thomas de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Reginal de la ffeld",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Reginal de la Math ffeld",
+          "confidence": "low"
+        },
+        {
+          "text": "Reginal de la ffeld",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert Kysok",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Robert Kysok",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas de la ffelde",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Nicholas de la ffelde",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "John de la ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Lynham",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Henry Lynham's deceased",
+          "confidence": "medium"
+        },
+        {
+          "text": "Henry Lynham",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Friar Thomas Sourlag",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Friar Thom as Sourlag",
+          "confidence": "low"
+        },
+        {
+          "text": "Thomas Sourlag",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

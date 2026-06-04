@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "model": "deepseek/deepseek-chat",
+  "people": [
+    {
+      "canonical": "George Arpum",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Georgium Arpum",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

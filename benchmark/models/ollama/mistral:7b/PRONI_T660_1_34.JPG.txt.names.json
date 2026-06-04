@@ -23,64 +23,56 @@
       ]
     },
     {
-      "canonical": "William de la ffeld",
+      "canonical": "William de la ffelde",
       "confidence": "high",
       "aliases": [
         {
-          "text": "William de la ffeld",
+          "text": "William de la ffelde",
           "confidence": "high"
         },
         {
-          "text": "William de la ffelde",
-          "confidence": "medium"
+          "text": "William de la ffeld",
+          "confidence": "low"
         }
       ]
     },
     {
-      "canonical": "Richard de la ffeld",
+      "canonical": "Richard de la ffelde",
       "confidence": "high",
       "aliases": [
         {
-          "text": "Richard de la ffeld",
-          "confidence": "high"
-        },
-        {
           "text": "Richard de la ffelde",
-          "confidence": "medium"
+          "confidence": "high"
         }
       ]
     },
     {
       "canonical": "Richard White of Killest",
-      "confidence": "low",
+      "confidence": "medium",
       "aliases": [
         {
           "text": "Richard White of Killest",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "Nicholas de la ffeld",
-      "confidence": "high",
-      "aliases": [
-        {
-          "text": "Nicholas de la ffeld",
-          "confidence": "high"
-        },
-        {
-          "text": "Nicholas de la ffelde",
           "confidence": "medium"
         }
       ]
     },
     {
+      "canonical": "Nicholas de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
       "canonical": "Henry Lynham",
-      "confidence": "low",
+      "confidence": "medium",
       "aliases": [
         {
           "text": "Henry Lynham",
-          "confidence": "low"
+          "confidence": "medium"
         }
       ]
     }

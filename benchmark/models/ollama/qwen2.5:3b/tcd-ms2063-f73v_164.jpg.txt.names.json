@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "model": "ollama/qwen2.5:3b",
+  "people": [
+    {
+      "canonical": "John Portopop",
+      "confidence": "low",
+      "aliases": []
+    }
+  ]
+}

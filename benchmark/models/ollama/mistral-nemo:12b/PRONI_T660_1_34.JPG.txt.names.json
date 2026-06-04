@@ -35,8 +35,8 @@
           "confidence": "high"
         },
         {
-          "text": "Hugh Cretage, late Chef Sarjeant of Cross Meath",
-          "confidence": "medium"
+          "text": "Chef Sarjeant of Cross Meath",
+          "confidence": "low"
         }
       ]
     },
@@ -60,7 +60,7 @@
         },
         {
           "text": "William de la ffelde",
-          "confidence": "medium"
+          "confidence": "low"
         }
       ]
     },
@@ -74,21 +74,7 @@
         },
         {
           "text": "Richard de la ffelde",
-          "confidence": "medium"
-        }
-      ]
-    },
-    {
-      "canonical": "Nicholas de la Felde",
-      "confidence": "high",
-      "aliases": [
-        {
-          "text": "Nicholas de la Felde",
-          "confidence": "high"
-        },
-        {
-          "text": "Nicholas de la ffelde",
-          "confidence": "medium"
+          "confidence": "low"
         }
       ]
     },
@@ -103,49 +89,53 @@
       ]
     },
     {
-      "canonical": "John de la Felde",
+      "canonical": "Nicholas de la Felde",
       "confidence": "high",
       "aliases": [
         {
-          "text": "John de la Felde",
+          "text": "Nicholas de la Felde",
           "confidence": "high"
         },
         {
-          "text": "John de la ffeld is deceased",
+          "text": "Nicholas de la ffelde",
           "confidence": "low"
         }
       ]
     },
     {
-      "canonical": "Henry Lynham",
+      "canonical": "John de la Felde",
       "confidence": "medium",
       "aliases": [
         {
-          "text": "Henry Lynham deceased",
+          "text": "John de la Felde",
           "confidence": "medium"
         }
       ]
     },
     {
-      "canonical": "Friar Thomas Sourlag, Abbt of the house of St. Thomas the Martyr next Dolin",
+      "canonical": "Henry Lynham",
       "confidence": "high",
       "aliases": [
         {
-          "text": "Friar Thomas Sourlag, Abbt of the house of St. Thomas the Martyr next Dolin",
+          "text": "Henry Lynham",
           "confidence": "high"
+        },
+        {
+          "text": "Henry Lynham's deceased",
+          "confidence": "low"
         }
       ]
     },
     {
-      "canonical": "Nicholas Serle",
+      "canonical": "Friar Thomas Sourlag",
       "confidence": "medium",
       "aliases": [
         {
-          "text": "Nicholas Serle",
+          "text": "Friar Thomas Sourlag",
           "confidence": "medium"
         },
         {
-          "text": "Nicholas Serle, pledges and mandators of the foresa William",
+          "text": "Thomas Sourlag",
           "confidence": "low"
         }
       ]

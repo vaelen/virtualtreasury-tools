@@ -9,16 +9,20 @@
         {
           "text": "John Sunnell",
           "confidence": "high"
+        },
+        {
+          "text": "John Sunnott Gent",
+          "confidence": "medium"
         }
       ]
     },
     {
       "canonical": "T. Murrowes",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "T. Murrowes",
-          "confidence": "medium"
+          "confidence": "high"
         }
       ]
     },
@@ -28,191 +32,11 @@
       "aliases": [
         {
           "text": "Dudley",
-          "confidence": "low"
+          "confidence": "medium"
         },
         {
           "text": "Colclough Esqr.",
           "confidence": "low"
-        },
-        {
-          "text": "Dudley Cole",
-          "confidence": "high"
-        }
-      ]
-    },
-    {
-      "canonical": "B. Eglish",
-      "confidence": "medium",
-      "aliases": [
-        {
-          "text": "B. Eglish",
-          "confidence": "high"
-        }
-      ]
-    },
-    {
-      "canonical": "C. Wexford",
-      "confidence": "medium",
-      "aliases": [
-        {
-          "text": "C. Wexford",
-          "confidence": "high"
-        }
-      ]
-    },
-    {
-      "canonical": "B. Shilmaliere",
-      "confidence": "medium",
-      "aliases": [
-        {
-          "text": "B. Shilmaliere",
-          "confidence": "high"
-        }
-      ]
-    },
-    {
-      "canonical": "K. J. S.",
-      "confidence": "low",
-      "aliases": [
-        {
-          "text": "K. J. S.",
-          "confidence": "high"
-        },
-        {
-          "text": "King James Stuart",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "T. Grey Gent",
-      "confidence": "medium",
-      "aliases": [
-        {
-          "text": "T. Grey Gent",
-          "confidence": "high"
-        }
-      ]
-    },
-    {
-      "canonical": "Lawagh, Standquill",
-      "confidence": "low",
-      "aliases": [
-        {
-          "text": "Lawagh, Standquill",
-          "confidence": "high"
-        },
-        {
-          "text": "Lord of Lawagh and Standquill",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "I. Carroll & his Ancesters",
-      "confidence": "low",
-      "aliases": [
-        {
-          "text": "I. Carroll & his Ancesters",
-          "confidence": "high"
-        }
-      ]
-    },
-    {
-      "canonical": "Richard Puttrell Rent",
-      "confidence": "medium",
-      "aliases": [
-        {
-          "text": "Richard Puttrell Rent",
-          "confidence": "high"
-        },
-        {
-          "text": "Puttrell",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "Harbert Esqr.",
-      "confidence": "low",
-      "aliases": [
-        {
-          "text": "Harbert Esqr.",
-          "confidence": "high"
-        },
-        {
-          "text": "Sir Herbert",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "Necd",
-      "confidence": "low",
-      "aliases": [
-        {
-          "text": "Necd",
-          "confidence": "high"
-        },
-        {
-          "text": "Needham",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "Jam",
-      "confidence": "low",
-      "aliases": [
-        {
-          "text": "Jam",
-          "confidence": "high"
-        },
-        {
-          "text": "James",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "Rathewer cont",
-      "confidence": "low",
-      "aliases": [
-        {
-          "text": "Rathewer cont",
-          "confidence": "high"
-        },
-        {
-          "text": "Rathmore",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "Harbert Esqr &",
-      "confidence": "low",
-      "aliases": [
-        {
-          "text": "Harbert Esqr &",
-          "confidence": "high"
-        },
-        {
-          "text": "Sir Herbert and",
-          "confidence": "low"
-        }
-      ]
-    },
-    {
-      "canonical": "John Sunnott Gent",
-      "confidence": "medium",
-      "aliases": [
-        {
-          "text": "John Sunnott Gent",
-          "confidence": "high"
-        },
-        {
-          "text": "John Sunnell",
-          "confidence": "high"
         }
       ]
     }

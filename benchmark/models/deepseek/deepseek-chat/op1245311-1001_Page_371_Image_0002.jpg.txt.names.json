@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "model": "deepseek/deepseek-chat",
+  "people": [
+    {
+      "canonical": "Lynch",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Lynch",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Dodwell",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Dodwell",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Charles Clarke",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Rev. Charles Clarke",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Power",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Power",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

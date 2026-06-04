@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "model": "ollama/llama3.2:3b",
+  "people": [
+    {
+      "canonical": "Thomas Young",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Sgt. Young",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Wm Young",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Wm Young",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

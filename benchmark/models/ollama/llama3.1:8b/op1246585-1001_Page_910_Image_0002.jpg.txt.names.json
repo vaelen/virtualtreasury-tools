@@ -9,10 +9,16 @@
         {
           "text": "GOR",
           "confidence": "low"
-        },
+        }
+      ]
+    },
+    {
+      "canonical": "Maxine Gray",
+      "confidence": "high",
+      "aliases": [
         {
           "text": "Mlxnne'",
-          "confidence": "low"
+          "confidence": "medium"
         }
       ]
     }

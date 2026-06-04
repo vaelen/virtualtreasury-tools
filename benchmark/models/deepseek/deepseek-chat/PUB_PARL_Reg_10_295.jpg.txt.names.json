@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "model": "deepseek/deepseek-chat",
+  "people": [
+    {
+      "canonical": "Dunn",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. DUNN",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Edward Hyde",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Lord Clarendon",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Curran",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. CURRAN",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

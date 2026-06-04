@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "model": "ollama/qwen2.5:14b",
+  "people": [
+    {
+      "canonical": "Lord Palmerston",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Lord Palmerston",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Mr. Lynch",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Lynch",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Sir I. G. Booth",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Sir I. G. Booth, Bart",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Rev. Charles Clarke",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Rer. Chailes Clarke, Bar. Carbery",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "John Power",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "John Power, Exd.",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

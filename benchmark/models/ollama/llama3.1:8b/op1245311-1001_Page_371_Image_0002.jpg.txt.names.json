@@ -14,11 +14,11 @@
     },
     {
       "canonical": "Mr. Lynch",
-      "confidence": "medium",
+      "confidence": "high",
       "aliases": [
         {
           "text": "Mr. Lynch",
-          "confidence": "medium"
+          "confidence": "high"
         }
       ]
     },
@@ -29,10 +29,6 @@
         {
           "text": "Sir I. G. Booth, Bart",
           "confidence": "high"
-        },
-        {
-          "text": "Bart",
-          "confidence": "low"
         }
       ]
     },
@@ -48,11 +44,11 @@
     },
     {
       "canonical": "Bar. Carbery",
-      "confidence": "medium",
+      "confidence": "low",
       "aliases": [
         {
           "text": "Bar. Carbery",
-          "confidence": "medium"
+          "confidence": "low"
         }
       ]
     },
@@ -65,8 +61,8 @@
           "confidence": "high"
         },
         {
-          "text": "Exd.",
-          "confidence": "low"
+          "text": "Mr. Dodwell",
+          "confidence": "medium"
         }
       ]
     }

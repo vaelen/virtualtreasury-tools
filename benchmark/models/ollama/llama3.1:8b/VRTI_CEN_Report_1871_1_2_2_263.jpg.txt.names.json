@@ -5,50 +5,134 @@
     {
       "canonical": "Land Proprietor",
       "confidence": "high",
-      "aliases": []
-    },
-    {
-      "canonical": "Farmer",
-      "confidence": "high",
-      "aliases": []
-    },
-    {
-      "canonical": "Grazier",
-      "confidence": "high",
-      "aliases": []
-    },
-    {
-      "canonical": "Land Surveyor",
-      "confidence": "high",
-      "aliases": []
-    },
-    {
-      "canonical": "Woodman",
-      "confidence": "high",
-      "aliases": []
-    },
-    {
-      "canonical": "Horticulturist",
-      "confidence": "high",
       "aliases": [
         {
-          "text": "Gardener",
-          "confidence": "medium"
+          "text": "Land Proprietor",
+          "confidence": "high"
         }
       ]
     },
     {
-      "canonical": "Farrier",
-      "confidence": "high",
-      "aliases": []
-    },
-    {
-      "canonical": "Veterinary Surgeon",
+      "canonical": "Farmer",
       "confidence": "high",
       "aliases": [
         {
-          "text": "Vet",
+          "text": "Farmer",
+          "confidence": "high"
+        },
+        {
+          "text": "Grazier",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Agricultural Labourer (Outdoor)",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Agricultural Labourer (Outdoor)",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Shepherd (Outdoor",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Shepherd (Outdoor",
           "confidence": "low"
+        },
+        {
+          "text": "Farm Servant (Indoor)",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Land Surveyor; Land, Estate\u2014Agent (ineluding Land Stewards)",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Land Surveyor; Land, Estate\u2014Agent (ineluding Land Stewards)",
+          "confidence": "high"
+        },
+        {
+          "text": "Land Stewards",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Woodman",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Woodman",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Gardener (not Domestie)",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Gardener (not Domestie)",
+          "confidence": "high"
+        },
+        {
+          "text": "Horticulturists",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Horse Breaker",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Horse Breaker",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Horse Keeper, Groom, Jockey",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Horse Keeper, Groom, Jockey",
+          "confidence": "medium"
+        },
+        {
+          "text": "Farrier",
+          "confidence": "low"
+        },
+        {
+          "text": "Veterinary Surgcon",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Cattle, Sheep, Pig\u2014Dealer, Salesman",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Cattle, Sheep, Pig\u2014Dealer, Salesman",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Fisherman",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Fisherman",
+          "confidence": "high"
         }
       ]
     }

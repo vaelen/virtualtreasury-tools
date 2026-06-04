@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "model": "gemini/gemini-2.5-flash-lite",
+  "people": [
+    {
+      "canonical": "George Arp",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Georgium Arpum",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

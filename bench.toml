@@ -16,27 +16,33 @@ input = "benchmark"
 #
 # Trim this list to control cost/time — every listed model runs over every file.
 models = [
-  # --- Local via Ollama: 2024-era baselines (no API cost; watch JSON validity)
+  # --- Local via Ollama: small models (1-3B; fast, low recall floor) --------
+  "ollama/llama3.2:1b",   # smallest; speed/quality floor reference
+  "ollama/llama3.2:3b",   # tiny but coherent; cheap recall baseline
+  "ollama/qwen2.5:3b",    # 3B qwen; size control vs the 7B/14B
+
+  # --- Local via Ollama: 7-9B baselines (no API cost; watch JSON validity) --
   "ollama/llama3.1:8b",   # reliable general 8B (hallucinated in the last run)
   "ollama/qwen2.5:7b",    # under-extracted badly last run — see qwen3 below
   "ollama/gemma2:9b",     # safest local last run, but mediocre recall
-  "ollama/phi4",          # 14B, punches above its size on reasoning
   "ollama/mistral:7b",    # local counterpart to the Mistral API models
+  "ollama/granite3.3:8b", # IBM Granite: tuned for extraction/RAG, strong JSON
+  "ollama/qwen3:8b",      # dense 8B; direct successor to the qwen2.5 that bailed
 
-  # --- Local: newer generations (do the open-weights fix the failures above?)
+  # --- Local via Ollama: 12-14B (fits the 3060's 12GB at Q4; long cold-start)
+  "ollama/phi4",            # 14B, punches above its size on reasoning
   "ollama/gemma3:12b",      # successor to gemma2; keep the discipline, more recall?
   "ollama/mistral-nemo:12b",# real upgrade over the weak mistral:7b
-  "ollama/granite3.3:8b",   # IBM Granite: tuned for extraction/RAG, strong JSON
-  "ollama/gpt-oss:20b",     # open-weights GPT; how does it stack up locally?
+  "ollama/qwen2.5:14b",     # 14B size control vs the 7B; on-prem viability test
+  "ollama/qwen3:14b",       # dense 14B; strongest qwen3 that fits the 3060
 
-  # --- Local: the qwen3 family (does Qwen3 fix qwen2.5's under-extraction?) ---
-  "ollama/qwen3:8b",        # dense 8B; direct successor to the qwen2.5 that bailed
-  "ollama/qwen3:30b-a3b",   # 30B MoE (3B active) — quality at lower compute
-  "ollama/qwen3.6:35b-a3b", # newer 35B MoE; the strongest qwen variant on hand
-
-  # --- Local: does scale close the gap? (large; expect long cold-starts) -----
-  "ollama/qwen2.5:32b",     # size control vs the 7B; on-prem viability test
-  # "ollama/llama3.3:70b",  # uncomment if the hardware can hold a 70B
+  # --- Too big for the RTX 3060 (12GB VRAM): not pulled locally. On this box
+  # --- they spill to CPU and crawl — uncomment only on a larger GPU. ---------
+  # "ollama/gpt-oss:20b",     # open-weights GPT; how does it stack up locally?
+  # "ollama/qwen3:30b-a3b",   # 30B MoE (3B active) — quality at lower compute
+  # "ollama/qwen3.6:35b-a3b", # newer 35B MoE; the strongest qwen variant on hand
+  # "ollama/qwen2.5:32b",     # 32B size control vs the 7B; on-prem viability test
+  # "ollama/llama3.3:70b",    # 70B; needs far more than 12GB
 
   # --- Anthropic ------------------------------------------------------------
   "anthropic/claude-haiku-4-5",   # fast/cheap; the names-default tier
@@ -64,22 +70,3 @@ models = [
   "deepseek/deepseek-chat",        # V3: cheap cloud baseline
   "deepseek/deepseek-reasoner",    # R1: reasoning on the hard coreference cases
 ]
-
-# Optional per-model endpoint. Models NOT listed here are routed by their
-# `provider/` prefix (cloud) or LiteLLM's Ollama default. These entries make the
-# local server explicit; change the host/port if your Ollama runs elsewhere.
-[api_base]
-"ollama/llama3.1:8b"     = "http://localhost:11434"
-"ollama/qwen2.5:7b"      = "http://localhost:11434"
-"ollama/gemma2:9b"       = "http://localhost:11434"
-"ollama/phi4"            = "http://localhost:11434"
-"ollama/mistral:7b"      = "http://localhost:11434"
-"ollama/gemma3:12b"      = "http://localhost:11434"
-"ollama/mistral-nemo:12b" = "http://localhost:11434"
-"ollama/granite3.3:8b"   = "http://localhost:11434"
-"ollama/gpt-oss:20b"     = "http://localhost:11434"
-"ollama/qwen3:8b"        = "http://localhost:11434"
-"ollama/qwen3:30b-a3b"   = "http://localhost:11434"
-"ollama/qwen3.6:35b-a3b" = "http://localhost:11434"
-"ollama/qwen2.5:32b"     = "http://localhost:11434"
-# "ollama/llama3.3:70b"  = "http://localhost:11434"
