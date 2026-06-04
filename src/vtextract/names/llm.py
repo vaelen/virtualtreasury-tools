@@ -10,7 +10,7 @@ import httpx
 import litellm
 from pydantic import ValidationError
 
-from vtextract.names.models import NameResponse, Person
+from vtextract.names.models import NameResponse, Person, Usage, sum_usage
 
 # Keep litellm from printing its banner/provider hints on every error.
 litellm.suppress_debug_info = True
@@ -233,8 +233,38 @@ def _retry_after_seconds(exc: Exception) -> float | None:
         return None
 
 
+def usage_from_response(response: object) -> Usage | None:
+    """Extract normalized token usage from a litellm completion response.
+
+    Returns None when the response carries no ``usage`` block (e.g. some local
+    Ollama responses), so callers can tell "untracked" from a real zero. litellm
+    folds Anthropic's cache_read/cache_creation into ``prompt_tokens`` and maps
+    cache *reads* into ``prompt_tokens_details.cached_tokens``, so this single
+    extraction is consistent across providers (cached is a subset of input).
+    """
+    raw = response.get("usage") if isinstance(response, dict) \
+        else getattr(response, "usage", None)
+    if raw is None:
+        return None
+
+    def field(obj: object, key: str, default: int = 0) -> int:
+        if obj is None:
+            return default
+        value = obj.get(key, default) if isinstance(obj, dict) \
+            else getattr(obj, key, default)
+        return int(value or default)
+
+    details = raw.get("prompt_tokens_details") if isinstance(raw, dict) \
+        else getattr(raw, "prompt_tokens_details", None)
+    return Usage(
+        input=field(raw, "prompt_tokens"),
+        output=field(raw, "completion_tokens"),
+        cached=field(details, "cached_tokens"),
+    )
+
+
 def _complete(kwargs: dict, *, max_retries: int = 2,
-              rate_limit_retries: int = _RATE_LIMIT_RETRIES) -> str:
+              rate_limit_retries: int = _RATE_LIMIT_RETRIES) -> tuple[str, Usage | None]:
     """Call the model, retrying on transient errors.
 
     Rate limits (429) get their own generous budget: we wait the server's
@@ -249,7 +279,8 @@ def _complete(kwargs: dict, *, max_retries: int = 2,
     while True:
         try:
             response = litellm.completion(**kwargs)
-            return response["choices"][0]["message"]["content"]
+            content = response["choices"][0]["message"]["content"]
+            return content, usage_from_response(response)
         except Exception as exc:  # transport / API error
             param = _offending_param(exc)
             if param and param in kwargs:
@@ -274,19 +305,22 @@ def _complete(kwargs: dict, *, max_retries: int = 2,
                 attempt += 1
 
 
-def find_people(chunk_text: str, model: str, api_base: str | None = None) -> list[Person]:
-    """Call the LLM and return validated people for one chunk.
+def find_people(chunk_text: str, model: str, api_base: str | None = None,
+                ) -> tuple[list[Person], Usage | None]:
+    """Call the LLM and return (validated people, token usage) for one chunk.
 
     Reprompts once on malformed JSON; retries with backoff on transport errors.
+    When a reprompt is needed its tokens are billed too, so the returned usage
+    sums both calls.
     """
     messages = build_messages(chunk_text)
     kwargs: dict = {"model": model, "messages": messages, "temperature": 0}
     if api_base:
         kwargs["api_base"] = api_base
 
-    content = _complete(kwargs)
+    content, usage = _complete(kwargs)
     try:
-        return _parse(content)
+        return _parse(content), usage
     except (json.JSONDecodeError, ValidationError):
         repair = messages + [
             {"role": "assistant", "content": content},
@@ -294,5 +328,5 @@ def find_people(chunk_text: str, model: str, api_base: str | None = None) -> lis
                 "That was not valid JSON in the required schema. Respond again "
                 "with ONLY the JSON object, no prose."},
         ]
-        content = _complete({**kwargs, "messages": repair})
-        return _parse(content)
+        content, repair_usage = _complete({**kwargs, "messages": repair})
+        return _parse(content), sum_usage([usage, repair_usage])

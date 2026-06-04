@@ -8,7 +8,7 @@ import litellm
 import pytest
 
 from vtextract.names import llm
-from vtextract.names.models import Person
+from vtextract.names.models import Person, Usage
 
 
 def _rate_limit_error(retry_after: str | None = None) -> litellm.RateLimitError:
@@ -46,28 +46,58 @@ def test_find_people_uses_completion(monkeypatch):
 
     def fake_complete(kwargs, *, max_retries=2):
         captured["model"] = kwargs["model"]
-        return json.dumps({"people": [{"canonical": "John Young", "confidence": "medium",
-                                       "aliases": [{"text": "Young", "confidence": "low"}]}]})
+        content = json.dumps({"people": [{"canonical": "John Young", "confidence": "medium",
+                                          "aliases": [{"text": "Young", "confidence": "low"}]}]})
+        return content, Usage(input=100, output=20, cached=0)
 
     monkeypatch.setattr(llm, "_complete", fake_complete)
-    people = llm.find_people("text", model="ollama/llama3.1")
+    people, usage = llm.find_people("text", model="ollama/llama3.1")
     assert captured["model"] == "ollama/llama3.1"
     assert isinstance(people[0], Person)
     assert people[0].canonical == "John Young"
+    assert usage == Usage(input=100, output=20, cached=0)
 
 
-def test_find_people_reprompts_on_bad_json(monkeypatch):
+def test_find_people_reprompts_on_bad_json_and_sums_usage(monkeypatch):
     calls = []
 
     def fake_complete(kwargs, *, max_retries=2):
         calls.append(kwargs["messages"])
         if len(calls) == 1:
-            return "not json at all"
-        return json.dumps({"people": []})
+            return "not json at all", Usage(input=100, output=5)
+        return json.dumps({"people": []}), Usage(input=120, output=2)
 
     monkeypatch.setattr(llm, "_complete", fake_complete)
-    assert llm.find_people("text", model="m") == []
+    people, usage = llm.find_people("text", model="m")
+    assert people == []
     assert len(calls) == 2  # original + one reprompt
+    # the repair call's tokens are billed too, so usage sums both calls
+    assert usage == Usage(input=220, output=7)
+
+
+def test_usage_from_response_reads_prompt_completion_cached():
+    response = {"choices": [{"message": {"content": "{}"}}],
+                "usage": {"prompt_tokens": 1144, "completion_tokens": 304,
+                          "prompt_tokens_details": {"cached_tokens": 512}}}
+    assert llm.usage_from_response(response) == Usage(input=1144, output=304, cached=512)
+
+
+def test_usage_from_response_handles_missing_usage_and_details():
+    # no usage block at all (e.g. some Ollama responses) -> unknown
+    assert llm.usage_from_response({"choices": []}) is None
+    # usage present but no cached details -> cached defaults to 0
+    response = {"usage": {"prompt_tokens": 10, "completion_tokens": 2}}
+    assert llm.usage_from_response(response) == Usage(input=10, output=2, cached=0)
+
+
+def test_complete_returns_content_and_usage(monkeypatch):
+    monkeypatch.setattr(llm.litellm, "completion", lambda **kw: {
+        "choices": [{"message": {"content": '{"people": []}'}}],
+        "usage": {"prompt_tokens": 7, "completion_tokens": 3,
+                  "prompt_tokens_details": {"cached_tokens": 4}}})
+    content, usage = llm._complete({"model": "m", "messages": []})
+    assert content == '{"people": []}'
+    assert usage == Usage(input=7, output=3, cached=4)
 
 
 def test_friendly_error_not_found_ollama():
@@ -91,7 +121,8 @@ def test_complete_retries_rate_limit_then_succeeds(monkeypatch):
         return _ok_response()
 
     monkeypatch.setattr(llm.litellm, "completion", fake_completion)
-    assert llm._complete({"model": "m", "messages": []}) == '{"people": []}'
+    content, _usage = llm._complete({"model": "m", "messages": []})
+    assert content == '{"people": []}'
     assert len(calls) == 2
     assert sleeps  # slept before retrying
 
@@ -172,7 +203,7 @@ def test_complete_drops_deprecated_param_and_retries(monkeypatch):
         return _ok_response()
 
     monkeypatch.setattr(llm.litellm, "completion", fake_completion)
-    out = llm._complete(
+    out, _usage = llm._complete(
         {"model": "anthropic/claude-opus-4-8", "messages": [], "temperature": 0})
     assert out == '{"people": []}'
     assert len(seen) == 2                    # rejected once, then retried

@@ -27,6 +27,9 @@ from vtextract.names.merge import merge_people
 from vtextract.names.models import (
     SIDECAR_SCHEMA,
     Person,
+    Usage,
+    people_and_usage,
+    sum_usage,
 )
 
 
@@ -99,12 +102,16 @@ def write_times(md: Path, times: dict[str, float]) -> None:
     _write_json_atomic(times_path(md), times)
 
 
-def write_sidecar(path: Path, model: str, people: list[Person]) -> None:
-    _write_json_atomic(path, {
+def write_sidecar(path: Path, model: str, people: list[Person],
+                  usage: Usage | None = None) -> None:
+    payload: dict = {
         "schema": SIDECAR_SCHEMA,
         "model": model,
         "people": [p.model_dump() for p in people],
-    })
+    }
+    if usage is not None:  # omit when untracked, so it's never read as 0 tokens
+        payload["usage"] = usage.to_dict()
+    _write_json_atomic(path, payload)
 
 
 # (chunk_text, model, api_base) -> people for that chunk (same seam as extractor).
@@ -119,21 +126,25 @@ def extract_people(
     overlap: int = 512,
     api_base: str | None = None,
     find: FindFn | None = None,
-) -> list[Person]:
+) -> tuple[list[Person], Usage | None]:
     """Run the identical names pipeline over one text: chunk -> find -> merge.
 
-    All-or-nothing: any chunk failure raises (the caller leaves no sidecar so the
-    file retries next run), matching ``vtextract names`` behaviour.
+    Returns (merged people, summed token usage). All-or-nothing: any chunk
+    failure raises (the caller leaves no sidecar so the file retries next run),
+    matching ``vtextract names`` behaviour.
     """
     find = find or llm_module.find_people
     groups: list[list[Person]] = []
+    usages: list[Usage | None] = []
     chunks = chunk_text(text, chunk_size, overlap)
     for index, (window, _offset) in enumerate(chunks):
         try:
-            groups.append(find(window, model, api_base))
+            people, usage = people_and_usage(find(window, model, api_base))
         except Exception as exc:
             raise RuntimeError(f"chunk {index + 1}/{len(chunks)} failed: {exc}") from exc
-    return merge_people(groups)
+        groups.append(people)
+        usages.append(usage)
+    return merge_people(groups), sum_usage(usages)
 
 
 def _input_txt_files(input_dir: Path) -> list[Path]:
@@ -233,7 +244,7 @@ def run_model(
     def process(txt: Path, side: Path, progress: Progress | None) -> None:
         start = time.perf_counter()
         try:
-            people = extract_people(
+            people, usage = extract_people(
                 txt.read_text(), model,
                 chunk_size=chunk_size, overlap=overlap, api_base=api_base, find=find)
         except Exception as exc:
@@ -241,7 +252,7 @@ def run_model(
             _log_failure(progress, f"namebench: failed {model} {txt.name}: {reason}")
             return
         elapsed = time.perf_counter() - start
-        write_sidecar(side, model, people)
+        write_sidecar(side, model, people, usage)
         times[txt.name] = elapsed
         write_times(md, times)
 
@@ -286,6 +297,12 @@ class ReportRow:
     # More meaningful than ms/byte because generation latency scales with the
     # number of names emitted, not the input length. None without persons/times.
     s_per_name: float | None
+    # Token usage summed across the model's files. None when no sidecar recorded
+    # usage (older runs) so it reads as "unknown", not "0 tokens". cached is the
+    # subset of in served from a prompt cache (cache hits).
+    tokens_in: int | None
+    tokens_out: int | None
+    tokens_cached: int | None
 
 
 def discover_models(input_dir: Path) -> list[str]:
@@ -338,6 +355,13 @@ class _ModelData:
     total_s: float = 0.0
     total_bytes: int = 0
     timing: list[float] = None
+    # Token usage summed over sidecars that recorded it. ``has_usage`` stays
+    # False when no sidecar carried a usage block (older runs), so the report
+    # shows n/a rather than a misleading 0.
+    tokens_in: int = 0
+    tokens_out: int = 0
+    tokens_cached: int = 0
+    has_usage: bool = False
 
 
 def _read_model_data(input_dir: Path, model: str) -> _ModelData:
@@ -359,6 +383,12 @@ def _read_model_data(input_dir: Path, model: str) -> _ModelData:
         txt_name = side.name[: -len(_SIDECAR_SUFFIX)]
         keys = {k for k in (normalize_name(p.canonical) for p in people) if k}
         data.name_sets[txt_name] = keys
+        usage = payload.get("usage")
+        if isinstance(usage, dict):
+            data.has_usage = True
+            data.tokens_in += int(usage.get("in", 0))
+            data.tokens_out += int(usage.get("out", 0))
+            data.tokens_cached += int(usage.get("cached", 0))
     times = load_times(md)
     data.timing = list(times.values())
     for name, secs in times.items():
@@ -437,7 +467,10 @@ def build_report(input_dir: Path) -> list[ReportRow]:
             median_s=statistics.median(vals) if vals else None,
             mean_s=statistics.mean(vals) if vals else None,
             ms_per_byte=ms_per_byte,
-            s_per_name=(data.total_s / data.persons) if (data.persons and vals) else None))
+            s_per_name=(data.total_s / data.persons) if (data.persons and vals) else None,
+            tokens_in=data.tokens_in if data.has_usage else None,
+            tokens_out=data.tokens_out if data.has_usage else None,
+            tokens_cached=data.tokens_cached if data.has_usage else None))
     return rows
 
 
@@ -463,11 +496,14 @@ def render_report(rows: list[ReportRow], console: Console | None = None) -> None
     table.add_column("Model", justify="left", no_wrap=True)
     for col in ("P", "R", "F1", "Files", "Empty", "Persons", "Aliases",
                 "Al/Per", "Per/File", "Min s", "Max s", "Median s", "Mean s",
-                "ms/byte", "s/name"):
+                "ms/byte", "s/name", "Tok in", "Tok out", "Cached"):
         table.add_column(col, justify="right")
 
     def fmt(v: float | None, spec: str = "{:.2f}") -> str:
         return "n/a" if v is None else spec.format(v)
+
+    def fmt_int(v: int | None) -> str:
+        return "n/a" if v is None else f"{v:,}"
 
     for r in rows:
         table.add_row(
@@ -475,7 +511,8 @@ def render_report(rows: list[ReportRow], console: Console | None = None) -> None
             str(r.files), str(r.empty_files), str(r.persons),
             str(r.aliases), fmt(r.aliases_per_person), fmt(r.persons_per_file),
             fmt(r.min_s), fmt(r.max_s), fmt(r.median_s), fmt(r.mean_s),
-            fmt(r.ms_per_byte, "{:.3f}"), fmt(r.s_per_name))
+            fmt(r.ms_per_byte, "{:.3f}"), fmt(r.s_per_name),
+            fmt_int(r.tokens_in), fmt_int(r.tokens_out), fmt_int(r.tokens_cached))
     if not rows:
         console.print("namebench: no model data found.")
         return

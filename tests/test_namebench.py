@@ -71,7 +71,7 @@ import json
 from vtextract.namebench import (
     model_dir, sidecar_path, times_path, load_times, write_times, write_sidecar,
 )
-from vtextract.names.models import Person
+from vtextract.names.models import Person, Usage
 
 
 def test_model_dir_nests_provider_and_model(tmp_path):
@@ -103,6 +103,16 @@ def test_write_sidecar_shape(tmp_path):
     data = json.loads((md / "1.txt.names.json").read_text())
     assert data["schema"] == 1 and data["model"] == "m"
     assert data["people"][0]["canonical"] == "William Young"
+    assert "usage" not in data   # no usage passed -> no block
+
+
+def test_write_sidecar_includes_usage_block(tmp_path):
+    md = model_dir(tmp_path, "m")
+    md.mkdir(parents=True)
+    write_sidecar(sidecar_path(md, "1.txt"), "m", [],
+                  usage=Usage(input=100, output=20, cached=64))
+    data = json.loads((md / "1.txt.names.json").read_text())
+    assert data["usage"] == {"in": 100, "out": 20, "total": 120, "cached": 64}
 
 
 from vtextract.namebench import extract_people
@@ -123,8 +133,19 @@ def test_extract_people_merges_chunks():
         "Wm Young": [Person(canonical="William Young",
                             aliases=[{"text": "Wm Young", "confidence": "high"}])],
     })
-    people = extract_people("Wm Young paid the toll.", "m", find=find)
+    people, usage = extract_people("Wm Young paid the toll.", "m", find=find)
     assert [p.canonical for p in people] == ["William Young"]
+    assert usage is None   # bare-list fake reports no usage
+
+
+def test_extract_people_sums_usage_across_chunks():
+    def find(chunk_text, model, api_base=None):
+        return [Person(canonical="A")], Usage(input=50, output=10, cached=8)
+
+    # chunk_size/overlap chosen so the text splits into two windows
+    people, usage = extract_people(
+        "A" * 30, "m", chunk_size=20, overlap=5, find=find)
+    assert usage.input == 100 and usage.output == 20 and usage.cached == 16
 
 
 def test_extract_people_propagates_chunk_failure():
@@ -314,8 +335,10 @@ def test_build_report_aggregates_per_model(tmp_path):
         Person(canonical="William Young", confidence="high",
                aliases=[{"text": "Wm Young", "confidence": "high"},
                         {"text": "Young", "confidence": "low"}]),
-        Person(canonical="J. Smith", confidence="medium", aliases=[])])
-    write_sidecar(sidecar_path(md, "2.txt"), "m", [])   # an "empty" extraction
+        Person(canonical="J. Smith", confidence="medium", aliases=[])],
+        usage=Usage(input=100, output=20, cached=64))
+    write_sidecar(sidecar_path(md, "2.txt"), "m", [],
+                  usage=Usage(input=40, output=2, cached=0))   # an "empty" extraction
     write_times(md, {"1.txt": 1.0, "2.txt": 3.0})
     rows = build_report(inp)
     assert len(rows) == 1
@@ -338,6 +361,20 @@ def test_build_report_aggregates_per_model(tmp_path):
     assert row.ms_per_byte == 10.0
     # s/name = (1.0 + 3.0) s / 2 persons = 2.0 (latency is output-bound)
     assert row.s_per_name == 2.0
+    # token usage summed across both sidecars
+    assert row.tokens_in == 140 and row.tokens_out == 22 and row.tokens_cached == 64
+
+
+def test_build_report_tokens_none_when_no_usage_recorded(tmp_path):
+    """Older sidecars without a usage block report n/a, not a misleading 0."""
+    inp = tmp_path
+    md = model_dir(inp, "m")
+    md.mkdir(parents=True)
+    write_sidecar(sidecar_path(md, "1.txt"), "m", [])   # no usage= arg -> no block
+    row = build_report(inp)[0]
+    assert row.tokens_in is None
+    assert row.tokens_out is None
+    assert row.tokens_cached is None
 
 
 def test_build_report_ratios_none_without_data(tmp_path):

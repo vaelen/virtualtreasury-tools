@@ -16,7 +16,14 @@ from rich.progress import Progress
 from vtextract.names import llm as llm_module
 from vtextract.names.chunking import chunk_text
 from vtextract.names.merge import merge_people
-from vtextract.names.models import SIDECAR_SCHEMA, NamesStats, Person
+from vtextract.names.models import (
+    SIDECAR_SCHEMA,
+    NamesStats,
+    Person,
+    Usage,
+    people_and_usage,
+    sum_usage,
+)
 from vtextract.schema import normalize_reference_code
 
 # (chunk_text, model, api_base) -> people for that chunk.
@@ -73,12 +80,15 @@ def sidecar_for(txt_path: Path) -> Path:
     return txt_path.with_name(txt_path.name[: -len(_TXT_SUFFIX)] + _SIDECAR_SUFFIX)
 
 
-def _write_sidecar_atomic(path: Path, model: str, people: list[Person]) -> None:
-    data = {
+def _write_sidecar_atomic(path: Path, model: str, people: list[Person],
+                          usage: Usage | None = None) -> None:
+    data: dict = {
         "schema": SIDECAR_SCHEMA,
         "model": model,
         "people": [p.model_dump() for p in people],
     }
+    if usage is not None:  # omit when untracked, so it's never confused with 0
+        data["usage"] = usage.to_dict()
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(json.dumps(data, indent=2))
     os.replace(tmp, path)
@@ -106,24 +116,28 @@ def _log_failure(
 def _extract_one(
     txt_path: Path, *, model: str, api_base: str | None,
     chunk_size: int, overlap: int, find: FindFn,
-) -> list[Person]:
-    """Extract people for one page.
+) -> tuple[list[Person], Usage | None]:
+    """Extract (people, token usage) for one page.
 
     Raises if *any* chunk fails: a page is all-or-nothing. Writing a sidecar
     from a subset of chunks would silently drop the names in the failed
-    chunk(s) and mark the page done, so it would never be reprocessed.
+    chunk(s) and mark the page done, so it would never be reprocessed. Usage is
+    summed across every chunk (None if the find seam reports none).
     """
     text = txt_path.read_text()
     groups: list[list[Person]] = []
+    usages: list[Usage | None] = []
     chunks = chunk_text(text, chunk_size, overlap)
     for index, (window, _offset) in enumerate(chunks):
         try:
-            groups.append(find(window, model, api_base))
+            people, usage = people_and_usage(find(window, model, api_base))
         except Exception as exc:
             raise RuntimeError(
                 f"chunk {index + 1}/{len(chunks)} failed for {txt_path}: {exc}"
             ) from exc
-    return merge_people(groups)
+        groups.append(people)
+        usages.append(usage)
+    return merge_people(groups), sum_usage(usages)
 
 
 def extract(
@@ -159,25 +173,26 @@ def extract(
             continue
         todo.append((page_key, txt))
 
-    def work(txt: Path) -> tuple[Path, list[Person] | None, Exception | None]:
+    def work(txt: Path,
+             ) -> tuple[Path, list[Person] | None, Usage | None, Exception | None]:
         try:
-            people = _extract_one(
+            people, usage = _extract_one(
                 txt, model=model, api_base=api_base,
                 chunk_size=chunk_size, overlap=overlap, find=find)
-            return txt, people, None
+            return txt, people, usage, None
         except Exception as exc:
-            return txt, None, exc
+            return txt, None, None, exc
 
     def run(progress: Progress | None, task_id) -> None:
         with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
             futures = [ex.submit(work, txt) for _key, txt in todo]
             for fut in as_completed(futures):
-                txt, people, exc = fut.result()
+                txt, people, usage, exc = fut.result()
                 if people is None:
                     stats.failed += 1
                     _log_failure(progress, txt, exc, model, api_base)
                 else:
-                    _write_sidecar_atomic(sidecar_for(txt), model, people)
+                    _write_sidecar_atomic(sidecar_for(txt), model, people, usage)
                     stats.extracted += 1
                     stats.people += len(people)
                 if progress is not None:

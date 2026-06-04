@@ -6,7 +6,7 @@ import json
 import pytest
 
 from vtextract.names.extractor import extract, sidecar_for, page_transcriptions
-from vtextract.names.models import Person
+from vtextract.names.models import Person, Usage
 
 
 def _make_archive(tmp_path):
@@ -50,6 +50,20 @@ def test_extract_writes_sidecars(tmp_path):
     assert side["people"][0]["canonical"] == "William Young"
     empty = json.loads((archive / "pages" / "100" / "b.jpg.names.json").read_text())
     assert empty["people"] == []
+    # a bare-list find reports no usage, so no usage block is written
+    assert "usage" not in side
+
+
+def test_extract_writes_usage_block_when_find_reports_it(tmp_path):
+    archive = _make_archive(tmp_path)
+
+    def find(chunk_text, model, api_base=None):
+        people = [Person(canonical="William Young")] if "Wm Young" in chunk_text else []
+        return people, Usage(input=100, output=20, cached=64)
+
+    extract(archive, model="m", find=find, show_progress=False)
+    side = json.loads((archive / "pages" / "100" / "a.jpg.names.json").read_text())
+    assert side["usage"] == {"in": 100, "out": 20, "total": 120, "cached": 64}
 
 
 def test_extract_resumes_skipping_existing(tmp_path):
