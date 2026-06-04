@@ -3,9 +3,28 @@
 
 from __future__ import annotations
 
+import argparse
+import json
+import os
+import sys
+import time
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
+
+from rich.console import Console
+from rich.table import Table
+
+from vtextract.config import load_config
+from vtextract.names import llm as llm_module
+from vtextract.names.chunking import chunk_text
+from vtextract.names.merge import merge_people
+from vtextract.names.models import (
+    CONFIDENCE_LEVELS,
+    SIDECAR_SCHEMA,
+    Person,
+)
 
 
 @dataclass
@@ -26,11 +45,6 @@ def load_bench_config(path: Path) -> BenchConfig:
         raise ValueError("bench config must set a non-empty 'models' list")
     return BenchConfig(input=Path(raw_input).expanduser(), models=[str(m) for m in models])
 
-
-import json
-import os
-
-from vtextract.names.models import SIDECAR_SCHEMA, Person
 
 _SIDECAR_SUFFIX = ".names.json"
 _TIMES_NAME = "times.json"
@@ -75,12 +89,6 @@ def write_sidecar(path: Path, model: str, people: list[Person]) -> None:
     })
 
 
-from typing import Callable
-
-from vtextract.names import llm as llm_module
-from vtextract.names.chunking import chunk_text
-from vtextract.names.merge import merge_people
-
 # (chunk_text, model, api_base) -> people for that chunk (same seam as extractor).
 FindFn = Callable[[str, str, "str | None"], "list[Person]"]
 
@@ -108,10 +116,6 @@ def extract_people(
         except Exception as exc:
             raise RuntimeError(f"chunk {index + 1}/{len(chunks)} failed: {exc}") from exc
     return merge_people(groups)
-
-
-import sys
-import time
 
 
 def _input_txt_files(input_dir: Path) -> list[Path]:
@@ -158,9 +162,6 @@ def run_model(
         write_sidecar(side, model, people)
         times[txt.name] = elapsed
         write_times(md, times)
-
-
-from vtextract.names.models import CONFIDENCE_LEVELS
 
 
 @dataclass
@@ -225,14 +226,6 @@ def build_report(input_dir: Path) -> list[ReportRow]:
             total=totals["high"] + totals["medium"] + totals["low"],
             avg_seconds=avg))
     return rows
-
-
-import argparse
-
-from rich.console import Console
-from rich.table import Table
-
-from vtextract.config import load_config
 
 
 def render_report(rows: list[ReportRow], console: Console | None = None) -> None:

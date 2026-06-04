@@ -90,7 +90,7 @@ def _fake_find_factory(mapping):
     return find
 
 
-def test_extract_people_merges_chunks(tmp_path):
+def test_extract_people_merges_chunks():
     find = _fake_find_factory({
         "Wm Young": [Person(canonical="William Young",
                             aliases=[{"text": "Wm Young", "confidence": "high"}])],
@@ -99,7 +99,7 @@ def test_extract_people_merges_chunks(tmp_path):
     assert [p.canonical for p in people] == ["William Young"]
 
 
-def test_extract_people_propagates_chunk_failure(tmp_path):
+def test_extract_people_propagates_chunk_failure():
     def boom(chunk_text, model, api_base=None):
         raise RuntimeError("bad json")
     try:
