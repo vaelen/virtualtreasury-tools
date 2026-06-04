@@ -225,3 +225,61 @@ def build_report(input_dir: Path) -> list[ReportRow]:
             total=totals["high"] + totals["medium"] + totals["low"],
             avg_seconds=avg))
     return rows
+
+
+import argparse
+
+from rich.console import Console
+from rich.table import Table
+
+from vtextract.config import load_config
+
+
+def render_report(rows: list[ReportRow], console: Console | None = None) -> None:
+    """Print a Rich table comparing models on name counts and avg time/file."""
+    console = console or Console()
+    table = Table(title="Name-extraction model comparison")
+    for col in ("Model", "Files", "High", "Med", "Low", "Total", "Avg s/file"):
+        table.add_column(col, justify="right" if col != "Model" else "left")
+    for r in rows:
+        avg = "n/a" if r.avg_seconds is None else f"{r.avg_seconds:.2f}"
+        table.add_row(r.model, str(r.files), str(r.high), str(r.medium),
+                      str(r.low), str(r.total), avg)
+    if not rows:
+        console.print("namebench: no model data found.")
+        return
+    console.print(table)
+
+
+def main(argv: list[str] | None = None, *, find: FindFn | None = None) -> int:
+    """CLI entry point. Returns a process exit code."""
+    parser = argparse.ArgumentParser(
+        prog="vtnamebench",
+        description="Compare LLMs on the vtextract names person-extraction task.")
+    parser.add_argument("config", help="path to the benchmark TOML config")
+    parser.add_argument("--force", action="store_true",
+                        help="re-process files even if a sidecar already exists")
+    args = parser.parse_args(argv)
+
+    try:
+        bench = load_bench_config(Path(args.config))
+    except (OSError, ValueError, tomllib.TOMLDecodeError) as exc:
+        print(f"namebench: bad config: {exc}", file=sys.stderr)
+        return 2
+    if not bench.input.is_dir():
+        print(f"namebench: input folder not found: {bench.input}", file=sys.stderr)
+        return 2
+
+    names_cfg = load_config().names  # reuse chunk_size/overlap from [names]
+    for model in bench.models:
+        run_model(
+            bench.input, model,
+            chunk_size=names_cfg.chunk_size, overlap=names_cfg.overlap,
+            force=args.force, find=find)
+
+    render_report(build_report(bench.input))
+    return 0
+
+
+if __name__ == "__main__":   # pragma: no cover
+    raise SystemExit(main())

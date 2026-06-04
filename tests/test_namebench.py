@@ -228,3 +228,58 @@ def test_build_report_aggregates_per_model(tmp_path):
     assert row.high == 2 and row.medium == 0 and row.low == 0
     assert row.total == 2
     assert row.avg_seconds == 2.0
+
+
+from vtextract.namebench import main
+
+
+def test_main_processes_all_models_and_reports(tmp_path, capsys):
+    inp = tmp_path / "data"
+    inp.mkdir()
+    (inp / "1.txt").write_text("Wm Young paid the toll.")
+    cfg = tmp_path / "bench.toml"
+    cfg.write_text(
+        f'input = "{inp}"\n'
+        'models = ["anthropic/claude-haiku-4-5", "openai/gpt-4.1"]\n'
+    )
+    find = _fake_find_factory({
+        "Wm Young": [Person(canonical="William Young", confidence="high",
+                            aliases=[{"text": "Wm Young", "confidence": "high"}])],
+    })
+    rc = main([str(cfg)], find=find)
+    assert rc == 0
+    # sidecars written for both models
+    assert sidecar_path(model_dir(inp, "anthropic/claude-haiku-4-5"), "1.txt").exists()
+    assert sidecar_path(model_dir(inp, "openai/gpt-4.1"), "1.txt").exists()
+    out = capsys.readouterr().out
+    assert "anthropic/claude-haiku-4-5" in out
+    assert "openai/gpt-4.1" in out
+
+
+def test_main_reports_unrun_model_with_existing_data(tmp_path, capsys):
+    inp = tmp_path / "data"
+    inp.mkdir()
+    (inp / "1.txt").write_text("hi")
+    # prior-run data for a model NOT in this config
+    old = model_dir(inp, "openai/gpt-4.1-mini")
+    old.mkdir(parents=True)
+    write_sidecar(sidecar_path(old, "1.txt"), "openai/gpt-4.1-mini",
+                  [Person(canonical="A B", confidence="low", aliases=[])])
+    write_times(old, {"1.txt": 5.0})
+    cfg = tmp_path / "bench.toml"
+    cfg.write_text(f'input = "{inp}"\nmodels = ["anthropic/claude-haiku-4-5"]\n')
+
+    find = _fake_find_factory({})
+    rc = main([str(cfg)], find=find)
+    assert rc == 0
+    out = capsys.readouterr().out
+    # report includes the un-run prior-data model
+    assert "openai/gpt-4.1-mini" in out
+
+
+def test_main_errors_on_bad_config(tmp_path, capsys):
+    cfg = tmp_path / "bench.toml"
+    cfg.write_text('models = ["m"]\n')   # missing input
+    rc = main([str(cfg)], find=_fake_find_factory({}))
+    assert rc != 0
+    assert "input" in capsys.readouterr().err
