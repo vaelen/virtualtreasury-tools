@@ -75,3 +75,35 @@ def test_write_sidecar_shape(tmp_path):
     data = json.loads((md / "1.txt.names.json").read_text())
     assert data["schema"] == 1 and data["model"] == "m"
     assert data["people"][0]["canonical"] == "William Young"
+
+
+from vtextract.namebench import extract_people
+
+
+def _fake_find_factory(mapping):
+    # mapping: chunk substring -> people list. Mirrors tests/names/test_extractor.py.
+    def find(chunk_text, model, api_base=None):
+        for needle, people in mapping.items():
+            if needle in chunk_text:
+                return people
+        return []
+    return find
+
+
+def test_extract_people_merges_chunks(tmp_path):
+    find = _fake_find_factory({
+        "Wm Young": [Person(canonical="William Young",
+                            aliases=[{"text": "Wm Young", "confidence": "high"}])],
+    })
+    people = extract_people("Wm Young paid the toll.", "m", find=find)
+    assert [p.canonical for p in people] == ["William Young"]
+
+
+def test_extract_people_propagates_chunk_failure(tmp_path):
+    def boom(chunk_text, model, api_base=None):
+        raise RuntimeError("bad json")
+    try:
+        extract_people("anything", "m", find=boom)
+        assert False, "expected the failure to propagate"
+    except Exception as exc:
+        assert "bad json" in str(exc)

@@ -73,3 +73,38 @@ def write_sidecar(path: Path, model: str, people: list[Person]) -> None:
         "model": model,
         "people": [p.model_dump() for p in people],
     })
+
+
+from typing import Callable
+
+from vtextract.names import llm as llm_module
+from vtextract.names.chunking import chunk_text
+from vtextract.names.merge import merge_people
+
+# (chunk_text, model, api_base) -> people for that chunk (same seam as extractor).
+FindFn = Callable[[str, str, "str | None"], "list[Person]"]
+
+
+def extract_people(
+    text: str,
+    model: str,
+    *,
+    chunk_size: int = 64000,
+    overlap: int = 512,
+    api_base: str | None = None,
+    find: FindFn | None = None,
+) -> list[Person]:
+    """Run the identical names pipeline over one text: chunk -> find -> merge.
+
+    All-or-nothing: any chunk failure raises (the caller leaves no sidecar so the
+    file retries next run), matching ``vtextract names`` behaviour.
+    """
+    find = find or llm_module.find_people
+    groups: list[list[Person]] = []
+    chunks = chunk_text(text, chunk_size, overlap)
+    for index, (window, _offset) in enumerate(chunks):
+        try:
+            groups.append(find(window, model, api_base))
+        except Exception as exc:
+            raise RuntimeError(f"chunk {index + 1}/{len(chunks)} failed: {exc}") from exc
+    return merge_people(groups)
