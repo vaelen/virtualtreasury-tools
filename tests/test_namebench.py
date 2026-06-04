@@ -334,3 +334,20 @@ def test_main_passes_per_model_api_base_to_find(tmp_path):
     # listed model gets its endpoint; unlisted cloud model stays provider-routed
     assert seen["ollama/llama3"] == "http://localhost:11434"
     assert seen["anthropic/claude-haiku-4-5"] is None
+
+
+def test_main_announces_each_model_to_stderr(tmp_path, capsys):
+    inp = tmp_path / "data"
+    inp.mkdir()
+    (inp / "1.txt").write_text("hi")
+    cfg = tmp_path / "bench.toml"
+    cfg.write_text(
+        f'input = "{inp}"\n'
+        'models = ["anthropic/claude-haiku-4-5", "openai/gpt-4.1"]\n'
+    )
+    main([str(cfg)], find=_fake_find_factory({}))
+    err = capsys.readouterr().err
+    # each model is announced as it is tested (progress goes to stderr so the
+    # report on stdout stays clean/pipeable)
+    assert "anthropic/claude-haiku-4-5" in err
+    assert "openai/gpt-4.1" in err

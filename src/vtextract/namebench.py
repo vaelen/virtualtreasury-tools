@@ -273,7 +273,9 @@ def main(argv: list[str] | None = None, *, find: FindFn | None = None) -> int:
         return 2
 
     names_cfg = load_config().names  # reuse chunk_size/overlap from [names]
-    for model in bench.models:
+    total = len(bench.models)
+    for i, model in enumerate(bench.models, 1):
+        print(f"namebench: testing {model} ({i}/{total})", file=sys.stderr)
         run_model(
             bench.input, model,
             chunk_size=names_cfg.chunk_size, overlap=names_cfg.overlap,
