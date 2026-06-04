@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "model": "mistral/ministral-8b-latest",
+  "people": [
+    {
+      "canonical": "Charles Clarke",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Rer. Chailes Clarke",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Power",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Power, Exd.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William Lynch",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. Lynch",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Dodwell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. Dodwell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Palmerston",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Lord Palmerston",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Ivor George Booth",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Sir I. G. Booth, Bart",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

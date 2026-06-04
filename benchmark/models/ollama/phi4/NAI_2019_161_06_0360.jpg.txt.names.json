@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "model": "ollama/phi4",
+  "people": [
+    {
+      "canonical": "John Sunnott",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "medium"
+        },
+        {
+          "text": "John Sunnott Gent",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Grey",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "T. Grey Gent",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard Puttrell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard Puttrell Rent",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Coleclough",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley Colclough Esqr.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Harbert Esqr",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Harbert Esqr",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "I. Carroll",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "I. Carroll & his Ancesters",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

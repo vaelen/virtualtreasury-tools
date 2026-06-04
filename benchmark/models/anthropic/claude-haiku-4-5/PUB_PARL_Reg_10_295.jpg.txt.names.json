@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "model": "anthropic/claude-haiku-4-5",
+  "people": [
+    {
+      "canonical": "Lord Clarendon",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Lord Clarendon",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Mr. Dunn",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. DUNN",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Mr. Curran",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. CURRAN",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "model": "ollama/llama3.1:8b",
+  "people": [
+    {
+      "canonical": "Manyn",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "The Castle & 2 Qrs. of Manyn",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Rowovyragh",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "The Castle and Qr. of Rowovyragh",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

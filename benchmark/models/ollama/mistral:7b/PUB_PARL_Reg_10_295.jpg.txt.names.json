@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "model": "ollama/mistral:7b",
+  "people": [
+    {
+      "canonical": "Mr. Dunn",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. Dunn",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Mr. Curran",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. Curran",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

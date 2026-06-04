@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "model": "ollama/phi4",
+  "people": [
+    {
+      "canonical": "Charles Clarke",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Rev. Charles Clarke",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "John Power",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. John Power",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

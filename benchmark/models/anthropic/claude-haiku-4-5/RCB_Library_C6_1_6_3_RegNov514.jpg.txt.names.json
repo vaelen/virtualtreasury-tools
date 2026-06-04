@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "model": "anthropic/claude-haiku-4-5",
+  "people": [
+    {
+      "canonical": "George Arp",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Georgium Arpum",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

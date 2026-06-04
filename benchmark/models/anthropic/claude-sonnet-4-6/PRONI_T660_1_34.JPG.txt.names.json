@@ -1,0 +1,162 @@
+{
+  "schema": 1,
+  "model": "anthropic/claude-sonnet-4-6",
+  "people": [
+    {
+      "canonical": "Richard II",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard II",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas de la ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thomas de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Reginal de la ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Reginal de la\nfeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hugh Cretage",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hugh\nCretage",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert Kysok",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Robert Kysok",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William\nde la ffelde",
+          "confidence": "high"
+        },
+        {
+          "text": "William",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard de la ffelde",
+          "confidence": "high"
+        },
+        {
+          "text": "Richard",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard White",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard\nWhite",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John de la ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John de la ffeld",
+          "confidence": "high"
+        },
+        {
+          "text": "John",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "William Nugent",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William\nNugent",
+          "confidence": "high"
+        },
+        {
+          "text": "foresa William",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Lynham",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Henry Lynham",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Sourlag",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thom\nas Sourlag",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas Serle",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas Serle",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

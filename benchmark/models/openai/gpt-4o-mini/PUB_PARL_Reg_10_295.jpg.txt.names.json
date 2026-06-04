@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "model": "openai/gpt-4o-mini",
+  "people": [
+    {
+      "canonical": "Dunn",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. DUNN",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Curran",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. CURRAN",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

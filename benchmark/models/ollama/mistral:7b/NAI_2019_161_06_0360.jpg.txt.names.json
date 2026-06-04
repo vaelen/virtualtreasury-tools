@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "model": "ollama/mistral:7b",
+  "people": [
+    {
+      "canonical": "John Sunnell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Murrowes",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "T. Murrowes",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Dudley",
+          "confidence": "low"
+        }
+      ]
+    }
+  ]
+}

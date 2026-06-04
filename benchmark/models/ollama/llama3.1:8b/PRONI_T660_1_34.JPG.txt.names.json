@@ -1,0 +1,130 @@
+{
+  "schema": 1,
+  "model": "ollama/llama3.1:8b",
+  "people": [
+    {
+      "canonical": "Thomas de la ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thomas de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Reginal de la Mathfeld",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Reginal de la Mathfeld",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Hugh Cretage",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hugh Cretage",
+          "confidence": "high"
+        },
+        {
+          "text": "Chef Sarjeant of Cross Meath",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert Kysok",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Robert Kysok",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "William de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William de la ffelde",
+          "confidence": "high"
+        },
+        {
+          "text": "William Nugent",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard de la ffelde",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Richard de la ffelde",
+          "confidence": "medium"
+        },
+        {
+          "text": "Richard White of Killest",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas de la ffelde",
+          "confidence": "high"
+        },
+        {
+          "text": "Nicholas Serle",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "John de la ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Lynham",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Henry Lynham",
+          "confidence": "medium"
+        },
+        {
+          "text": "administrator of the good and chattels which were Henry Lynham's deceased",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Friar Thomas Sourlag",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Friar Thom as Sourlag",
+          "confidence": "high"
+        },
+        {
+          "text": "Abbt of the house of St. Thomas the Martyr next Dolin",
+          "confidence": "low"
+        }
+      ]
+    }
+  ]
+}

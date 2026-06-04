@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "model": "ollama/phi4",
+  "people": [
+    {
+      "canonical": "Monahan",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Monahan, C.J.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Pigot",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Pigot, C.B.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Ball",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Ball, J.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Crosthwaite",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "R. v. Crosthwaite",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Thynne",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "R. (Thynne) v. Local Government Board",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Bailey",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Bailey, Appellant",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Carmichael Ferrall",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Carmichael Ferrall, Respondent",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

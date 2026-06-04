@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "model": "mistral/ministral-8b-latest",
+  "people": [
+    {
+      "canonical": "George Arp",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Georgium Arpum",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

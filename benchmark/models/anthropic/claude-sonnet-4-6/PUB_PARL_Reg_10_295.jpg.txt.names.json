@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "model": "anthropic/claude-sonnet-4-6",
+  "people": [
+    {
+      "canonical": "Dunn",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. DUNN",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Clarendon",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Lord Clarendon",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Curran",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. CURRAN",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

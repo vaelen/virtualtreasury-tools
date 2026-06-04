@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "model": "mistral/mistral-small-latest",
+  "people": [
+    {
+      "canonical": "John Sunnell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Murrowes",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "T. Murrowes",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Charles Wexford",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "C. Wexford",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "John Carroll",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "I. Carroll",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "James I Stuart",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "K. J. S.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Grey",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "T. Grey",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard Puttrell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard",
+          "confidence": "medium"
+        },
+        {
+          "text": "Puttrell",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Colclough",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley",
+          "confidence": "medium"
+        },
+        {
+          "text": "Colclough Esqr.",
+          "confidence": "high"
+        },
+        {
+          "text": "Dudley Cole",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Sunnott",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnott",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Herbert Esqr.",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Harbert Esqr.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "B. Eglish",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "B. Eglish",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "B. Shilmaliere",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "B. Shilmaliere",
+          "confidence": "low"
+        }
+      ]
+    }
+  ]
+}

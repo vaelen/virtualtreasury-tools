@@ -1,0 +1,77 @@
+# vtnamebench config — compare models on the `vtextract names` person-NER task.
+#
+# Run:  uv run vtnamebench bench.toml
+#       (add --force to re-run models that already have sidecars)
+#
+# `input` must be a folder containing flat *.txt transcription files (one per
+# document). The tool writes per-model output under <input>/models/<model>/.
+# EDIT THIS to point at your test folder:
+input = "benchmark"
+
+# Each provider/model uses LiteLLM's `provider/model` naming. Remote models need
+# the matching API key in your environment:
+#   OPENAI_API_KEY, ANTHROPIC_API_KEY, MISTRAL_API_KEY, GEMINI_API_KEY,
+#   DEEPSEEK_API_KEY. Local (ollama/*) models need `ollama serve` running and
+#   the model pulled (`ollama pull <name>`).
+#
+# Trim this list to control cost/time — every listed model runs over every file.
+models = [
+  # --- Local via Ollama: 2024-era baselines (no API cost; watch JSON validity)
+  "ollama/llama3.1:8b",   # reliable general 8B (hallucinated in the last run)
+  "ollama/qwen2.5:7b",    # under-extracted badly last run — see qwen3 below
+  "ollama/gemma2:9b",     # safest local last run, but mediocre recall
+  "ollama/phi4",          # 14B, punches above its size on reasoning
+  "ollama/mistral:7b",    # local counterpart to the Mistral API models
+
+  # --- Local: newer generations (do the open-weights fix the failures above?)
+  "ollama/qwen3:8b",        # direct successor to the qwen2.5 that bailed
+  "ollama/gemma3:12b",      # successor to gemma2; keep the discipline, more recall?
+  "ollama/mistral-nemo:12b",# real upgrade over the weak mistral:7b
+  "ollama/granite3.3:8b",   # IBM Granite: tuned for extraction/RAG, strong JSON
+
+  # --- Local: does scale close the gap? (large; expect long cold-starts) -----
+  "ollama/qwen2.5:32b",     # size control vs the 7B; on-prem viability test
+  # "ollama/llama3.3:70b",  # uncomment if the hardware can hold a 70B
+
+  # --- Anthropic ------------------------------------------------------------
+  "anthropic/claude-haiku-4-5",   # fast/cheap; the names-default tier
+  "anthropic/claude-sonnet-4-6",  # mid-tier, very good at coreference
+  "anthropic/claude-opus-4-8",    # top-tier quality ceiling (slow/pricey)
+
+  # --- Mistral --------------------------------------------------------------
+  "mistral/mistral-small-latest",  # cheap, solid JSON adherence
+  "mistral/mistral-large-latest",  # Mistral flagship
+  "mistral/ministral-8b-latest",   # small edge model; good cost baseline
+
+  # --- OpenAI ---------------------------------------------------------------
+  "openai/gpt-4.1-mini",        # cheap workhorse; strong instruction-following
+  "openai/gpt-4.1",             # flagship-tier quality ceiling
+  "openai/gpt-4.1-nano",        # cheapest 4.1 tier — how low can cost go?
+  "openai/gpt-4o-mini",         # older mini, useful baseline
+  "openai/o4-mini",             # reasoning: does it fix garbled-OCR coreference?
+
+  # --- Google Gemini (strong + cheap; good at structured extraction) --------
+  "gemini/gemini-2.5-flash",       # fast, high quality for the price
+  "gemini/gemini-2.5-pro",         # flagship quality ceiling
+  "gemini/gemini-2.5-flash-lite",  # cheapest tier — where does recall collapse?
+
+  # --- DeepSeek (very cheap; competitive on extraction) ---------------------
+  "deepseek/deepseek-chat",        # V3: cheap cloud baseline
+  "deepseek/deepseek-reasoner",    # R1: reasoning on the hard coreference cases
+]
+
+# Optional per-model endpoint. Models NOT listed here are routed by their
+# `provider/` prefix (cloud) or LiteLLM's Ollama default. These entries make the
+# local server explicit; change the host/port if your Ollama runs elsewhere.
+[api_base]
+"ollama/llama3.1:8b"     = "http://localhost:11434"
+"ollama/qwen2.5:7b"      = "http://localhost:11434"
+"ollama/gemma2:9b"       = "http://localhost:11434"
+"ollama/phi4"            = "http://localhost:11434"
+"ollama/mistral:7b"      = "http://localhost:11434"
+"ollama/qwen3:8b"        = "http://localhost:11434"
+"ollama/gemma3:12b"      = "http://localhost:11434"
+"ollama/mistral-nemo:12b" = "http://localhost:11434"
+"ollama/granite3.3:8b"   = "http://localhost:11434"
+"ollama/qwen2.5:32b"     = "http://localhost:11434"
+# "ollama/llama3.3:70b"  = "http://localhost:11434"

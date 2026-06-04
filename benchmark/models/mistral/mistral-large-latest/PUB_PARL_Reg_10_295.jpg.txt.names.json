@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "model": "mistral/mistral-large-latest",
+  "people": [
+    {
+      "canonical": "Dunn",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. DUNN",
+          "confidence": "high"
+        },
+        {
+          "text": "Dunn",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Clarendon",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Lord Clarendon",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Curran",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. CURRAN",
+          "confidence": "high"
+        },
+        {
+          "text": "Curran",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

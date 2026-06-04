@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "model": "anthropic/claude-sonnet-4-6",
+  "people": [
+    {
+      "canonical": "Lynch",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Lynch",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "I. G. Booth",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Sir I. G. Booth",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dodwell",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Dodwell",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Charles Clarke",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Rer. Chailes Clarke",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Power",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Power",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Palmerston",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Lord Palmerston",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,136 @@
+{
+  "schema": 1,
+  "model": "openai/gpt-4.1-mini",
+  "people": [
+    {
+      "canonical": "Ruane",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "R. (Ruane)",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Ballina Urban Council",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Ballina Urban Council",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Bannon",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Bannon",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Hanrahan",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Hanrahan",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Cadle",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Cadle",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Monahan",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Monahan, C.J.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Pigot",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Pigot, C.B.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Ball",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Ball, J.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Crosthwaite",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "R. v. Crosthwaite",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Bailey",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Bailey, Appellant",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Carmichael Ferrall",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Carmichael Ferrall, Respondent",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Campbell",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Campbell",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Thynne",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "R. (Thynne)",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

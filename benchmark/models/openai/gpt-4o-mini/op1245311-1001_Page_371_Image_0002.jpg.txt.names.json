@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "model": "openai/gpt-4o-mini",
+  "people": [
+    {
+      "canonical": "Lord Palmerston",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Lord Palmerston",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Charles Clarke",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Rer. Chailes Clarke",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "John Power",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Power",
+          "confidence": "high"
+        },
+        {
+          "text": "Exd. John Power",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Sir I. G. Booth",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Sir I. G. Booth",
+          "confidence": "high"
+        },
+        {
+          "text": "Sir I. G. Booth, Bart",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

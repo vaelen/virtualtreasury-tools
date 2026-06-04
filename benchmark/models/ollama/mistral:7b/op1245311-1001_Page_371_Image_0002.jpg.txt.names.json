@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "model": "ollama/mistral:7b",
+  "people": [
+    {
+      "canonical": "Lord Palmerston",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Lord Palmerston",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Mr. Lynch",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Lynch",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Sir I. G. Booth, Bart",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Sir I. G. Booth, Bart",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Assistant Commissioner",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Assistant Commissioner",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

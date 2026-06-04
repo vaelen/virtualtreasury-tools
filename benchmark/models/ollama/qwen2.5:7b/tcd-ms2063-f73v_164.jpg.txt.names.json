@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "model": "ollama/qwen2.5:7b",
+  "people": [
+    {
+      "canonical": "William Fisher",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Wm. Fisher",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Keating",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Tho: Keating",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert Monsey",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Robt. Monsey",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John McDaniel",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Mc Daniel",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Keating",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Keating",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

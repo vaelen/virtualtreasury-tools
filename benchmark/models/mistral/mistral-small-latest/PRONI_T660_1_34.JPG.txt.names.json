@@ -1,0 +1,178 @@
+{
+  "schema": 1,
+  "model": "mistral/mistral-small-latest",
+  "people": [
+    {
+      "canonical": "Richard II",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard II",
+          "confidence": "high"
+        },
+        {
+          "text": "8 Richard II",
+          "confidence": "high"
+        },
+        {
+          "text": "8 \u00e0 9 Richard II",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thomas de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Reginald de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Reginal de la Math feld",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Hugh Cretage",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hugh Cretage",
+          "confidence": "high"
+        },
+        {
+          "text": "Chef Sarjeant of Cross Meath",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert Kysok",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Robert Kysok",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard White",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard White",
+          "confidence": "high"
+        },
+        {
+          "text": "Richard White of Killest",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John de la ffeld",
+          "confidence": "high"
+        },
+        {
+          "text": "the said John",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "William Nugent",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William Nugent",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Lynham",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Henry Lynham's",
+          "confidence": "high"
+        },
+        {
+          "text": "Henry Lynham's deceased",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Sourlag",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Friar Thomas Sourlag",
+          "confidence": "high"
+        },
+        {
+          "text": "Friar Thom as Sourlag",
+          "confidence": "medium"
+        },
+        {
+          "text": "Abbt of the house of St. Thomas the Martyr next Dolin",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas Serle",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas Serle",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

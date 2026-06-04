@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "model": "anthropic/claude-haiku-4-5",
+  "people": [
+    {
+      "canonical": "Reginald de la Feld",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Reginal de la feld",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thomas de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hugh Cretage",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hugh Cretage",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert Kysok",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Robert Kysok",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert de la",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Robert de la......",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "William de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard White",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard White",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William Nugent",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William Nugent",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Lynham",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Henry Lynham's",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Sourlag",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Friar Thomas Sourlag",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas Serle",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas Serle",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

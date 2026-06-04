@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "model": "ollama/mistral:7b",
+  "people": [
+    {
+      "canonical": "Thomas de la Mathfield",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thomas de la Mathfield",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert Kysok",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Robert Kysok",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "William de la ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William de la ffeld",
+          "confidence": "high"
+        },
+        {
+          "text": "William de la ffelde",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard de la ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard de la ffeld",
+          "confidence": "high"
+        },
+        {
+          "text": "Richard de la ffelde",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard White of Killest",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Richard White of Killest",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas de la ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas de la ffeld",
+          "confidence": "high"
+        },
+        {
+          "text": "Nicholas de la ffelde",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Lynham",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Henry Lynham",
+          "confidence": "low"
+        }
+      ]
+    }
+  ]
+}

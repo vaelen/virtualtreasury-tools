@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "model": "mistral/ministral-8b-latest",
+  "people": [
+    {
+      "canonical": "Unnamed Speaker",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "the assertion was",
+          "confidence": "low"
+        },
+        {
+          "text": "he",
+          "confidence": "low"
+        },
+        {
+          "text": "the honourable gentleman",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Mr. Dunn",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. DUNN",
+          "confidence": "high"
+        },
+        {
+          "text": "he",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Lord Clarendon",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Lord Clarendon",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Mr. Curran",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. CURRAN",
+          "confidence": "high"
+        },
+        {
+          "text": "he",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

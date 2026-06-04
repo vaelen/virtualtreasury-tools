@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "model": "anthropic/claude-sonnet-4-6",
+  "people": [
+    {
+      "canonical": "John Sunnell",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "medium"
+        },
+        {
+          "text": "John Sunnott",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Murrowes",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "T. Murrowes",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Colclough",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley Colclough Esqr.",
+          "confidence": "high"
+        },
+        {
+          "text": "Dudley Cole ough Esqr.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Grey",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "T. Grey Gent",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard Puttrell",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Richard Puttrell",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Harbert",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Harbert Esqr",
+          "confidence": "low"
+        }
+      ]
+    }
+  ]
+}

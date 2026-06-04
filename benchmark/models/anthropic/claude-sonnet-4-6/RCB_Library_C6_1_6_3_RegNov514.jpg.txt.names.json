@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "model": "anthropic/claude-sonnet-4-6",
+  "people": [
+    {
+      "canonical": "George Arp",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Georgium Arpum",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

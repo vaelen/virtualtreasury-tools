@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "model": "mistral/mistral-large-latest",
+  "people": [
+    {
+      "canonical": "George Arp",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Georgium Arpum",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

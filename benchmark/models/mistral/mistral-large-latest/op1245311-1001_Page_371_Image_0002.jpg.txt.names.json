@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "model": "mistral/mistral-large-latest",
+  "people": [
+    {
+      "canonical": "Henry Temple Palmerston",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Lord Palmerston",
+          "confidence": "high"
+        },
+        {
+          "text": "his lordship",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Lynch",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Lynch",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Charles Clarke",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Rev. Chailes Clarke",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Power",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Power, Esq.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dodwell",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Dodwell",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "I. G. Booth",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Sir I. G. Booth, Bart",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

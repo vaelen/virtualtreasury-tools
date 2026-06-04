@@ -1,0 +1,154 @@
+{
+  "schema": 1,
+  "model": "mistral/ministral-8b-latest",
+  "people": [
+    {
+      "canonical": "Thomas de la Ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thomas de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Reginald de la Ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Reginal de la Mathfeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hugh Cretage",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hugh Cretage",
+          "confidence": "high"
+        },
+        {
+          "text": "Hugh Cretage, late Chef Sarjeant of Cross Meath",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert Kysok",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Robert Kysok",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert de la Ffelde",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Robert de la.....",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "William de la Ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard de la Ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard White",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard White of Killest",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas de la Ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John de la Ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William Nugent",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William Nugent",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Lynham",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Henry Lynham's",
+          "confidence": "high"
+        },
+        {
+          "text": "Henry Lynham's deceased",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Sourlag",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Friar Thom as Sourlag",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas Serle",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas Serle",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

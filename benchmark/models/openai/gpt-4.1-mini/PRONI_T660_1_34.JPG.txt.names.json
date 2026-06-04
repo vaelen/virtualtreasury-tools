@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "model": "openai/gpt-4.1-mini",
+  "people": [
+    {
+      "canonical": "Thomas de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thomas de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Reginal de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Reginal de la Math feld",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Hugh Cretage",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hugh Cretage",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert Kysok",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Robert Kysok",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard White",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard White",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William Nugent",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William Nugent",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Lynham",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Henry Lynham",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Sourlag",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thom as Sourlag",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

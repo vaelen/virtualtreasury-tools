@@ -1,0 +1,106 @@
+{
+  "schema": 1,
+  "model": "ollama/gemma2:9b",
+  "people": [
+    {
+      "canonical": "John Sunnell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Colclough",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley Colclough Esqr.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "T Murrowes",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "T. Murrowes",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard Puttrell",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Richard Puttrell Rent & his perisht",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "B Shilmaliere",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "B. Shilmaliere",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "I Carroll",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "I. Carroll",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "T Grey",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "T. Grey Gent",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Harbert Esqr",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Harbert Esqr",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "John Sunnott",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "John Sunnott Gent",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Cole",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Dudley Cole",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

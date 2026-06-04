@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "model": "openai/gpt-4.1-mini",
+  "people": [
+    {
+      "canonical": "John Sunnell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Murrowes",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "T. Murrowes",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Charles Wexford",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "C. Wexford",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Colclough",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley",
+          "confidence": "medium"
+        },
+        {
+          "text": "Colclough Esqr.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "B. Eglish",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "B. Eglish",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "B. Shilmaliere",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "B. Shilmaliere",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Sunnott",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnott",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Cole",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley Cole",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Harbert Esqr",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Harbert Esqr",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

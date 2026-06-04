@@ -1,0 +1,156 @@
+{
+  "schema": 1,
+  "model": "mistral/mistral-large-latest",
+  "people": [
+    {
+      "canonical": "Ruane",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "R. (Ruane)",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Bannon",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Bannon",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hanrahan",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hanrahan",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Monahan",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Monahan, C.J.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Pigot",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Pigot, C.B.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Ball",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Ball, J.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Crosthwaite",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Crosthwaite",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Bailey",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Bailey, Appellant",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Carmichael Ferrall",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Carmichael Ferrall, Respondent",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Campbell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Campbell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thynne",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "R. (Thynne)",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Roman Catholic Bishop of Clogher",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Roman Catholic Bishop of Clogher",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "parish priest of E.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "parish priest",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "senior curate of E.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "senior curate of E.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Lady Superiores",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Lady Superiores",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

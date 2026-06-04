@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "model": "ollama/phi4",
+  "people": [
+    {
+      "canonical": "Reginald de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Reginal de la Mathfeld",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas de la Feld",
+      "confidence": "high",
+      "aliases": []
+    },
+    {
+      "canonical": "Robert Kysok",
+      "confidence": "high",
+      "aliases": []
+    },
+    {
+      "canonical": "William de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William de la ffelde",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard de la ffelde",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard White of Killest",
+      "confidence": "high",
+      "aliases": []
+    },
+    {
+      "canonical": "Nicholas de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas de la ffelde",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "John de la Feld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John de la ffeld",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Lynham",
+      "confidence": "high",
+      "aliases": []
+    },
+    {
+      "canonical": "Thomas Sourlag",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Friar Thomas Sourlag",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas Serle",
+      "confidence": "high",
+      "aliases": []
+    }
+  ]
+}

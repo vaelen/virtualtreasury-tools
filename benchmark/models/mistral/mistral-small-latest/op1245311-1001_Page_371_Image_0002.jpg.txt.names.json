@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "model": "mistral/mistral-small-latest",
+  "people": [
+    {
+      "canonical": "Charles Clarke",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Rev. Charles Clarke",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Power",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Power, Esq.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Mr. Lynch",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Lynch",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Sir I. G. Booth",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Sir I. G. Booth, Bart",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

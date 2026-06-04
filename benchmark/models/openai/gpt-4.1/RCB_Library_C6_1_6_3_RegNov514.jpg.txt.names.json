@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "model": "openai/gpt-4.1",
+  "people": [
+    {
+      "canonical": "George Arpum",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Georgium Arpum",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

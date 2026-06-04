@@ -1,0 +1,636 @@
+{
+  "schema": 1,
+  "model": "ollama/gemma2:9b",
+  "people": [
+    {
+      "canonical": "Baker",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Baker",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Ball, Mr.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Ball",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Bryan, Mr.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Bryan",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Burton, Widow",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Widow Burton",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Guigin, Widow",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Widow Guigin",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Trinkey, And.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "And. Trinkey",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Tavell, Mons:",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Mons: Tavell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Delane, Esqr",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Esqr Delane",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Rogerson, Widow",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Widow Rogerson",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Suxberry, Mr.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Suxberry",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Evans, Jos:",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Jos: Evans",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Bayly, Peter",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Peter Bayly",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Cully, Capt.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Capt. Cully",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hervit, George",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "George Hervit",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Slator, Luther",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Luther Slator",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Tilbury, Widow",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Widow Tilbury",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Scarbrow, Mats.",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Mats. Scarbrow",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Skinner, Capt.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Capt. Skinner",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Cadogan, Esqr:",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Esqr: Cadogan",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Allaway, Mr.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Allaway",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Smith, Abraham",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Abraham Smith",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Portoplo, John",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "John Portoplo",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Walmsley, Widow",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Widow Walmsley",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Letore, Mr.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Letore",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Felter, Mr.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Felter",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Tyson, Mr.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Tyson",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Roland, Mr.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Roland",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Gearett, Mr.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Gearett",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Mc Daniel, John",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "John Mc daniel",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Theaker, Mr.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Theaker",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Russell L, Col.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Col. Russell L",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Keating, Tho:",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Tho: Keating",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Monsey, Robt.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Robt. Monsey",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hewling, Peter",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Peter Hewling",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Ireland, Rich.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Rich. Ireland",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Fielding, Will:",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Will: Fielding",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Batter, Widow",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Widow Batter",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Laneta, Mr.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr. Laneta",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Jackson, Rich.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Rich. Jackson",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Prence, Roger",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Roger Prence",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Berry, John",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "John Berry",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Woodgate, John",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "John Woodgate",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Seix, Moses",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Moses Seix",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Westby, James",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "James Westby",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Harles, Widow",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Widow Harles",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Edwards, John",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "John Edwards",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Keating, John",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "John Keating",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Deacon, Henry",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Henry Deacon",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Quin, Darby",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Darby Quin",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hethrington, Corp.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Corp. Hethrington",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Mc Daniell, Ann",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Ann Mc Daniell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hoult, Tho:",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Tho: Hoult",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Fullam, Luke",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Luke Fullam",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Gallucy, Joseph",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Joseph Gallucy",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Governeer, Steph",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Steph Governeer",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Fisher, Wm.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Wm. Fisher",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Delauneisg, Gideon",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Gideon Delauneisg",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Alcocke, Wr.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Wr. Alcocke",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Lyndon Squier Redding, Lady",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Lady Lyndon Squier Redding",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Whitell, Dr.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Dr. Whitell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Harman, Col.",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Col. Harman",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Handcock, Larchdeacon",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Larchdeacon handcock",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dillon, Lord",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Lord Dillon",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

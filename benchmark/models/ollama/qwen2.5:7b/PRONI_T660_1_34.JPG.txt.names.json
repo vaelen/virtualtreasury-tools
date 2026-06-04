@@ -1,0 +1,106 @@
+{
+  "schema": 1,
+  "model": "ollama/qwen2.5:7b",
+  "people": [
+    {
+      "canonical": "Thomas de la ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thomas de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Reginal de la mathfeld",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Reginal de la mathfeld",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Hugh Cretage",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hugh Cretage",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert Kysok",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Robert Kysok",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert de la....... (torn.)",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Robert de la....... (torn.)",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "William de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard White of Killest",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Richard White of Killest",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John de la ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "model": "openai/gpt-4.1",
+  "people": [
+    {
+      "canonical": "John Sunnell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Murrowes",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "T. Murrowes",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Colclough",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley",
+          "confidence": "medium"
+        },
+        {
+          "text": "Colclough Esqr.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "I. Carroll",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "I. Carroll",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "T. Grey",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "T. Grey Gent",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard Puttrell",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Richard",
+          "confidence": "medium"
+        },
+        {
+          "text": "Puttrell",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Harbert",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Harbert Esqr",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Sunnott",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnott Gent",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Cole",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley Cole",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

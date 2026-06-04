@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "model": "openai/gpt-4.1-mini",
+  "people": [
+    {
+      "canonical": "Mr. Dunn",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. DUNN",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Lord Clarendon",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Lord Clarendon",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Mr. Curran",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Mr. CURRAN",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

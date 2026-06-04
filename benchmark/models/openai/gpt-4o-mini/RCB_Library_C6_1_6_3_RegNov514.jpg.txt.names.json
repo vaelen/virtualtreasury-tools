@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "model": "openai/gpt-4o-mini",
+  "people": [
+    {
+      "canonical": "George Arpum Dub",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Georgium Arpum Dub",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

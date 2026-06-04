@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "model": "ollama/mistral:7b",
+  "people": [
+    {
+      "canonical": "Lady Superiores",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Lady Superiores",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

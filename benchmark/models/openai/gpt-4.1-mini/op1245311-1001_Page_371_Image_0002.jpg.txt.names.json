@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "model": "openai/gpt-4.1-mini",
+  "people": [
+    {
+      "canonical": "Lord Palmerston",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Lord Palmerston",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Mr Lynch",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr Lynch",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Sir I. G. Booth",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Sir I. G. Booth",
+          "confidence": "high"
+        },
+        {
+          "text": "Sir I. G. Booth, Bart",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Mr Dodwell",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Mr Dodwell",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Charles Clarke",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Chailes Clarke",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "John Power",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Power",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

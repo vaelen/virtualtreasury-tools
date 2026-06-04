@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "model": "openai/gpt-4o-mini",
+  "people": [
+    {
+      "canonical": "Thomas de la Ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thomas de la ffeld",
+          "confidence": "high"
+        },
+        {
+          "text": "Friar Thomas Sourlag",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Reginald de la Ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Reginal de la Math feld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert Kysok",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Robert Kysok",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William de la Ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William de la ffelde",
+          "confidence": "high"
+        },
+        {
+          "text": "William Nugent",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard de la Ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard de la ffelde",
+          "confidence": "high"
+        },
+        {
+          "text": "Richard White",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "John de la Ffeld",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Lynham",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Henry Lynham",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas Serle",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Nicholas Serle",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

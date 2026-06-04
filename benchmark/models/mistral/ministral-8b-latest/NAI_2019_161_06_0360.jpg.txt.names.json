@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "model": "mistral/ministral-8b-latest",
+  "people": [
+    {
+      "canonical": "Bartholomew Eglish",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "B. Eglish",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Sunnell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "high"
+        },
+        {
+          "text": "John Sunnott",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Murrowes",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "T. Murrowes",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Charles Wexford",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "C. Wexford",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Colclough",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Colclough Esqr.",
+          "confidence": "medium"
+        },
+        {
+          "text": "Dudley",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Cole",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley Cole",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Grey",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "T. Grey Gent",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Richard",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Harbert",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Harbert Esqr",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

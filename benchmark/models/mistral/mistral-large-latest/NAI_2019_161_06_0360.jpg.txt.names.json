@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "model": "mistral/mistral-large-latest",
+  "people": [
+    {
+      "canonical": "John Sunnell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "John Sunnell",
+          "confidence": "high"
+        },
+        {
+          "text": "John Sunnott",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Murrowes",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "T. Murrowes",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Colclough",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Dudley",
+          "confidence": "medium"
+        },
+        {
+          "text": "Colclough Esqr.",
+          "confidence": "high"
+        },
+        {
+          "text": "Dudley Cole",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "John Carroll",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "I. Carroll",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Grey",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "T. Grey Gent",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard Puttrell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Richard Puttrell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "James Harbert",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Harbert Esqr",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John Sunnott",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "John Sunnott Gent",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Dudley Cole",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Dudley Cole",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

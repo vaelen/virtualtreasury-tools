@@ -1,0 +1,172 @@
+{
+  "schema": 1,
+  "model": "mistral/ministral-8b-latest",
+  "people": [
+    {
+      "canonical": "Ruane",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "R. (Ruane)",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Ballina",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Ballina Urban Council",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Bannon",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Bannon",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hanrahan",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hanrahan",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Cadle",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Cadle",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Crosthwaite",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Crosthwaite",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thynne",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Thynne",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Bailey",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Bailey",
+          "confidence": "high"
+        },
+        {
+          "text": "Bailey, Appellant",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Carmichael",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Carmichael",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Ferrall",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Ferrall",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Campbell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Campbell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Arklow",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Arklow Harbour Commissioners",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Monahan",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Monahan",
+          "confidence": "high"
+        },
+        {
+          "text": "Monahan, C.J.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Pigot",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Pigot",
+          "confidence": "high"
+        },
+        {
+          "text": "Pigot, C.B.",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "canonical": "Ball",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Ball",
+          "confidence": "high"
+        },
+        {
+          "text": "Ball, J.",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

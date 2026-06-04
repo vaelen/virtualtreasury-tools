@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "model": "ollama/gemma2:9b",
+  "people": [
+    {
+      "canonical": "Thomas de la ffeld",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Thomas de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Reginald de la Mathfeld",
+      "confidence": "low",
+      "aliases": [
+        {
+          "text": "Reginal de la Math",
+          "confidence": "low"
+        }
+      ]
+    },
+    {
+      "canonical": "Hugh Cretage",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Hugh Cretage",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Robert Kysok",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Robert Kysok",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William de la ffelde",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "William de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Richard de la ffelde",
+      "confidence": "high",
+      "aliases": []
+    },
+    {
+      "canonical": "Richard White",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Richard White",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas de la ffelde",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Nicholas de la ffelde",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "John de la ffeld",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "John de la ffeld",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "William Nugent",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "William Nugent",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Henry Lynham",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Henry Lynham",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thomas Sourlag",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Friar Thom as Sourlag",
+          "confidence": "medium"
+        },
+        {
+          "text": "Thomas Sourlag",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Nicholas Serle",
+      "confidence": "medium",
+      "aliases": [
+        {
+          "text": "Nicholas Serle",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

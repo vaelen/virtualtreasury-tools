@@ -1,0 +1,106 @@
+{
+  "schema": 1,
+  "model": "mistral/mistral-small-latest",
+  "people": [
+    {
+      "canonical": "Monahan",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Monahan, C.J.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Pigot",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Pigot, C.B.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Ball",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Ball, J.",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Cadle",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Cadle",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Ruane",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "R. (Ruane)",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Bannon",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Bannon",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Hanrahan",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Hanrahan",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Carmichael Ferrall",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Carmichael Ferrall",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Campbell",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "Campbell",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "canonical": "Thynne",
+      "confidence": "high",
+      "aliases": [
+        {
+          "text": "R. (Thynne)",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}
