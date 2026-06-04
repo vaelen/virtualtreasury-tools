@@ -180,3 +180,51 @@ def test_run_model_logs_failure_and_continues(tmp_path, capsys):
     assert (md / "2.txt.names.json").exists()        # other file still processed
     err = capsys.readouterr().err
     assert "1.txt" in err
+
+
+from vtextract.namebench import discover_models, count_confidences, build_report
+
+
+def test_count_confidences_buckets_persons_and_aliases():
+    people = [
+        Person(canonical="William Young", confidence="high",
+               aliases=[{"text": "Wm Young", "confidence": "high"},
+                        {"text": "Young", "confidence": "low"}]),
+        Person(canonical="J. Smith", confidence="medium", aliases=[]),
+    ]
+    counts = count_confidences(people)
+    # persons: high(William) + medium(J.Smith); aliases: high(Wm) + low(Young)
+    assert counts == {"high": 2, "medium": 1, "low": 1}
+
+
+def test_discover_models_finds_dirs_with_data(tmp_path):
+    inp = tmp_path
+    a = model_dir(inp, "anthropic/claude-haiku-4-5")
+    a.mkdir(parents=True)
+    write_sidecar(sidecar_path(a, "1.txt"), "anthropic/claude-haiku-4-5", [])
+    b = model_dir(inp, "openai/gpt-4.1")
+    b.mkdir(parents=True)
+    write_times(b, {"1.txt": 2.0})           # has times but counted as data too
+    empty = model_dir(inp, "openai/gpt-4.1-mini")
+    empty.mkdir(parents=True)                  # no data -> excluded
+    assert discover_models(inp) == [
+        "anthropic/claude-haiku-4-5", "openai/gpt-4.1"]
+
+
+def test_build_report_aggregates_per_model(tmp_path):
+    inp = tmp_path
+    md = model_dir(inp, "m")
+    md.mkdir(parents=True)
+    write_sidecar(sidecar_path(md, "1.txt"), "m", [
+        Person(canonical="William Young", confidence="high",
+               aliases=[{"text": "Wm Young", "confidence": "high"}])])
+    write_sidecar(sidecar_path(md, "2.txt"), "m", [])
+    write_times(md, {"1.txt": 1.0, "2.txt": 3.0})
+    rows = build_report(inp)
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.model == "m"
+    assert row.files == 2
+    assert row.high == 2 and row.medium == 0 and row.low == 0
+    assert row.total == 2
+    assert row.avg_seconds == 2.0

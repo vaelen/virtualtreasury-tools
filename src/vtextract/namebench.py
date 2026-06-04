@@ -158,3 +158,70 @@ def run_model(
         write_sidecar(side, model, people)
         times[txt.name] = elapsed
         write_times(md, times)
+
+
+from vtextract.names.models import CONFIDENCE_LEVELS
+
+
+@dataclass
+class ReportRow:
+    model: str
+    files: int
+    high: int
+    medium: int
+    low: int
+    total: int
+    avg_seconds: float | None   # None when no timings recorded
+
+
+def discover_models(input_dir: Path) -> list[str]:
+    """Model strings under ``<input>/models`` whose dir has a sidecar or times.
+
+    The model string is the dir path relative to ``models/`` (so a two-level
+    ``provider/model`` round-trips). Sorted for stable report order.
+    """
+    models_root = Path(input_dir) / "models"
+    if not models_root.is_dir():
+        return []
+    found: set[str] = set()
+    for d in models_root.rglob("*"):
+        if d.is_dir() and ((d / _TIMES_NAME).exists() or any(d.glob("*" + _SIDECAR_SUFFIX))):
+            found.add(d.relative_to(models_root).as_posix())
+    return sorted(found)
+
+
+def count_confidences(people: list[Person]) -> dict[str, int]:
+    """Bucket every name -- each person's canonical AND each alias -- by its own
+    confidence into high/medium/low."""
+    counts = {level: 0 for level in CONFIDENCE_LEVELS}
+    for person in people:
+        counts[person.confidence] += 1
+        for alias in person.aliases:
+            counts[alias.confidence] += 1
+    return counts
+
+
+def build_report(input_dir: Path) -> list[ReportRow]:
+    """One ReportRow per model dir with on-disk data, aggregated from sidecars."""
+    rows: list[ReportRow] = []
+    for model in discover_models(input_dir):
+        md = model_dir(input_dir, model)
+        totals = {level: 0 for level in CONFIDENCE_LEVELS}
+        files = 0
+        for side in sorted(md.glob("*" + _SIDECAR_SUFFIX)):
+            try:
+                data = json.loads(side.read_text())
+            except (OSError, ValueError):
+                continue
+            files += 1
+            people = [Person.model_validate(p) for p in data.get("people", [])]
+            for level, n in count_confidences(people).items():
+                totals[level] += n
+        times = list(load_times(md).values())
+        avg = sum(times) / len(times) if times else None
+        rows.append(ReportRow(
+            model=model, files=files,
+            high=totals["high"], medium=totals["medium"], low=totals["low"],
+            total=totals["high"] + totals["medium"] + totals["low"],
+            avg_seconds=avg))
+    return rows
