@@ -345,6 +345,17 @@ def test_main_passes_per_model_api_base_to_find(tmp_path):
     assert seen["anthropic/claude-haiku-4-5"] is None
 
 
+def test_main_announces_file_count_before_models(tmp_path, capsys):
+    inp = tmp_path / "data"
+    inp.mkdir()
+    for i in range(1, 4):
+        (inp / f"{i}.txt").write_text("hi")
+    cfg = tmp_path / "bench.toml"
+    cfg.write_text(f'input = "{inp}"\nmodels = ["anthropic/claude-haiku-4-5"]\n')
+    main([str(cfg)], find=_fake_find_factory({}))
+    assert "Found 3 files" in capsys.readouterr().err
+
+
 def test_main_announces_each_model_to_stderr(tmp_path, capsys):
     inp = tmp_path / "data"
     inp.mkdir()

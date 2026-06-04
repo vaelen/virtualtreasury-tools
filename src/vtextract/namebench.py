@@ -298,6 +298,9 @@ def main(argv: list[str] | None = None, *, find: FindFn | None = None) -> int:
         print(f"namebench: input folder not found: {bench.input}", file=sys.stderr)
         return 2
 
+    n_files = len(_input_txt_files(bench.input))
+    print(f"Found {n_files} file{'' if n_files == 1 else 's'}.", file=sys.stderr)
+
     names_cfg = load_config().names  # reuse chunk_size/overlap from [names]
     total = len(bench.models)
     for i, model in enumerate(bench.models, 1):
