@@ -118,3 +118,20 @@ def test_names_command_no_pages_returns_zero(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "_make_find", lambda: (lambda *a, **k: []))
     rc = cli.run(["names", "--archive", str(archive), "--config", str(cfg)])
     assert rc == 0
+
+
+def test_names_retry_failed_flag_passed_through(tmp_path, monkeypatch):
+    from vtextract.names import extractor as names_extractor
+
+    archive, cfg = _archive_with_page(tmp_path)
+    captured = {}
+
+    def fake_extract(arch, **kwargs):
+        captured.update(kwargs)
+        return names_extractor.NamesStats()
+
+    monkeypatch.setattr(names_extractor, "extract", fake_extract)
+    rc = cli.run(["names", "--archive", str(archive), "--config", str(cfg),
+                  "--retry-failed"])
+    assert rc == 0
+    assert captured["retry_failed"] is True

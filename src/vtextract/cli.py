@@ -560,7 +560,9 @@ def _run_names(argv: list[str]) -> int:
         prog="vtextract names",
         description="Extract people from page transcriptions into per-page "
         "'.names.json' sidecars using an LLM. Resumable: skips pages that "
-        "already have a sidecar (use --force to re-extract).",
+        "already have a sidecar (use --force to re-extract). Persistent "
+        "failures (truncation / bad JSON) are parked in a "
+        "'.names.error.json' sidecar; re-attempt them with --retry-failed.",
         epilog=_names_epilog(config),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -576,6 +578,9 @@ def _run_names(argv: list[str]) -> int:
                         help="Parallel workers (overrides [names].workers).")
     parser.add_argument("--force", action="store_true",
                         help="Re-extract and overwrite existing sidecars.")
+    parser.add_argument("--retry-failed", action="store_true",
+                        help="Re-attempt pages parked with a persistent-error "
+                             "sidecar (.names.error.json).")
     args = parser.parse_args(argv)
 
     archive = Path(args.archive) if args.archive else config.archive
@@ -598,15 +603,20 @@ def _run_names(argv: list[str]) -> int:
         chunk_size=config.names.chunk_size, overlap=config.names.overlap,
         max_output_tokens=config.names.max_output_tokens,
         workers=workers, find=_make_find(), force=args.force,
+        retry_failed=args.retry_failed,
         scope_pages=scope_pages,
     )
     print(
         f"names: {stats.extracted} extracted, {stats.skipped} skipped, "
-        f"{stats.failed} failed ({stats.people} people). "
+        f"{stats.parked} parked, {stats.failed_persistent} new persistent "
+        f"error(s), {stats.failed} transient failure(s) ({stats.people} people). "
         f"Run `vtindex build --archive {archive}` to index them.",
         file=sys.stderr,
     )
-    return 1 if stats.failed else 0
+    if stats.parked or stats.failed_persistent:
+        print("Re-run parked pages with --retry-failed "
+              "(or inspect them with --list-failed).", file=sys.stderr)
+    return 1 if (stats.failed or stats.failed_persistent) else 0
 
 
 def main() -> None:
