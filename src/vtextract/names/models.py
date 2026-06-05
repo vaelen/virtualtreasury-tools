@@ -14,6 +14,9 @@ CONFIDENCE_LEVELS: tuple[str, ...] = ("low", "medium", "high")
 # On-disk sidecar format version. Bump if the sidecar JSON shape changes.
 SIDECAR_SCHEMA = 1
 
+# On-disk error-sidecar format version. Bump if the error JSON shape changes.
+ERROR_SIDECAR_SCHEMA = 1
+
 
 def confidence_rank(level: str) -> int:
     return CONFIDENCE_LEVELS.index(level)
@@ -44,10 +47,12 @@ class NameResponse(BaseModel):
 
 @dataclass
 class NamesStats:
-    extracted: int = 0   # pages a fresh sidecar was written for
-    skipped: int = 0     # pages skipped (sidecar already present)
-    failed: int = 0      # pages whose extraction failed (no sidecar written)
-    people: int = 0      # total Person entries written across all sidecars
+    extracted: int = 0          # pages a fresh sidecar was written for
+    skipped: int = 0            # pages skipped (success sidecar already present)
+    parked: int = 0             # pages skipped (persistent-error sidecar present)
+    failed: int = 0             # transient failures this run (no sidecar written)
+    failed_persistent: int = 0  # persistent failures this run (error sidecar written)
+    people: int = 0             # total Person entries written across all sidecars
 
 
 @dataclass(frozen=True)

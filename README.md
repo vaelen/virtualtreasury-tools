@@ -278,9 +278,11 @@ vtextract names "TNA SO 1/14" 474234 --archive ./archive
 ```
 
 The pass is resumable: a page that already has a `.names.json` sidecar is
-skipped, and a page whose extraction fails leaves no sidecar so a later run
-retries it. Use `--force` to re-extract and overwrite existing sidecars.
-`--model M` overrides the configured model and `-w/--workers N` the parallelism.
+skipped. A page whose extraction fails *transiently* (network, rate-limit,
+auth) leaves no sidecar so a later run retries it; a page that fails
+*deterministically* is parked (see [Failed pages](#failed-pages) below). Use
+`--force` to re-extract and overwrite existing sidecars. `--model M` overrides
+the configured model and `-w/--workers N` the parallelism.
 
 Configure it with a `[names]` table in `~/.vt/vt.toml` (all optional, shown with
 their defaults):
@@ -304,6 +306,29 @@ detectable truncation, which the tool then retries once at a higher temperature
 to break the loop. The default (12,000) sits well above what real pages produce,
 so legitimate extractions are unaffected; lower it to fail loops faster and
 cheaper, or raise it if you have pages that genuinely yield more names than fit.
+
+### Failed pages
+
+A page whose extraction fails *deterministically* — the model's output was
+truncated at the token cap (a repetition loop) or it never returned valid JSON
+even after a retry — is *parked*: a `<page_key>.names.error.json` sidecar is
+written next to the transcription recording the error class, attempt count and
+the provider message. Parked pages are **skipped** by normal re-runs (so they
+don't burn tokens every time) and the run's summary reports how many are parked.
+
+```bash
+# list parked pages (page, error class, attempts, date, message) without an LLM
+vtextract names --list-failed --archive ./archive
+
+# re-attempt parked pages (e.g. after switching --model or lowering chunk_size)
+vtextract names --retry-failed --archive ./archive
+```
+
+Both accept the same optional reference-code / isadgID scoping as a normal run.
+`--force` also re-attempts parked pages. A successful extraction removes the
+page's error sidecar. Transient failures (rate-limit, auth, network,
+model-not-found) are **not** parked — they are logged and retried on the next
+run, as before.
 
 After extracting, run `vtindex build` to ingest the sidecars into the index,
 then search people by canonical name **or** any alias surface form:

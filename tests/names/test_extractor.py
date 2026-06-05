@@ -174,3 +174,149 @@ def test_extract_scope_limits_pages(tmp_path):
     assert stats.extracted == 1
     assert (archive / "pages" / "100" / "a.jpg.names.json").exists()
     assert not (archive / "pages" / "100" / "b.jpg.names.json").exists()
+
+
+def test_error_sidecar_for_replaces_suffix(tmp_path):
+    from vtextract.names.extractor import error_sidecar_for
+    txt = tmp_path / "x.jpg.txt"
+    assert error_sidecar_for(txt).name == "x.jpg.names.error.json"
+
+
+def test_write_error_sidecar_increments_attempts(tmp_path):
+    from vtextract.names.extractor import error_sidecar_for, _write_error_sidecar
+    txt = tmp_path / "x.jpg.txt"
+    txt.write_text("body")
+    _write_error_sidecar(txt, model="m", error_class="truncated",
+                         finish_reason="length", message="cut off")
+    data = json.loads(error_sidecar_for(txt).read_text())
+    assert data["schema"] == 1
+    assert data["model"] == "m"
+    assert data["error_class"] == "truncated"
+    assert data["finish_reason"] == "length"
+    assert data["attempts"] == 1
+    assert data["message"] == "cut off"
+    assert data["last_attempt"].endswith("Z")
+    # second write for the same page bumps the counter
+    _write_error_sidecar(txt, model="m", error_class="truncated",
+                         finish_reason="length", message="cut off again")
+    data2 = json.loads(error_sidecar_for(txt).read_text())
+    assert data2["attempts"] == 2
+
+
+def test_persistent_failure_writes_error_sidecar(tmp_path):
+    from vtextract.names.extractor import extract, error_sidecar_for, sidecar_for
+    from vtextract.names.llm import TruncatedResponseError
+    archive = _make_archive(tmp_path)
+
+    def boom(chunk_text, model, api_base=None):
+        raise TruncatedResponseError(
+            "response truncated at output-token limit (finish_reason=length)",
+            finish_reason="length")
+
+    stats = extract(archive, model="m", find=boom, show_progress=False)
+    assert stats.failed_persistent == 2
+    assert stats.failed == 0
+    err = error_sidecar_for(archive / "pages" / "100" / "a.jpg.txt")
+    assert err.exists()
+    assert json.loads(err.read_text())["error_class"] == "truncated"
+    # no success sidecar written
+    assert not sidecar_for(archive / "pages" / "100" / "a.jpg.txt").exists()
+
+
+def test_transient_failure_writes_no_error_sidecar(tmp_path):
+    from vtextract.names.extractor import extract, error_sidecar_for
+    archive = _make_archive(tmp_path)
+
+    def boom(chunk_text, model, api_base=None):
+        raise ConnectionError("connection refused")
+
+    stats = extract(archive, model="m", find=boom, show_progress=False)
+    assert stats.failed == 2
+    assert stats.failed_persistent == 0
+    assert not error_sidecar_for(archive / "pages" / "100" / "a.jpg.txt").exists()
+
+
+def test_parked_page_skipped_on_normal_run(tmp_path):
+    from vtextract.names.extractor import extract, sidecar_for, _write_error_sidecar
+    archive = _make_archive(tmp_path)
+    txt = archive / "pages" / "100" / "a.jpg.txt"
+    _write_error_sidecar(txt, model="m", error_class="truncated",
+                         finish_reason="length", message="old")
+
+    def fail_if_called(chunk_text, model, api_base=None):
+        raise AssertionError("parked page must not be re-attempted")
+
+    stats = extract(archive, model="m", find=fail_if_called, show_progress=False)
+    # a.jpg is parked (skipped); b.jpg has no sidecar and is processed
+    assert stats.parked == 1
+    assert not sidecar_for(txt).exists()
+
+
+def test_retry_failed_reattempts_parked_page(tmp_path):
+    from vtextract.names.extractor import (
+        extract, sidecar_for, error_sidecar_for, _write_error_sidecar)
+    archive = _make_archive(tmp_path)
+    txt = archive / "pages" / "100" / "a.jpg.txt"
+    _write_error_sidecar(txt, model="m", error_class="truncated",
+                         finish_reason="length", message="old")
+    stats = extract(archive, model="m", find=_fake_find_factory({}),
+                    retry_failed=True, show_progress=False)
+    assert stats.parked == 0
+    assert sidecar_for(txt).exists()            # now succeeded
+    assert not error_sidecar_for(txt).exists()  # stale error cleared
+
+
+def test_skip_as_done_clears_orphan_error_sidecar(tmp_path):
+    from vtextract.names.extractor import (
+        extract, sidecar_for, error_sidecar_for, _write_error_sidecar)
+    archive = _make_archive(tmp_path)
+    txt = archive / "pages" / "100" / "a.jpg.txt"
+    # both a success sidecar AND a stale error sidecar exist for the same page
+    extract(archive, model="m", find=_fake_find_factory({}), show_progress=False)
+    _write_error_sidecar(txt, model="m", error_class="bad_json",
+                         finish_reason=None, message="stale")
+    assert error_sidecar_for(txt).exists()
+    stats = extract(archive, model="m", find=_fake_find_factory({}),
+                    show_progress=False)
+    assert stats.skipped == 2
+    assert not error_sidecar_for(txt).exists()  # success wins, orphan removed
+
+
+def test_success_removes_stale_error_sidecar(tmp_path):
+    from vtextract.names.extractor import (
+        extract, error_sidecar_for, _write_error_sidecar)
+    archive = _make_archive(tmp_path)
+    txt = archive / "pages" / "100" / "a.jpg.txt"
+    _write_error_sidecar(txt, model="m", error_class="truncated",
+                         finish_reason="length", message="old")
+    assert error_sidecar_for(txt).exists()
+    # force so the page is reprocessed even though no success sidecar exists yet
+    extract(archive, model="m", find=_fake_find_factory({}), force=True,
+            show_progress=False)
+    assert not error_sidecar_for(txt).exists()
+
+
+def test_iter_error_sidecars_returns_records(tmp_path):
+    from vtextract.names.extractor import iter_error_sidecars, _write_error_sidecar
+    archive = _make_archive(tmp_path)
+    _write_error_sidecar(archive / "pages" / "100" / "a.jpg.txt", model="m",
+                         error_class="truncated", finish_reason="length",
+                         message="cut off")
+    records = iter_error_sidecars(archive)
+    assert len(records) == 1
+    rec = records[0]
+    assert rec.root_id == "100"
+    assert rec.page_key == "a.jpg"
+    assert rec.error_class == "truncated"
+    assert rec.attempts == 1
+    assert rec.message == "cut off"
+
+
+def test_iter_error_sidecars_honours_scope(tmp_path):
+    from vtextract.names.extractor import iter_error_sidecars, _write_error_sidecar
+    archive = _make_archive(tmp_path)
+    for key in ("a.jpg", "b.jpg"):
+        _write_error_sidecar(archive / "pages" / "100" / f"{key}.txt", model="m",
+                             error_class="bad_json", finish_reason=None, message="x")
+    scoped = iter_error_sidecars(archive, scope_pages={("100", "a.jpg")})
+    assert {r.page_key for r in scoped} == {"a.jpg"}

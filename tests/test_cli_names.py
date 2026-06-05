@@ -118,3 +118,48 @@ def test_names_command_no_pages_returns_zero(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "_make_find", lambda: (lambda *a, **k: []))
     rc = cli.run(["names", "--archive", str(archive), "--config", str(cfg)])
     assert rc == 0
+
+
+def test_names_retry_failed_flag_passed_through(tmp_path, monkeypatch):
+    from vtextract.names import extractor as names_extractor
+
+    archive, cfg = _archive_with_page(tmp_path)
+    captured = {}
+
+    def fake_extract(arch, **kwargs):
+        captured.update(kwargs)
+        return names_extractor.NamesStats()
+
+    monkeypatch.setattr(names_extractor, "extract", fake_extract)
+    rc = cli.run(["names", "--archive", str(archive), "--config", str(cfg),
+                  "--retry-failed"])
+    assert rc == 0
+    assert captured["retry_failed"] is True
+
+
+def test_names_list_failed_prints_rows_without_llm(tmp_path, monkeypatch, capsys):
+    from vtextract.names import extractor as names_extractor
+
+    archive, cfg = _archive_with_page(tmp_path)
+
+    def fail_if_called():
+        raise AssertionError("--list-failed must not build a find/LLM seam")
+
+    monkeypatch.setattr(cli, "_make_find", fail_if_called)
+    names_extractor._write_error_sidecar(
+        archive / "pages" / "100" / "a.jpg.txt", model="m",
+        error_class="truncated", finish_reason="length", message="cut off")
+    rc = cli.run(["names", "--archive", str(archive), "--config", str(cfg),
+                  "--list-failed"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "a.jpg" in out
+    assert "truncated" in out
+
+
+def test_names_list_failed_empty_is_clean(tmp_path, capsys):
+    archive, cfg = _archive_with_page(tmp_path)
+    rc = cli.run(["names", "--archive", str(archive), "--config", str(cfg),
+                  "--list-failed"])
+    assert rc == 0
+    assert "no parked" in capsys.readouterr().out.lower()

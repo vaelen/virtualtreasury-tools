@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 
 import httpx
+from rich.console import Console
+from rich.table import Table
 
 from vtextract.archive import Archive
 from vtextract.client import Client
@@ -560,7 +562,9 @@ def _run_names(argv: list[str]) -> int:
         prog="vtextract names",
         description="Extract people from page transcriptions into per-page "
         "'.names.json' sidecars using an LLM. Resumable: skips pages that "
-        "already have a sidecar (use --force to re-extract).",
+        "already have a sidecar (use --force to re-extract). Persistent "
+        "failures (truncation / bad JSON) are parked in a "
+        "'.names.error.json' sidecar; re-attempt them with --retry-failed.",
         epilog=_names_epilog(config),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -576,6 +580,12 @@ def _run_names(argv: list[str]) -> int:
                         help="Parallel workers (overrides [names].workers).")
     parser.add_argument("--force", action="store_true",
                         help="Re-extract and overwrite existing sidecars.")
+    parser.add_argument("--retry-failed", action="store_true",
+                        help="Re-attempt pages parked with a persistent-error "
+                             "sidecar (.names.error.json).")
+    parser.add_argument("--list-failed", action="store_true",
+                        help="List pages parked with a persistent-error sidecar "
+                             "and exit (no extraction).")
     args = parser.parse_args(argv)
 
     archive = Path(args.archive) if args.archive else config.archive
@@ -591,6 +601,27 @@ def _run_names(argv: list[str]) -> int:
         print("no archived pages match the given identifiers", file=sys.stderr)
         return 0
 
+    if args.list_failed:
+        records = names_extractor.iter_error_sidecars(archive, scope_pages)
+        if not records:
+            print("no parked failures", file=sys.stdout)
+            return 0
+        table = Table(title=f"parked names failures ({len(records)})")
+        table.add_column("page")
+        table.add_column("class")
+        table.add_column("tries", justify="right")
+        table.add_column("when")
+        table.add_column("message")
+        for r in records:
+            when = r.last_attempt[:10]  # YYYY-MM-DD
+            msg = r.message if len(r.message) <= 60 else r.message[:57] + "..."
+            table.add_row(f"{r.root_id}/{r.page_key}", r.error_class,
+                          str(r.attempts), when, msg)
+        Console(width=120).print(table)
+        print(f"{len(records)} parked. Re-run with --retry-failed.",
+              file=sys.stdout)
+        return 0
+
     model = args.model or config.names.model
     workers = args.workers or config.names.workers
     stats = names_extractor.extract(
@@ -598,15 +629,20 @@ def _run_names(argv: list[str]) -> int:
         chunk_size=config.names.chunk_size, overlap=config.names.overlap,
         max_output_tokens=config.names.max_output_tokens,
         workers=workers, find=_make_find(), force=args.force,
+        retry_failed=args.retry_failed,
         scope_pages=scope_pages,
     )
     print(
         f"names: {stats.extracted} extracted, {stats.skipped} skipped, "
-        f"{stats.failed} failed ({stats.people} people). "
+        f"{stats.parked} parked, {stats.failed_persistent} new persistent "
+        f"error(s), {stats.failed} transient failure(s) ({stats.people} people). "
         f"Run `vtindex build --archive {archive}` to index them.",
         file=sys.stderr,
     )
-    return 1 if stats.failed else 0
+    if stats.parked or stats.failed_persistent:
+        print("Re-run parked pages with --retry-failed "
+              "(or inspect them with --list-failed).", file=sys.stderr)
+    return 1 if (stats.failed or stats.failed_persistent) else 0
 
 
 def main() -> None:

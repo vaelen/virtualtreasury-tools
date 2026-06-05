@@ -6,9 +6,16 @@ import json
 import httpx
 import litellm
 import pytest
+from pydantic import ValidationError
 
 from vtextract.names import llm
-from vtextract.names.models import Person, Usage
+from vtextract.names.llm import (
+    TruncatedResponseError,
+    error_class,
+    is_persistent_failure,
+    truncation_finish_reason,
+)
+from vtextract.names.models import NameResponse, Person, Usage
 
 
 def _rate_limit_error(retry_after: str | None = None) -> litellm.RateLimitError:
@@ -210,6 +217,20 @@ def test_friendly_error_truncation_is_clear_even_when_wrapped():
         "limit (finish_reason=length)")
     msg = llm.friendly_error(wrapped, "gemini/gemini-2.5-flash-lite", None)
     assert "truncat" in msg.lower() or "cut off" in msg.lower()
+
+
+def test_friendly_error_wrapped_validation_error_is_bad_json_message():
+    # A pydantic ValidationError, wrapped by the extractor in a RuntimeError, is
+    # a bad-JSON failure. isinstance no longer matches through the wrapper, so
+    # the message must still resolve to the friendly "valid JSON" branch (its str
+    # carries "validation error"), not the generic LLM-error tail.
+    try:
+        NameResponse.model_validate({"people": "not-a-list"})
+        raise AssertionError("expected ValidationError")
+    except ValidationError as vexc:
+        wrapped = RuntimeError(f"chunk 1/1 failed for x.jpg.txt: {vexc}")
+    msg = llm.friendly_error(wrapped, "openai/gpt-4o-mini", None)
+    assert "valid json" in msg.lower()
 
 
 def test_usage_from_response_reads_prompt_completion_cached():
@@ -445,3 +466,48 @@ def test_unload_defaults_base_and_swallows_errors(monkeypatch):
     monkeypatch.setattr(llm.httpx, "post", fake_post)
     llm.unload("ollama/x")   # no api_base -> default localhost; must not raise
     assert seen["url"] == "http://localhost:11434/api/generate"
+
+
+def _wrap(cause: Exception) -> Exception:
+    # Mirror extractor._extract_one: RuntimeError(...) from cause.
+    try:
+        raise cause
+    except Exception as inner:
+        try:
+            raise RuntimeError(f"chunk 1/1 failed for x: {inner}") from inner
+        except RuntimeError as wrapped:
+            return wrapped
+
+
+def test_error_class_truncated_direct_and_wrapped():
+    exc = TruncatedResponseError(
+        "response truncated at output-token limit (finish_reason=length)",
+        finish_reason="length")
+    assert error_class(exc) == "truncated"
+    assert error_class(_wrap(exc)) == "truncated"
+    assert is_persistent_failure(_wrap(exc)) is True
+
+
+def test_error_class_bad_json_direct_and_wrapped():
+    jexc = json.JSONDecodeError("Expecting value", "", 0)
+    assert error_class(jexc) == "bad_json"
+    assert error_class(_wrap(jexc)) == "bad_json"
+    try:
+        NameResponse.model_validate({"people": "not-a-list"})
+        raise AssertionError("expected ValidationError")
+    except ValidationError as vexc:
+        assert error_class(vexc) == "bad_json"
+        assert error_class(_wrap(vexc)) == "bad_json"
+
+
+def test_error_class_transient_returns_none():
+    assert error_class(ConnectionError("connection refused")) is None
+    assert error_class(RuntimeError("rate limit: 429 too many requests")) is None
+    assert is_persistent_failure(ConnectionError("nope")) is False
+
+
+def test_truncation_finish_reason_walks_chain():
+    exc = TruncatedResponseError("response truncated ...", finish_reason="max_tokens")
+    assert truncation_finish_reason(exc) == "max_tokens"
+    assert truncation_finish_reason(_wrap(exc)) == "max_tokens"
+    assert truncation_finish_reason(ConnectionError("x")) is None

@@ -8,6 +8,8 @@ import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -18,6 +20,7 @@ from vtextract.names import llm as llm_module
 from vtextract.names.chunking import chunk_text
 from vtextract.names.merge import merge_people
 from vtextract.names.models import (
+    ERROR_SIDECAR_SCHEMA,
     SIDECAR_SCHEMA,
     NamesStats,
     Person,
@@ -32,6 +35,7 @@ FindFn = Callable[[str, str, "str | None"], "list[Person]"]
 
 _TXT_SUFFIX = ".txt"
 _SIDECAR_SUFFIX = ".names.json"
+_ERROR_SUFFIX = ".names.error.json"
 
 
 def page_transcriptions(archive: Path) -> list[tuple[str, str, Path]]:
@@ -47,6 +51,54 @@ def page_transcriptions(archive: Path) -> list[tuple[str, str, Path]]:
         root_id = txt.parent.name
         page_key = txt.name[: -len(_TXT_SUFFIX)]
         out.append((root_id, page_key, txt))
+    return out
+
+
+@dataclass(frozen=True)
+class ErrorRecord:
+    """One parsed persistent-failure sidecar, for listing."""
+    root_id: str
+    page_key: str
+    error_class: str
+    finish_reason: str | None
+    attempts: int
+    last_attempt: str
+    message: str
+    model: str
+
+
+def iter_error_sidecars(
+    archive: Path, scope_pages: set[tuple[str, str]] | None = None,
+) -> list[ErrorRecord]:
+    """Parse every {page_key}.names.error.json under archive/pages.
+
+    ``scope_pages``, when given, limits the result to those (root_id, page_key)
+    pairs. Malformed files are skipped (a half-written sidecar shouldn't crash a
+    listing).
+    """
+    out: list[ErrorRecord] = []
+    pages_dir = Path(archive) / "pages"
+    if not pages_dir.is_dir():
+        return out
+    for err in sorted(pages_dir.glob("*/*.jpg.names.error.json")):
+        root_id = err.parent.name
+        page_key = err.name[: -len(_ERROR_SUFFIX)]  # keeps trailing .jpg
+        if scope_pages is not None and (root_id, page_key) not in scope_pages:
+            continue
+        try:
+            data = json.loads(err.read_text())
+        except (OSError, ValueError):
+            continue
+        out.append(ErrorRecord(
+            root_id=root_id,
+            page_key=page_key,
+            error_class=str(data.get("error_class", "")),
+            finish_reason=data.get("finish_reason"),
+            attempts=int(data.get("attempts", 0)),
+            last_attempt=str(data.get("last_attempt", "")),
+            message=str(data.get("message", "")),
+            model=str(data.get("model", "")),
+        ))
     return out
 
 
@@ -93,6 +145,45 @@ def _write_sidecar_atomic(path: Path, model: str, people: list[Person],
         data["elapsed_ms"] = elapsed_ms
     if usage is not None:  # omit when untracked, so it's never confused with 0
         data["usage"] = usage.to_dict()
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2))
+    os.replace(tmp, path)
+
+
+def error_sidecar_for(txt_path: Path) -> Path:
+    """Map <page_key>.txt -> <page_key>.names.error.json (same directory)."""
+    txt_path = Path(txt_path)
+    return txt_path.with_name(txt_path.name[: -len(_TXT_SUFFIX)] + _ERROR_SUFFIX)
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _write_error_sidecar(txt_path: Path, *, model: str, error_class: str,
+                         finish_reason: str | None, message: str) -> None:
+    """Write/refresh the persistent-failure sidecar for a page.
+
+    Read-modify-write of ``attempts`` (prior count + 1). Per-page file, so this
+    is safe under --workers. Atomic via temp-then-os.replace, like the success
+    sidecar.
+    """
+    path = error_sidecar_for(txt_path)
+    prior = 0
+    if path.exists():
+        try:
+            prior = int(json.loads(path.read_text()).get("attempts", 0))
+        except (OSError, ValueError):
+            prior = 0
+    data = {
+        "schema": ERROR_SIDECAR_SCHEMA,
+        "model": model,
+        "error_class": error_class,
+        "finish_reason": finish_reason,
+        "attempts": prior + 1,
+        "last_attempt": _utc_now_iso(),
+        "message": message,
+    }
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(json.dumps(data, indent=2))
     os.replace(tmp, path)
@@ -155,14 +246,17 @@ def extract(
     max_output_tokens: int = 12000,
     find: FindFn | None = None,
     force: bool = False,
+    retry_failed: bool = False,
     scope_pages: set[tuple[str, str]] | None = None,
     show_progress: bool = True,
 ) -> NamesStats:
     """Walk page transcriptions, extract people, write/refresh sidecars.
 
-    Skips pages whose sidecar already exists unless ``force``. ``scope_pages``,
-    when given, limits work to those (root_id, page_key) pairs. A page whose
-    extraction fails is left without a sidecar so a later run retries it.
+    Skips pages whose success sidecar already exists unless ``force``. Pages with
+    a persistent-error sidecar are skipped (parked) unless ``force`` or
+    ``retry_failed``. ``scope_pages``, when given, limits work to those
+    (root_id, page_key) pairs. A page whose extraction fails transiently is left
+    without a sidecar so a later run retries it; a persistent failure is parked.
     """
     # Bind the output-token guardrail into the real find_people. Injected test
     # seams keep the plain 3-arg FindFn shape and ignore the cap (no LLM call).
@@ -180,6 +274,10 @@ def extract(
         side = sidecar_for(txt)
         if side.exists() and not force:
             stats.skipped += 1
+            error_sidecar_for(txt).unlink(missing_ok=True)  # success wins
+            continue
+        if error_sidecar_for(txt).exists() and not force and not retry_failed:
+            stats.parked += 1
             continue
         todo.append((page_key, txt))
 
@@ -204,11 +302,20 @@ def extract(
             for fut in as_completed(futures):
                 txt, people, usage, elapsed_ms, exc = fut.result()
                 if people is None:
-                    stats.failed += 1
+                    cls = llm_module.error_class(exc) if exc else None
+                    if cls is not None:
+                        _write_error_sidecar(
+                            txt, model=model, error_class=cls,
+                            finish_reason=llm_module.truncation_finish_reason(exc),
+                            message=llm_module.friendly_error(exc, model, api_base))
+                        stats.failed_persistent += 1
+                    else:
+                        stats.failed += 1
                     _log_failure(progress, txt, exc, model, api_base)
                 else:
                     _write_sidecar_atomic(sidecar_for(txt), model, people, usage,
                                           elapsed_ms)
+                    error_sidecar_for(txt).unlink(missing_ok=True)
                     stats.extracted += 1
                     stats.people += len(people)
                 if progress is not None:

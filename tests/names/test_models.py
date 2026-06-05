@@ -91,3 +91,15 @@ def test_people_and_usage_normalizes_both_seam_shapes():
     # the production shape (people, usage)
     u = Usage(input=1, output=1)
     assert people_and_usage((people, u)) == (people, u)
+
+
+def test_names_stats_has_failure_buckets():
+    from vtextract.names.models import NamesStats
+    s = NamesStats()
+    assert s.parked == 0
+    assert s.failed_persistent == 0
+
+
+def test_error_sidecar_schema_constant_present():
+    from vtextract.names.models import ERROR_SIDECAR_SCHEMA
+    assert ERROR_SIDECAR_SCHEMA == 1

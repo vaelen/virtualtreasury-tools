@@ -81,9 +81,11 @@ class TruncatedResponseError(Exception):
     still bill the wasted tokens when it retries.
     """
 
-    def __init__(self, message: str, usage: "Usage | None" = None) -> None:
+    def __init__(self, message: str, usage: "Usage | None" = None,
+                 finish_reason: str | None = None) -> None:
         super().__init__(message)
         self.usage = usage
+        self.finish_reason = finish_reason
 
 
 # Rate-limit handling: providers cap output tokens/requests per minute, so a
@@ -173,7 +175,8 @@ def friendly_error(exc: Exception, model: str, api_base: str | None) -> str:
                 f"cut off mid-JSON (typically a repetition loop on dense, "
                 f"repetitive text such as a name index), even after retrying at a "
                 f"higher temperature. Try a smaller chunk_size or a different model.")
-    if isinstance(exc, (json.JSONDecodeError, ValidationError)) or "expecting value" in text:
+    if (isinstance(exc, (json.JSONDecodeError, ValidationError))
+            or "expecting value" in text or "validation error" in text):
         return (f"Model '{model}' did not return valid JSON in the required "
                 f"format, even after a retry. Try a different model.")
     if _is_rate_limit(exc):
@@ -212,6 +215,41 @@ def friendly_error(exc: Exception, model: str, api_base: str | None) -> str:
             f"Could not reach the LLM provider{where} for model '{model}'. "
             f"Check your network connection and any api_base setting.", exc)
     return f"LLM error for model '{model}': {_provider_detail(exc)}"
+
+
+def error_class(exc: Exception) -> str | None:
+    """Persistent (page-deterministic) failure class, else None (transient).
+
+    Walks the ``__cause__`` chain because the extractor re-raises the real cause
+    wrapped in a RuntimeError. Only truncation and malformed-JSON are persistent
+    -- they recur identically on the same input. Rate-limit, auth, not-found and
+    connection errors are environmental, so they return None and keep retrying.
+    """
+    cur: BaseException | None = exc
+    while cur is not None:
+        if isinstance(cur, TruncatedResponseError):
+            return "truncated"
+        if isinstance(cur, (json.JSONDecodeError, ValidationError)):
+            return "bad_json"
+        cur = cur.__cause__
+    if _TRUNCATION_MARKER in str(exc):
+        return "truncated"
+    return None
+
+
+def is_persistent_failure(exc: Exception) -> bool:
+    """True when the failure is page-deterministic (worth parking on disk)."""
+    return error_class(exc) is not None
+
+
+def truncation_finish_reason(exc: Exception) -> str | None:
+    """The provider finish_reason carried by a TruncatedResponseError, if any."""
+    cur: BaseException | None = exc
+    while cur is not None:
+        if isinstance(cur, TruncatedResponseError):
+            return cur.finish_reason
+        cur = cur.__cause__
+    return None
 
 
 def check_model(model: str, api_base: str | None = None) -> str | None:
@@ -376,7 +414,7 @@ def _complete(kwargs: dict, *, max_retries: int = 2,
                     and _finish_reason(choice) in _TRUNCATION_FINISH_REASONS:
                 raise TruncatedResponseError(
                     f"{_TRUNCATION_MARKER} (finish_reason={_finish_reason(choice)})",
-                    usage=usage)
+                    usage=usage, finish_reason=_finish_reason(choice))
             return content, usage
         except TruncatedResponseError:
             raise  # deterministic; retrying as a transport blip would just re-burn
