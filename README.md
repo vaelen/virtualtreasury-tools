@@ -293,7 +293,17 @@ chunk_size = 64000               # transcription chunk size (characters)
 overlap    = 512                 # overlap between chunks
 workers    = 1                   # parallel pages
 confidence = ""                  # default minimum confidence for `vtindex people` (low|medium|high)
+max_output_tokens = 12000        # per-call output-token cap (repetition-loop guardrail)
 ```
+
+`max_output_tokens` bounds the output of each LLM call. Dense, repetitive
+transcriptions (e.g. will indexes) can push a model into a repetition loop that
+runs to its full output ceiling, producing truncated, unparseable JSON and
+burning the maximum tokens per call. The cap turns that runaway into a cheap,
+detectable truncation, which the tool then retries once at a higher temperature
+to break the loop. The default (12,000) sits well above what real pages produce,
+so legitimate extractions are unaffected; lower it to fail loops faster and
+cheaper, or raise it if you have pages that genuinely yield more names than fit.
 
 After extracting, run `vtindex build` to ingest the sidecars into the index,
 then search people by canonical name **or** any alias surface form:
