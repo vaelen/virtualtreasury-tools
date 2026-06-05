@@ -236,6 +236,52 @@ def test_transient_failure_writes_no_error_sidecar(tmp_path):
     assert not error_sidecar_for(archive / "pages" / "100" / "a.jpg.txt").exists()
 
 
+def test_parked_page_skipped_on_normal_run(tmp_path):
+    from vtextract.names.extractor import extract, sidecar_for, _write_error_sidecar
+    archive = _make_archive(tmp_path)
+    txt = archive / "pages" / "100" / "a.jpg.txt"
+    _write_error_sidecar(txt, model="m", error_class="truncated",
+                         finish_reason="length", message="old")
+
+    def fail_if_called(chunk_text, model, api_base=None):
+        raise AssertionError("parked page must not be re-attempted")
+
+    stats = extract(archive, model="m", find=fail_if_called, show_progress=False)
+    # a.jpg is parked (skipped); b.jpg has no sidecar and is processed
+    assert stats.parked == 1
+    assert not sidecar_for(txt).exists()
+
+
+def test_retry_failed_reattempts_parked_page(tmp_path):
+    from vtextract.names.extractor import (
+        extract, sidecar_for, error_sidecar_for, _write_error_sidecar)
+    archive = _make_archive(tmp_path)
+    txt = archive / "pages" / "100" / "a.jpg.txt"
+    _write_error_sidecar(txt, model="m", error_class="truncated",
+                         finish_reason="length", message="old")
+    stats = extract(archive, model="m", find=_fake_find_factory({}),
+                    retry_failed=True, show_progress=False)
+    assert stats.parked == 0
+    assert sidecar_for(txt).exists()            # now succeeded
+    assert not error_sidecar_for(txt).exists()  # stale error cleared
+
+
+def test_skip_as_done_clears_orphan_error_sidecar(tmp_path):
+    from vtextract.names.extractor import (
+        extract, sidecar_for, error_sidecar_for, _write_error_sidecar)
+    archive = _make_archive(tmp_path)
+    txt = archive / "pages" / "100" / "a.jpg.txt"
+    # both a success sidecar AND a stale error sidecar exist for the same page
+    extract(archive, model="m", find=_fake_find_factory({}), show_progress=False)
+    _write_error_sidecar(txt, model="m", error_class="bad_json",
+                         finish_reason=None, message="stale")
+    assert error_sidecar_for(txt).exists()
+    stats = extract(archive, model="m", find=_fake_find_factory({}),
+                    show_progress=False)
+    assert stats.skipped == 2
+    assert not error_sidecar_for(txt).exists()  # success wins, orphan removed
+
+
 def test_success_removes_stale_error_sidecar(tmp_path):
     from vtextract.names.extractor import (
         extract, error_sidecar_for, _write_error_sidecar)

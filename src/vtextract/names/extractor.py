@@ -197,14 +197,17 @@ def extract(
     max_output_tokens: int = 12000,
     find: FindFn | None = None,
     force: bool = False,
+    retry_failed: bool = False,
     scope_pages: set[tuple[str, str]] | None = None,
     show_progress: bool = True,
 ) -> NamesStats:
     """Walk page transcriptions, extract people, write/refresh sidecars.
 
-    Skips pages whose sidecar already exists unless ``force``. ``scope_pages``,
-    when given, limits work to those (root_id, page_key) pairs. A page whose
-    extraction fails is left without a sidecar so a later run retries it.
+    Skips pages whose success sidecar already exists unless ``force``. Pages with
+    a persistent-error sidecar are skipped (parked) unless ``force`` or
+    ``retry_failed``. ``scope_pages``, when given, limits work to those
+    (root_id, page_key) pairs. A page whose extraction fails transiently is left
+    without a sidecar so a later run retries it; a persistent failure is parked.
     """
     # Bind the output-token guardrail into the real find_people. Injected test
     # seams keep the plain 3-arg FindFn shape and ignore the cap (no LLM call).
@@ -222,6 +225,10 @@ def extract(
         side = sidecar_for(txt)
         if side.exists() and not force:
             stats.skipped += 1
+            error_sidecar_for(txt).unlink(missing_ok=True)  # success wins
+            continue
+        if error_sidecar_for(txt).exists() and not force and not retry_failed:
+            stats.parked += 1
             continue
         todo.append((page_key, txt))
 
