@@ -201,3 +201,50 @@ def test_write_error_sidecar_increments_attempts(tmp_path):
                          finish_reason="length", message="cut off again")
     data2 = json.loads(error_sidecar_for(txt).read_text())
     assert data2["attempts"] == 2
+
+
+def test_persistent_failure_writes_error_sidecar(tmp_path):
+    from vtextract.names.extractor import extract, error_sidecar_for, sidecar_for
+    from vtextract.names.llm import TruncatedResponseError
+    archive = _make_archive(tmp_path)
+
+    def boom(chunk_text, model, api_base=None):
+        raise TruncatedResponseError(
+            "response truncated at output-token limit (finish_reason=length)",
+            finish_reason="length")
+
+    stats = extract(archive, model="m", find=boom, show_progress=False)
+    assert stats.failed_persistent == 2
+    assert stats.failed == 0
+    err = error_sidecar_for(archive / "pages" / "100" / "a.jpg.txt")
+    assert err.exists()
+    assert json.loads(err.read_text())["error_class"] == "truncated"
+    # no success sidecar written
+    assert not sidecar_for(archive / "pages" / "100" / "a.jpg.txt").exists()
+
+
+def test_transient_failure_writes_no_error_sidecar(tmp_path):
+    from vtextract.names.extractor import extract, error_sidecar_for
+    archive = _make_archive(tmp_path)
+
+    def boom(chunk_text, model, api_base=None):
+        raise ConnectionError("connection refused")
+
+    stats = extract(archive, model="m", find=boom, show_progress=False)
+    assert stats.failed == 2
+    assert stats.failed_persistent == 0
+    assert not error_sidecar_for(archive / "pages" / "100" / "a.jpg.txt").exists()
+
+
+def test_success_removes_stale_error_sidecar(tmp_path):
+    from vtextract.names.extractor import (
+        extract, error_sidecar_for, _write_error_sidecar)
+    archive = _make_archive(tmp_path)
+    txt = archive / "pages" / "100" / "a.jpg.txt"
+    _write_error_sidecar(txt, model="m", error_class="truncated",
+                         finish_reason="length", message="old")
+    assert error_sidecar_for(txt).exists()
+    # force so the page is reprocessed even though no success sidecar exists yet
+    extract(archive, model="m", find=_fake_find_factory({}), force=True,
+            show_progress=False)
+    assert not error_sidecar_for(txt).exists()

@@ -246,11 +246,20 @@ def extract(
             for fut in as_completed(futures):
                 txt, people, usage, elapsed_ms, exc = fut.result()
                 if people is None:
-                    stats.failed += 1
+                    cls = llm_module.error_class(exc) if exc else None
+                    if cls is not None:
+                        _write_error_sidecar(
+                            txt, model=model, error_class=cls,
+                            finish_reason=llm_module.truncation_finish_reason(exc),
+                            message=llm_module.friendly_error(exc, model, api_base))
+                        stats.failed_persistent += 1
+                    else:
+                        stats.failed += 1
                     _log_failure(progress, txt, exc, model, api_base)
                 else:
                     _write_sidecar_atomic(sidecar_for(txt), model, people, usage,
                                           elapsed_ms)
+                    error_sidecar_for(txt).unlink(missing_ok=True)
                     stats.extracted += 1
                     stats.people += len(people)
                 if progress is not None:
