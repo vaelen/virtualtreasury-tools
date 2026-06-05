@@ -125,6 +125,18 @@ def friendly_error(exc: Exception, model: str, api_base: str | None) -> str:
                     f"Pull it first: `ollama pull {bare}`.")
         return (f"Model '{model}' was not found. Check the model name "
                 f"(LiteLLM uses the provider/model form).")
+    # Auth before connection: LiteLLM wraps a missing/invalid key in
+    # APIConnectionError, whose class name contains "connection" and would
+    # otherwise be misreported as a network failure. A real key complaint always
+    # names the key, so match that first.
+    if any(h in text for h in _AUTH_HINTS):
+        provider = model.split("/", 1)[0] if "/" in model else ""
+        key_hint = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY",
+                    "gemini": "GEMINI_API_KEY", "google": "GEMINI_API_KEY",
+                    "mistral": "MISTRAL_API_KEY"}.get(
+            provider, "the provider's API key environment variable")
+        return (f"Authentication failed for model '{model}'. "
+                f"Set the API key in your environment (e.g. {key_hint}).")
     if any(h in text for h in _CONNECTION_HINTS):
         where = f" at {api_base}" if api_base else ""
         if is_ollama:
@@ -132,12 +144,6 @@ def friendly_error(exc: Exception, model: str, api_base: str | None) -> str:
                     f"'{model}'. Is it running? Start it with `ollama serve`.")
         return (f"Could not reach the LLM provider{where} for model '{model}'. "
                 f"Check your network connection and any api_base setting.")
-    if any(h in text for h in _AUTH_HINTS):
-        provider = model.split("/", 1)[0] if "/" in model else ""
-        key_hint = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}.get(
-            provider, "the provider's API key environment variable")
-        return (f"Authentication failed for model '{model}'. "
-                f"Set the API key in your environment (e.g. {key_hint}).")
     return f"LLM error for model '{model}': {exc}"
 
 

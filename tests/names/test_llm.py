@@ -105,6 +105,18 @@ def test_friendly_error_not_found_ollama():
     assert "ollama pull" in msg
 
 
+def test_friendly_error_missing_key_is_auth_not_connection():
+    # LiteLLM wraps a missing key in APIConnectionError whose text/class name
+    # contains "connection"; the message must still tell the user it's a key
+    # problem, not a network one.
+    exc = RuntimeError("litellm.APIConnectionError: Missing Gemini API key. "
+                       "Set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.")
+    msg = llm.friendly_error(exc, "gemini/gemini-2.5-flash-lite", None)
+    assert "Authentication failed" in msg
+    assert "GEMINI_API_KEY" in msg
+    assert "network" not in msg.lower()
+
+
 def _ok_response():
     return {"choices": [{"message": {"content": '{"people": []}'}}]}
 
