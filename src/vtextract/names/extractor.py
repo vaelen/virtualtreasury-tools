@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Callable
@@ -81,12 +82,15 @@ def sidecar_for(txt_path: Path) -> Path:
 
 
 def _write_sidecar_atomic(path: Path, model: str, people: list[Person],
-                          usage: Usage | None = None) -> None:
+                          usage: Usage | None = None,
+                          elapsed_ms: int | None = None) -> None:
     data: dict = {
         "schema": SIDECAR_SCHEMA,
         "model": model,
         "people": [p.model_dump() for p in people],
     }
+    if elapsed_ms is not None:  # wall-clock for the page; always set in practice
+        data["elapsed_ms"] = elapsed_ms
     if usage is not None:  # omit when untracked, so it's never confused with 0
         data["usage"] = usage.to_dict()
     tmp = path.with_name(path.name + ".tmp")
@@ -174,25 +178,31 @@ def extract(
         todo.append((page_key, txt))
 
     def work(txt: Path,
-             ) -> tuple[Path, list[Person] | None, Usage | None, Exception | None]:
+             ) -> tuple[Path, list[Person] | None, Usage | None, int | None, Exception | None]:
+        # Wall-clock for the whole page (dominated by the LLM call(s); a page
+        # may span several chunks plus a JSON-repair retry). Each page is timed
+        # in its own thread, so the figure is correct under --workers > 1.
+        start = time.monotonic()
         try:
             people, usage = _extract_one(
                 txt, model=model, api_base=api_base,
                 chunk_size=chunk_size, overlap=overlap, find=find)
-            return txt, people, usage, None
+            elapsed_ms = round((time.monotonic() - start) * 1000)
+            return txt, people, usage, elapsed_ms, None
         except Exception as exc:
-            return txt, None, None, exc
+            return txt, None, None, None, exc
 
     def run(progress: Progress | None, task_id) -> None:
         with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
             futures = [ex.submit(work, txt) for _key, txt in todo]
             for fut in as_completed(futures):
-                txt, people, usage, exc = fut.result()
+                txt, people, usage, elapsed_ms, exc = fut.result()
                 if people is None:
                     stats.failed += 1
                     _log_failure(progress, txt, exc, model, api_base)
                 else:
-                    _write_sidecar_atomic(sidecar_for(txt), model, people, usage)
+                    _write_sidecar_atomic(sidecar_for(txt), model, people, usage,
+                                          elapsed_ms)
                     stats.extracted += 1
                     stats.people += len(people)
                 if progress is not None:

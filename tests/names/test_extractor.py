@@ -66,6 +66,30 @@ def test_extract_writes_usage_block_when_find_reports_it(tmp_path):
     assert side["usage"] == {"in": 100, "out": 20, "total": 120, "cached": 64}
 
 
+def test_extract_writes_elapsed_ms(tmp_path):
+    # elapsed_ms is always written (we measure it ourselves), even when the
+    # find seam reports no token usage.
+    archive = _make_archive(tmp_path)
+    extract(archive, model="m", find=_fake_find_factory({}), show_progress=False)
+    side = json.loads((archive / "pages" / "100" / "a.jpg.names.json").read_text())
+    assert "usage" not in side
+    assert isinstance(side["elapsed_ms"], int) and side["elapsed_ms"] >= 0
+
+
+def test_extract_elapsed_ms_reflects_extraction_time(tmp_path):
+    import time as _time
+
+    archive = _make_archive(tmp_path)
+
+    def slow_find(chunk_text, model, api_base=None):
+        _time.sleep(0.02)
+        return []
+
+    extract(archive, model="m", find=slow_find, show_progress=False)
+    side = json.loads((archive / "pages" / "100" / "a.jpg.names.json").read_text())
+    assert side["elapsed_ms"] >= 15
+
+
 def test_extract_resumes_skipping_existing(tmp_path):
     archive = _make_archive(tmp_path)
     find = _fake_find_factory({})
