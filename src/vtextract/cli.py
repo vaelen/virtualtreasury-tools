@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 
 import httpx
+from rich.console import Console
+from rich.table import Table
 
 from vtextract.archive import Archive
 from vtextract.client import Client
@@ -581,6 +583,9 @@ def _run_names(argv: list[str]) -> int:
     parser.add_argument("--retry-failed", action="store_true",
                         help="Re-attempt pages parked with a persistent-error "
                              "sidecar (.names.error.json).")
+    parser.add_argument("--list-failed", action="store_true",
+                        help="List pages parked with a persistent-error sidecar "
+                             "and exit (no extraction).")
     args = parser.parse_args(argv)
 
     archive = Path(args.archive) if args.archive else config.archive
@@ -594,6 +599,27 @@ def _run_names(argv: list[str]) -> int:
     )
     if args.identifiers and not scope_pages:
         print("no archived pages match the given identifiers", file=sys.stderr)
+        return 0
+
+    if args.list_failed:
+        records = names_extractor.iter_error_sidecars(archive, scope_pages)
+        if not records:
+            print("no parked failures", file=sys.stdout)
+            return 0
+        table = Table(title=f"parked names failures ({len(records)})")
+        table.add_column("page")
+        table.add_column("class")
+        table.add_column("tries", justify="right")
+        table.add_column("when")
+        table.add_column("message")
+        for r in records:
+            when = r.last_attempt[:10]  # YYYY-MM-DD
+            msg = r.message if len(r.message) <= 60 else r.message[:57] + "..."
+            table.add_row(f"{r.root_id}/{r.page_key}", r.error_class,
+                          str(r.attempts), when, msg)
+        Console(width=120).print(table)
+        print(f"{len(records)} parked. Re-run with --retry-failed.",
+              file=sys.stdout)
         return 0
 
     model = args.model or config.names.model
