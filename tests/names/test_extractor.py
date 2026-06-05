@@ -294,3 +294,29 @@ def test_success_removes_stale_error_sidecar(tmp_path):
     extract(archive, model="m", find=_fake_find_factory({}), force=True,
             show_progress=False)
     assert not error_sidecar_for(txt).exists()
+
+
+def test_iter_error_sidecars_returns_records(tmp_path):
+    from vtextract.names.extractor import iter_error_sidecars, _write_error_sidecar
+    archive = _make_archive(tmp_path)
+    _write_error_sidecar(archive / "pages" / "100" / "a.jpg.txt", model="m",
+                         error_class="truncated", finish_reason="length",
+                         message="cut off")
+    records = iter_error_sidecars(archive)
+    assert len(records) == 1
+    rec = records[0]
+    assert rec.root_id == "100"
+    assert rec.page_key == "a.jpg"
+    assert rec.error_class == "truncated"
+    assert rec.attempts == 1
+    assert rec.message == "cut off"
+
+
+def test_iter_error_sidecars_honours_scope(tmp_path):
+    from vtextract.names.extractor import iter_error_sidecars, _write_error_sidecar
+    archive = _make_archive(tmp_path)
+    for key in ("a.jpg", "b.jpg"):
+        _write_error_sidecar(archive / "pages" / "100" / f"{key}.txt", model="m",
+                             error_class="bad_json", finish_reason=None, message="x")
+    scoped = iter_error_sidecars(archive, scope_pages={("100", "a.jpg")})
+    assert {r.page_key for r in scoped} == {"a.jpg"}

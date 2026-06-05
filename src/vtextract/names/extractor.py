@@ -8,6 +8,7 @@ import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
@@ -50,6 +51,54 @@ def page_transcriptions(archive: Path) -> list[tuple[str, str, Path]]:
         root_id = txt.parent.name
         page_key = txt.name[: -len(_TXT_SUFFIX)]
         out.append((root_id, page_key, txt))
+    return out
+
+
+@dataclass(frozen=True)
+class ErrorRecord:
+    """One parsed persistent-failure sidecar, for listing."""
+    root_id: str
+    page_key: str
+    error_class: str
+    finish_reason: str | None
+    attempts: int
+    last_attempt: str
+    message: str
+    model: str
+
+
+def iter_error_sidecars(
+    archive: Path, scope_pages: set[tuple[str, str]] | None = None,
+) -> list[ErrorRecord]:
+    """Parse every {page_key}.names.error.json under archive/pages.
+
+    ``scope_pages``, when given, limits the result to those (root_id, page_key)
+    pairs. Malformed files are skipped (a half-written sidecar shouldn't crash a
+    listing).
+    """
+    out: list[ErrorRecord] = []
+    pages_dir = Path(archive) / "pages"
+    if not pages_dir.is_dir():
+        return out
+    for err in sorted(pages_dir.glob("*/*.jpg.names.error.json")):
+        root_id = err.parent.name
+        page_key = err.name[: -len(_ERROR_SUFFIX)]  # keeps trailing .jpg
+        if scope_pages is not None and (root_id, page_key) not in scope_pages:
+            continue
+        try:
+            data = json.loads(err.read_text())
+        except (OSError, ValueError):
+            continue
+        out.append(ErrorRecord(
+            root_id=root_id,
+            page_key=page_key,
+            error_class=str(data.get("error_class", "")),
+            finish_reason=data.get("finish_reason"),
+            attempts=int(data.get("attempts", 0)),
+            last_attempt=str(data.get("last_attempt", "")),
+            message=str(data.get("message", "")),
+            model=str(data.get("model", "")),
+        ))
     return out
 
 
