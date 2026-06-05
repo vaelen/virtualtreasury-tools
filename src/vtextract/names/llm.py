@@ -55,6 +55,37 @@ Respond with JSON only, no prose, in exactly this form:
 {"people": [{"canonical": "...", "confidence": "low|medium|high", "aliases": [{"text": "...", "confidence": "low|medium|high"}]}]}
 """
 
+# Stable substring carried in every TruncatedResponseError message. The extractor
+# wraps the cause in a RuntimeError (so isinstance no longer matches by the time
+# friendly_error sees it), but the message text propagates, so we classify on this.
+_TRUNCATION_MARKER = "response truncated at output-token limit"
+
+# Provider finish_reason values that mean "output cut off at the token cap".
+_TRUNCATION_FINISH_REASONS = ("length", "max_tokens")
+
+# Temperature for the JSON-repair / truncation retry. The first pass runs at 0
+# (deterministic), but greedy decoding is what loops on repetitive text (e.g. will
+# indexes) until the output cap. Measured on the real failing pages: temp 0.3 was
+# NOT enough to escape the loop (still truncated at 65,536 tokens); 0.5 broke the
+# loop on every sampled page AND kept the JSON valid, while 0.7 sometimes produced
+# malformed JSON. So 0.5 is the lowest reliable, lowest-risk loop-breaker. Only the
+# retry uses it, so pass-1 determinism is preserved.
+_RETRY_TEMPERATURE = 0.5
+
+
+class TruncatedResponseError(Exception):
+    """The model's output was cut off at its token cap (finish_reason=length).
+
+    The truncated text is incomplete JSON, so parsing it would fail with a
+    misleading delimiter error. Carries the attempt's ``usage`` so the caller can
+    still bill the wasted tokens when it retries.
+    """
+
+    def __init__(self, message: str, usage: "Usage | None" = None) -> None:
+        super().__init__(message)
+        self.usage = usage
+
+
 # Rate-limit handling: providers cap output tokens/requests per minute, so a
 # 429 needs a much longer, dedicated backoff than a transient transport blip.
 _RATE_LIMIT_BASE_DELAY = 5.0   # seconds; first wait when no Retry-After header
@@ -137,6 +168,11 @@ def friendly_error(exc: Exception, model: str, api_base: str | None) -> str:
     is_ollama = model.startswith("ollama/")
     bare = model.split("/", 1)[1] if "/" in model else model
 
+    if isinstance(exc, TruncatedResponseError) or _TRUNCATION_MARKER in text:
+        return (f"Model '{model}' hit its output-token limit and the response was "
+                f"cut off mid-JSON (typically a repetition loop on dense, "
+                f"repetitive text such as a name index), even after retrying at a "
+                f"higher temperature. Try a smaller chunk_size or a different model.")
     if isinstance(exc, (json.JSONDecodeError, ValidationError)) or "expecting value" in text:
         return (f"Model '{model}' did not return valid JSON in the required "
                 f"format, even after a retry. Try a different model.")
@@ -192,8 +228,11 @@ def check_model(model: str, api_base: str | None = None) -> str | None:
     try:
         # Route through _complete so a model that rejects a tuning param (e.g.
         # Opus deprecating temperature) is recovered here, not skipped. No
-        # retries: preflight should surface a real error promptly.
-        _complete(kwargs, max_retries=0, rate_limit_retries=0)
+        # retries: preflight should surface a real error promptly. The max_tokens=1
+        # cap always yields finish_reason "length", so opt out of truncation
+        # detection -- hitting our own 1-token cap is expected, not a model fault.
+        _complete(kwargs, max_retries=0, rate_limit_retries=0,
+                  detect_truncation=False)
         return None
     except Exception as exc:
         return friendly_error(exc, model, api_base)
@@ -244,6 +283,13 @@ def _loads_lenient(content: str) -> dict:
 
 def _parse(content: str) -> list[Person]:
     return NameResponse.model_validate(_loads_lenient(content)).people
+
+
+def _finish_reason(choice: object) -> str | None:
+    """The provider's finish_reason for a completion choice (dict or object)."""
+    if isinstance(choice, dict):
+        return choice.get("finish_reason")
+    return getattr(choice, "finish_reason", None)
 
 
 def _is_rate_limit(exc: Exception) -> bool:
@@ -301,7 +347,8 @@ def usage_from_response(response: object) -> Usage | None:
 
 
 def _complete(kwargs: dict, *, max_retries: int = 2,
-              rate_limit_retries: int = _RATE_LIMIT_RETRIES) -> tuple[str, Usage | None]:
+              rate_limit_retries: int = _RATE_LIMIT_RETRIES,
+              detect_truncation: bool = True) -> tuple[str, Usage | None]:
     """Call the model, retrying on transient errors.
 
     Rate limits (429) get their own generous budget: we wait the server's
@@ -316,8 +363,23 @@ def _complete(kwargs: dict, *, max_retries: int = 2,
     while True:
         try:
             response = litellm.completion(**kwargs)
-            content = response["choices"][0]["message"]["content"]
-            return content, usage_from_response(response)
+            choice = response["choices"][0]
+            content = choice["message"]["content"]
+            usage = usage_from_response(response)
+            # A length-capped response is incomplete JSON. Surface it as a typed
+            # error so the caller can break the loop (retry hotter) rather than
+            # feed truncated text to the parser. ``detect_truncation`` (not the
+            # mere presence of max_tokens) gates this: the extraction guardrail
+            # sets max_tokens AND wants detection, while the check_model preflight
+            # sets max_tokens=1 and opts out, since hitting it is expected there.
+            if detect_truncation \
+                    and _finish_reason(choice) in _TRUNCATION_FINISH_REASONS:
+                raise TruncatedResponseError(
+                    f"{_TRUNCATION_MARKER} (finish_reason={_finish_reason(choice)})",
+                    usage=usage)
+            return content, usage
+        except TruncatedResponseError:
+            raise  # deterministic; retrying as a transport blip would just re-burn
         except Exception as exc:  # transport / API error
             param = _offending_param(exc)
             if param and param in kwargs:
@@ -343,21 +405,34 @@ def _complete(kwargs: dict, *, max_retries: int = 2,
 
 
 def find_people(chunk_text: str, model: str, api_base: str | None = None,
+                *, max_output_tokens: int | None = None,
                 ) -> tuple[list[Person], Usage | None]:
     """Call the LLM and return (validated people, token usage) for one chunk.
 
-    Reprompts once on malformed JSON; retries with backoff on transport errors.
-    When a reprompt is needed its tokens are billed too, so the returned usage
-    sums both calls.
+    Retries once on a bad response, always billing the failed attempt too:
+    - truncation (output cut off at the token cap): re-issue the original request
+      at a higher temperature to break the greedy-decoding repetition loop. The
+      truncated text is NOT echoed back -- it can be enormous and would re-prime
+      the loop. If the retry still truncates (a genuinely huge page, not a loop),
+      the error propagates so the page is left for a later/smaller-chunk run.
+    - malformed-but-complete JSON: reprompt with a correction, also hotter.
+    Transport errors get backoff inside ``_complete``.
     """
     messages = build_messages(chunk_text)
     kwargs: dict = {"model": model, "messages": messages, "temperature": 0}
     if api_base:
         kwargs["api_base"] = api_base
+    if max_output_tokens:
+        # Output guardrail: a runaway repetition loop hits this instead of the
+        # model's full ceiling, so it fails cheap and as a detectable truncation.
+        kwargs["max_tokens"] = max_output_tokens
 
-    content, usage = _complete(kwargs)
     try:
+        content, usage = _complete(kwargs)
         return _parse(content), usage
+    except TruncatedResponseError as exc:
+        content, retry_usage = _complete({**kwargs, "temperature": _RETRY_TEMPERATURE})
+        return _parse(content), sum_usage([exc.usage, retry_usage])
     except (json.JSONDecodeError, ValidationError):
         repair = messages + [
             {"role": "assistant", "content": content},
@@ -365,5 +440,6 @@ def find_people(chunk_text: str, model: str, api_base: str | None = None,
                 "That was not valid JSON in the required schema. Respond again "
                 "with ONLY the JSON object, no prose."},
         ]
-        content, repair_usage = _complete({**kwargs, "messages": repair})
+        content, repair_usage = _complete(
+            {**kwargs, "messages": repair, "temperature": _RETRY_TEMPERATURE})
         return _parse(content), sum_usage([usage, repair_usage])

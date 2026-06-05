@@ -152,6 +152,7 @@ def extract(
     chunk_size: int = 64000,
     overlap: int = 512,
     workers: int = 1,
+    max_output_tokens: int = 12000,
     find: FindFn | None = None,
     force: bool = False,
     scope_pages: set[tuple[str, str]] | None = None,
@@ -163,7 +164,12 @@ def extract(
     when given, limits work to those (root_id, page_key) pairs. A page whose
     extraction fails is left without a sidecar so a later run retries it.
     """
-    find = find or llm_module.find_people
+    # Bind the output-token guardrail into the real find_people. Injected test
+    # seams keep the plain 3-arg FindFn shape and ignore the cap (no LLM call).
+    if find is None:
+        def find(text: str, model: str, api_base: str | None = None):
+            return llm_module.find_people(
+                text, model, api_base, max_output_tokens=max_output_tokens)
     archive = Path(archive)
     stats = NamesStats()
 

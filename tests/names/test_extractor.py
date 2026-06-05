@@ -27,6 +27,23 @@ def _fake_find_factory(mapping):
     return find
 
 
+def test_extract_forwards_max_output_tokens_to_production_find(tmp_path, monkeypatch):
+    # When no find seam is injected (production), extract must bind the configured
+    # output cap into the real find_people so the guardrail actually reaches the
+    # provider. Tests still inject their own 3-arg find and are unaffected.
+    from vtextract.names import llm as llm_module
+    seen = {}
+
+    def fake_find_people(chunk_text, model, api_base=None, *, max_output_tokens=None):
+        seen["max_output_tokens"] = max_output_tokens
+        return [], Usage(input=1, output=1)
+
+    monkeypatch.setattr(llm_module, "find_people", fake_find_people)
+    archive = _make_archive(tmp_path)
+    extract(archive, model="m", max_output_tokens=9000, show_progress=False)
+    assert seen["max_output_tokens"] == 9000
+
+
 def test_page_transcriptions_lists_pages(tmp_path):
     archive = _make_archive(tmp_path)
     found = {(r, k) for r, k, _ in page_transcriptions(archive)}

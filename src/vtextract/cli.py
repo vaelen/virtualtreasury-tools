@@ -596,6 +596,7 @@ def _run_names(argv: list[str]) -> int:
     stats = names_extractor.extract(
         archive, model=model, api_base=config.names.api_base,
         chunk_size=config.names.chunk_size, overlap=config.names.overlap,
+        max_output_tokens=config.names.max_output_tokens,
         workers=workers, find=_make_find(), force=args.force,
         scope_pages=scope_pages,
     )

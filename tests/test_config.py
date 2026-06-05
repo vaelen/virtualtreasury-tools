@@ -128,6 +128,7 @@ def test_names_defaults_when_absent(tmp_path):
     assert cfg.names.api_base is None
     assert cfg.names.chunk_size == 64000
     assert cfg.names.workers == 1
+    assert cfg.names.max_output_tokens == 12000
 
 
 def test_names_section_parsed(tmp_path):
@@ -139,9 +140,11 @@ def test_names_section_parsed(tmp_path):
         'api_base = "http://localhost:11434"\n'
         'chunk_size = 8000\n'
         'workers = 4\n'
+        'max_output_tokens = 20000\n'
     )
     cfg = load_config(p)
     assert cfg.names.model == "anthropic/claude-haiku-4-5"
     assert cfg.names.api_base == "http://localhost:11434"
     assert cfg.names.chunk_size == 8000
     assert cfg.names.workers == 4
+    assert cfg.names.max_output_tokens == 20000

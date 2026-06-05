@@ -75,6 +75,143 @@ def test_find_people_reprompts_on_bad_json_and_sums_usage(monkeypatch):
     assert usage == Usage(input=220, output=7)
 
 
+def test_complete_raises_truncated_error_with_usage(monkeypatch):
+    # finish_reason == "length" means the provider cut the output off at its
+    # token cap; the JSON is incomplete. _complete must surface this as a typed
+    # error (not hand the broken JSON downstream) and carry the attempt's usage
+    # so the caller can still bill the wasted tokens.
+    monkeypatch.setattr(llm.litellm, "completion", lambda **kw: {
+        "choices": [{"finish_reason": "length",
+                     "message": {"content": '{"people": [{"canonical": "A"'}}],
+        "usage": {"prompt_tokens": 5, "completion_tokens": 8000}})
+    with pytest.raises(llm.TruncatedResponseError) as ei:
+        llm._complete({"model": "m", "messages": []})
+    assert ei.value.usage == Usage(input=5, output=8000)
+
+
+def test_complete_truncation_is_not_retried(monkeypatch):
+    # A length-capped response is deterministic; retrying it as a transport blip
+    # would just burn another huge call. It must raise on the first occurrence.
+    calls = []
+    monkeypatch.setattr(llm.time, "sleep", lambda s: None)
+
+    def fake_completion(**kwargs):
+        calls.append(1)
+        return {"choices": [{"finish_reason": "length",
+                             "message": {"content": "{"}}]}
+
+    monkeypatch.setattr(llm.litellm, "completion", fake_completion)
+    with pytest.raises(llm.TruncatedResponseError):
+        llm._complete({"model": "m", "messages": []})
+    assert len(calls) == 1  # not retried
+
+
+def test_complete_truncation_detection_can_be_disabled(monkeypatch):
+    # The check_model preflight sends max_tokens=1, so finish_reason is always
+    # "length"; hitting a deliberate tiny cap is not a failure. detect_truncation
+    # is what controls this -- NOT the mere presence of max_tokens, because the
+    # extraction guardrail also sets max_tokens yet hitting it IS a loop.
+    monkeypatch.setattr(llm.litellm, "completion", lambda **kw: {
+        "choices": [{"finish_reason": "length", "message": {"content": "x"}}]})
+    content, _usage = llm._complete(
+        {"model": "m", "messages": [], "max_tokens": 1}, detect_truncation=False)
+    assert content == "x"
+
+
+def test_complete_detects_truncation_even_with_max_tokens_guardrail(monkeypatch):
+    # Hitting an extraction guardrail (max_tokens=12000) still means the output
+    # was cut off -- it must be flagged, not silently parsed.
+    monkeypatch.setattr(llm.litellm, "completion", lambda **kw: {
+        "choices": [{"finish_reason": "length", "message": {"content": "{"}}],
+        "usage": {"prompt_tokens": 5, "completion_tokens": 12000}})
+    with pytest.raises(llm.TruncatedResponseError):
+        llm._complete({"model": "m", "messages": [], "max_tokens": 12000})
+
+
+def test_check_model_does_not_flag_truncation_as_failure(monkeypatch):
+    # Preflight caps output at 1 token -> finish_reason "length" always. This must
+    # not be reported as a model failure (it would reject every working model).
+    monkeypatch.setattr(llm.litellm, "completion", lambda **kw: {
+        "choices": [{"finish_reason": "length", "message": {"content": "p"}}]})
+    assert llm.check_model("gemini/gemini-2.5-flash-lite") is None
+
+
+def test_find_people_forwards_max_output_tokens_as_cap(monkeypatch):
+    seen = []
+
+    def fake_complete(kwargs, **_):
+        seen.append(kwargs.get("max_tokens"))
+        return json.dumps({"people": []}), Usage(input=5, output=3)
+
+    monkeypatch.setattr(llm, "_complete", fake_complete)
+    llm.find_people("text", model="m", max_output_tokens=12000)
+    assert seen == [12000]  # the output cap is sent to the provider
+
+
+def test_find_people_caps_both_pass_and_retry_on_truncation(monkeypatch):
+    seen = []
+
+    def fake_complete(kwargs, **_):
+        seen.append(kwargs.get("max_tokens"))
+        if len(seen) == 1:
+            raise llm.TruncatedResponseError("response truncated",
+                                             usage=Usage(input=5, output=12000))
+        return json.dumps({"people": []}), Usage(input=5, output=3)
+
+    monkeypatch.setattr(llm, "_complete", fake_complete)
+    llm.find_people("repetitive", model="m", max_output_tokens=12000)
+    assert seen == [12000, 12000]  # cap applied on the loop-breaking retry too
+
+
+def test_find_people_retries_at_higher_temperature_on_truncation(monkeypatch):
+    # The real cause of the will-index failures: temperature=0 greedy decoding
+    # loops on repetitive text until the output cap. The retry must bump the
+    # temperature to break the loop, and must bill the truncated attempt too.
+    calls = []
+
+    def fake_complete(kwargs, **_):
+        calls.append(kwargs.get("temperature"))
+        if len(calls) == 1:
+            raise llm.TruncatedResponseError(
+                "response truncated", usage=Usage(input=5, output=8000))
+        return json.dumps({"people": []}), Usage(input=5, output=3)
+
+    monkeypatch.setattr(llm, "_complete", fake_complete)
+    people, usage = llm.find_people("repetitive", model="gemini/gemini-2.5-flash-lite")
+    assert people == []
+    assert calls[0] == 0           # first pass stays deterministic
+    assert calls[1] and calls[1] > 0  # retry escapes greedy decoding
+    assert usage == Usage(input=10, output=8003)  # both attempts billed
+
+
+def test_find_people_propagates_when_retry_also_truncates(monkeypatch):
+    # A genuinely huge page (not a loop) truncates even at higher temperature;
+    # the truncation error must surface so the page is left for a later run /
+    # smaller chunk size -- not silently mis-parsed.
+    def fake_complete(kwargs, **_):
+        raise llm.TruncatedResponseError(
+            "response truncated", usage=Usage(input=5, output=8000))
+
+    monkeypatch.setattr(llm, "_complete", fake_complete)
+    with pytest.raises(llm.TruncatedResponseError):
+        llm.find_people("x", model="m")
+
+
+def test_friendly_error_truncation_is_clear_even_when_wrapped():
+    direct = llm.friendly_error(
+        llm.TruncatedResponseError("response truncated at output-token limit"),
+        "gemini/gemini-2.5-flash-lite", None)
+    assert "output-token" in direct.lower()
+    assert "truncat" in direct.lower() or "cut off" in direct.lower()
+    # the extractor wraps the cause in a RuntimeError; the message must still be
+    # classified as a truncation (via its stable marker), not the generic branch.
+    wrapped = RuntimeError(
+        "chunk 1/1 failed for x.jpg.txt: response truncated at output-token "
+        "limit (finish_reason=length)")
+    msg = llm.friendly_error(wrapped, "gemini/gemini-2.5-flash-lite", None)
+    assert "truncat" in msg.lower() or "cut off" in msg.lower()
+
+
 def test_usage_from_response_reads_prompt_completion_cached():
     response = {"choices": [{"message": {"content": "{}"}}],
                 "usage": {"prompt_tokens": 1144, "completion_tokens": 304,

@@ -27,6 +27,12 @@ class NamesConfig:
     overlap: int = 512
     workers: int = 1
     confidence: str | None = None
+    # Per-call output-token guardrail. A repetition loop on dense, repetitive text
+    # otherwise runs to the model's full output ceiling (e.g. 65,536 for Gemini
+    # flash-lite); capping it bounds the wasted spend and turns the loop into a
+    # detectable truncation. 12,000 sits well above the observed p99 of real
+    # extractions (~7,500), so legitimate pages are unaffected.
+    max_output_tokens: int = 12000
 
 
 def default_config_path() -> Path:
@@ -95,6 +101,7 @@ def load_config(path: Path | None = None) -> Config:
             overlap=int(names.get("overlap", 512)),
             workers=int(names.get("workers", 1)),
             confidence=names.get("confidence"),
+            max_output_tokens=int(names.get("max_output_tokens", 12000)),
         ),
     )
 
