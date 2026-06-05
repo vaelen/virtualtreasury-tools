@@ -219,6 +219,20 @@ def test_friendly_error_truncation_is_clear_even_when_wrapped():
     assert "truncat" in msg.lower() or "cut off" in msg.lower()
 
 
+def test_friendly_error_wrapped_validation_error_is_bad_json_message():
+    # A pydantic ValidationError, wrapped by the extractor in a RuntimeError, is
+    # a bad-JSON failure. isinstance no longer matches through the wrapper, so
+    # the message must still resolve to the friendly "valid JSON" branch (its str
+    # carries "validation error"), not the generic LLM-error tail.
+    try:
+        NameResponse.model_validate({"people": "not-a-list"})
+        raise AssertionError("expected ValidationError")
+    except ValidationError as vexc:
+        wrapped = RuntimeError(f"chunk 1/1 failed for x.jpg.txt: {vexc}")
+    msg = llm.friendly_error(wrapped, "openai/gpt-4o-mini", None)
+    assert "valid json" in msg.lower()
+
+
 def test_usage_from_response_reads_prompt_completion_cached():
     response = {"choices": [{"message": {"content": "{}"}}],
                 "usage": {"prompt_tokens": 1144, "completion_tokens": 304,

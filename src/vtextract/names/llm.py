@@ -175,7 +175,8 @@ def friendly_error(exc: Exception, model: str, api_base: str | None) -> str:
                 f"cut off mid-JSON (typically a repetition loop on dense, "
                 f"repetitive text such as a name index), even after retrying at a "
                 f"higher temperature. Try a smaller chunk_size or a different model.")
-    if isinstance(exc, (json.JSONDecodeError, ValidationError)) or "expecting value" in text:
+    if (isinstance(exc, (json.JSONDecodeError, ValidationError))
+            or "expecting value" in text or "validation error" in text):
         return (f"Model '{model}' did not return valid JSON in the required "
                 f"format, even after a retry. Try a different model.")
     if _is_rate_limit(exc):
