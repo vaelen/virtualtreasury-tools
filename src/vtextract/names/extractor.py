@@ -8,6 +8,7 @@ import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -18,6 +19,7 @@ from vtextract.names import llm as llm_module
 from vtextract.names.chunking import chunk_text
 from vtextract.names.merge import merge_people
 from vtextract.names.models import (
+    ERROR_SIDECAR_SCHEMA,
     SIDECAR_SCHEMA,
     NamesStats,
     Person,
@@ -32,6 +34,7 @@ FindFn = Callable[[str, str, "str | None"], "list[Person]"]
 
 _TXT_SUFFIX = ".txt"
 _SIDECAR_SUFFIX = ".names.json"
+_ERROR_SUFFIX = ".names.error.json"
 
 
 def page_transcriptions(archive: Path) -> list[tuple[str, str, Path]]:
@@ -93,6 +96,45 @@ def _write_sidecar_atomic(path: Path, model: str, people: list[Person],
         data["elapsed_ms"] = elapsed_ms
     if usage is not None:  # omit when untracked, so it's never confused with 0
         data["usage"] = usage.to_dict()
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2))
+    os.replace(tmp, path)
+
+
+def error_sidecar_for(txt_path: Path) -> Path:
+    """Map <page_key>.txt -> <page_key>.names.error.json (same directory)."""
+    txt_path = Path(txt_path)
+    return txt_path.with_name(txt_path.name[: -len(_TXT_SUFFIX)] + _ERROR_SUFFIX)
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _write_error_sidecar(txt_path: Path, *, model: str, error_class: str,
+                         finish_reason: str | None, message: str) -> None:
+    """Write/refresh the persistent-failure sidecar for a page.
+
+    Read-modify-write of ``attempts`` (prior count + 1). Per-page file, so this
+    is safe under --workers. Atomic via temp-then-os.replace, like the success
+    sidecar.
+    """
+    path = error_sidecar_for(txt_path)
+    prior = 0
+    if path.exists():
+        try:
+            prior = int(json.loads(path.read_text()).get("attempts", 0))
+        except (OSError, ValueError):
+            prior = 0
+    data = {
+        "schema": ERROR_SIDECAR_SCHEMA,
+        "model": model,
+        "error_class": error_class,
+        "finish_reason": finish_reason,
+        "attempts": prior + 1,
+        "last_attempt": _utc_now_iso(),
+        "message": message,
+    }
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(json.dumps(data, indent=2))
     os.replace(tmp, path)

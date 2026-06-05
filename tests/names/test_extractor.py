@@ -174,3 +174,30 @@ def test_extract_scope_limits_pages(tmp_path):
     assert stats.extracted == 1
     assert (archive / "pages" / "100" / "a.jpg.names.json").exists()
     assert not (archive / "pages" / "100" / "b.jpg.names.json").exists()
+
+
+def test_error_sidecar_for_replaces_suffix(tmp_path):
+    from vtextract.names.extractor import error_sidecar_for
+    txt = tmp_path / "x.jpg.txt"
+    assert error_sidecar_for(txt).name == "x.jpg.names.error.json"
+
+
+def test_write_error_sidecar_increments_attempts(tmp_path):
+    from vtextract.names.extractor import error_sidecar_for, _write_error_sidecar
+    txt = tmp_path / "x.jpg.txt"
+    txt.write_text("body")
+    _write_error_sidecar(txt, model="m", error_class="truncated",
+                         finish_reason="length", message="cut off")
+    data = json.loads(error_sidecar_for(txt).read_text())
+    assert data["schema"] == 1
+    assert data["model"] == "m"
+    assert data["error_class"] == "truncated"
+    assert data["finish_reason"] == "length"
+    assert data["attempts"] == 1
+    assert data["message"] == "cut off"
+    assert data["last_attempt"].endswith("Z")
+    # second write for the same page bumps the counter
+    _write_error_sidecar(txt, model="m", error_class="truncated",
+                         finish_reason="length", message="cut off again")
+    data2 = json.loads(error_sidecar_for(txt).read_text())
+    assert data2["attempts"] == 2
