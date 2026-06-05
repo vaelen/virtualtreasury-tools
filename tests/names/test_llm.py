@@ -2,7 +2,6 @@
 # All rights reserved
 
 import json
-import json as _json
 
 import httpx
 import litellm
@@ -476,7 +475,7 @@ def test_error_class_truncated_direct_and_wrapped():
 
 
 def test_error_class_bad_json_direct_and_wrapped():
-    jexc = _json.JSONDecodeError("Expecting value", "", 0)
+    jexc = json.JSONDecodeError("Expecting value", "", 0)
     assert error_class(jexc) == "bad_json"
     assert error_class(_wrap(jexc)) == "bad_json"
     try:
