@@ -106,8 +106,33 @@ def _strip_unsupported(kwargs: dict) -> dict:
     return kwargs
 
 
+def _provider_detail(exc: Exception) -> str:
+    """The provider's own first line of explanation, trimmed for display.
+
+    The category friendly_error picks is a heuristic over the exception text, so
+    a misclassification can hide the true cause (e.g. a daily-quota cap looks
+    like a generic rate limit; a 403 billing error looks like a bad key).
+    Surfacing the provider's own words means the truth is never fully hidden.
+    We keep only the first line -- litellm folds a full traceback into
+    ``str(exc)`` -- and cap the length so a stray stack dump can't flood output.
+    """
+    lines = str(exc).strip().splitlines()
+    first = lines[0].strip() if lines else exc.__class__.__name__
+    return first[:300]
+
+
+def _with_detail(label: str, exc: Exception) -> str:
+    return f"{label} (provider said: {_provider_detail(exc)})"
+
+
 def friendly_error(exc: Exception, model: str, api_base: str | None) -> str:
-    """Translate a litellm/transport exception into an actionable message."""
+    """Translate a litellm/transport exception into an actionable message.
+
+    Every classified branch keeps the provider's own first line appended (via
+    ``_with_detail``) so a wrong guess never erases the real cause -- the JSON
+    branch is the exception, since there the provider returned a 200 and the
+    "detail" would just be our own parser's complaint.
+    """
     text = str(exc).lower()
     is_ollama = model.startswith("ollama/")
     bare = model.split("/", 1)[1] if "/" in model else model
@@ -116,15 +141,18 @@ def friendly_error(exc: Exception, model: str, api_base: str | None) -> str:
         return (f"Model '{model}' did not return valid JSON in the required "
                 f"format, even after a retry. Try a different model.")
     if _is_rate_limit(exc):
-        return (f"Hit the provider's rate limit for model '{model}', even after "
-                f"backing off and retrying. Slow down (fewer --workers) or wait "
-                f"and re-run; the page is left unwritten so it retries next run.")
+        return _with_detail(
+            f"Hit the provider's rate limit for model '{model}', even after "
+            f"backing off and retrying. Slow down (fewer --workers) or wait "
+            f"and re-run; the page is left unwritten so it retries next run.", exc)
     if any(h in text for h in _NOT_FOUND_HINTS):
         if is_ollama:
-            return (f"Model '{model}' is not available locally. "
-                    f"Pull it first: `ollama pull {bare}`.")
-        return (f"Model '{model}' was not found. Check the model name "
-                f"(LiteLLM uses the provider/model form).")
+            return _with_detail(
+                f"Model '{model}' is not available locally. "
+                f"Pull it first: `ollama pull {bare}`.", exc)
+        return _with_detail(
+            f"Model '{model}' was not found. Check the model name "
+            f"(LiteLLM uses the provider/model form).", exc)
     # Auth before connection: LiteLLM wraps a missing/invalid key in
     # APIConnectionError, whose class name contains "connection" and would
     # otherwise be misreported as a network failure. A real key complaint always
@@ -135,16 +163,19 @@ def friendly_error(exc: Exception, model: str, api_base: str | None) -> str:
                     "gemini": "GEMINI_API_KEY", "google": "GEMINI_API_KEY",
                     "mistral": "MISTRAL_API_KEY"}.get(
             provider, "the provider's API key environment variable")
-        return (f"Authentication failed for model '{model}'. "
-                f"Set the API key in your environment (e.g. {key_hint}).")
+        return _with_detail(
+            f"Authentication failed for model '{model}'. "
+            f"Set the API key in your environment (e.g. {key_hint}).", exc)
     if any(h in text for h in _CONNECTION_HINTS):
         where = f" at {api_base}" if api_base else ""
         if is_ollama:
-            return (f"Could not reach the Ollama server{where} for model "
-                    f"'{model}'. Is it running? Start it with `ollama serve`.")
-        return (f"Could not reach the LLM provider{where} for model '{model}'. "
-                f"Check your network connection and any api_base setting.")
-    return f"LLM error for model '{model}': {exc}"
+            return _with_detail(
+                f"Could not reach the Ollama server{where} for model "
+                f"'{model}'. Is it running? Start it with `ollama serve`.", exc)
+        return _with_detail(
+            f"Could not reach the LLM provider{where} for model '{model}'. "
+            f"Check your network connection and any api_base setting.", exc)
+    return f"LLM error for model '{model}': {_provider_detail(exc)}"
 
 
 def check_model(model: str, api_base: str | None = None) -> str | None:

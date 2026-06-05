@@ -258,6 +258,29 @@ def test_friendly_error_rate_limit():
     assert "rate limit" in msg.lower()
 
 
+def test_friendly_error_surfaces_provider_detail_for_quota():
+    # A daily-quota cap arrives as a 429 (classified as a rate limit), but the
+    # generic "slow down" advice hides WHICH limit was hit. The provider's own
+    # words must survive into the message so the true cause is visible.
+    exc = litellm.RateLimitError(
+        message="RESOURCE_EXHAUSTED: Quota exceeded for quota metric "
+                "'generate_content_free_tier_requests' per day, limit 50",
+        llm_provider="gemini", model="gemini-2.5-flash-lite", response=None)
+    msg = llm.friendly_error(exc, "gemini/gemini-2.5-flash-lite", None)
+    assert "rate limit" in msg.lower()
+    assert "per day" in msg            # the real cause is no longer hidden
+    assert "Quota exceeded" in msg
+
+
+def test_friendly_error_detail_trims_traceback_to_first_line():
+    exc = RuntimeError(
+        "Connection refused by host\n"
+        "Traceback (most recent call last):\n  File \"x.py\", line 1")
+    msg = llm.friendly_error(exc, "openai/gpt-4o-mini", None)
+    assert "Connection refused by host" in msg   # raw cause surfaced
+    assert "Traceback" not in msg                # but no stack dump leaks
+
+
 def test_unload_noop_for_non_ollama(monkeypatch):
     calls = []
     monkeypatch.setattr(llm.httpx, "post", lambda *a, **k: calls.append((a, k)))
