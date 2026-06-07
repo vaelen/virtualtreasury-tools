@@ -15,7 +15,10 @@ pages drove **repetition loops**, **output-token blow-ups**, and
 time ~83% of the archive was processed we had spent roughly **$90–100 (~15,000
 JPY)** — several times the naive projection. This document records what went
 wrong, the safeguards we added along the way, the post-hoc root-cause analysis,
-and the schema change that addresses the dominant remaining cost.
+and the fixes — a compact output schema and adaptive chunking — that addressed
+it. **Outcome (§12): per-page cost fell 53% and output tokens 63%, 92.6% of the
+parked errors recovered with zero regressions, and the archive is now 99.88%
+successfully extracted.**
 
 ## 1. Goal
 
@@ -285,7 +288,58 @@ the wasted output when one still occurs — and combined with the existing
 cheap. The gate (`select_chunk_size` in `names/chunking.py`) is configurable per
 archive and `dense_threshold = 0` disables it.
 
-## 12. Lessons
+## 12. Did it work? — measured results
+
+After landing the compact schema, the recitation/empty-response fix, and adaptive
+chunking, we re-ran extraction: the 1,551 parked-error pages and the ~28,000
+not-yet-run pages were processed under the new code, while the 144,920 already-
+successful pages kept their old sidecars (the migration only rewrote the JSON
+shape, it did not re-call the model). Comparing a fresh status snapshot against
+the pre-change baseline:
+
+| Status | Before | After |
+|---|--:|--:|
+| Successful | 144,920 | **174,279 (99.88%)** |
+| Errored | 1,551 | **215** |
+| Not-run | 28,023 | 0 |
+
+- **Old errors recovered: 1,436 / 1,551 = 92.6%** (errored → successful).
+- **Regressed: 0** — nothing that previously worked broke.
+- **Newly-run pages: 27,923 / 28,023 = 99.6% succeeded.**
+- **Total errors down 86%** (1,551 → 215).
+
+The 215 that remain are content-hard, not a code defect, and split by the right
+remedy (a different model, not more chunking): **158 `truncated`** (extreme
+dense/garbled loopers that loop even at 3,000-char chunks), **50 `empty`**
+(Gemini recitation/safety blocks on dense name indexes — only *visible* now
+because of the `EmptyResponseError` fix), and **7 `bad_json`**.
+
+### Cost effect (new-code pages only)
+
+Because the old sidecars retain their original token counts, we can compare the
+29,359 pages processed under the new code against the 144,920 old-code pages
+directly from the recorded `usage`:
+
+| | OLD code (verbose, no chunking) | NEW code (compact + chunking) |
+|---|--:|--:|
+| Pages | 144,920 | 29,359 |
+| Output tokens/page | 893 | **329  (−63%)** |
+| Input tokens/page | 1,977 | 1,319  (−33%) |
+| **Cost/page** | $0.000555 | **$0.000264  (−53%)** |
+
+The new run cost **$7.74** for 29,359 pages; the same page count at the old
+per-page rate would have been ~$16.3. Extrapolated to the whole 174k-page
+archive, the new rate is **~$46 vs ~$97** at the old rate — roughly half.
+
+Caveats: OLD and NEW are different page populations (NEW is the leftover pages
+plus the formerly-hardest loopers), so this is not a perfectly controlled A/B —
+but the **63% output reduction is the intended, robust effect** of the compact
+schema (no per-name confidence scaffolding) plus loop elimination (no runaway
+generations). The new run also had only 215 errors vs the old run's far larger
+volume of truncation events, so the uncounted error-page waste (§7, driver 5)
+shrank too — a further saving not captured in the per-page figures above.
+
+## 13. Lessons
 
 - **Benchmark on a size- and shape-representative sample, not just a
   quality-diverse one.** The cost-driving failure modes (loops, truncation,
@@ -331,4 +385,11 @@ archive and `dense_threshold = 0` disables it.
 - Adaptive chunking: `dense_threshold = 5,000` chars → `dense_chunk_size = 3,000`
   (configurable; 0 disables). Best loop predictors: `chars` and capitalized-word
   count, no clean separation from normal pages.
-- Estimated total spend at 83% processed: ~$90–100 (~15,000 JPY).
+- Estimated total spend at 83% processed (old code): ~$90–100 (~15,000 JPY).
+- Outcome after the fixes: 174,279/174,494 successful (99.88%); errors
+  1,551 → 215 (−86%); 92.6% of old errors recovered; 0 regressions.
+- New-code cost: 329 out / 1,319 in tokens per page; $0.000264/page (−53% vs the
+  old $0.000555). New run = $7.74 for 29,359 pages. Full archive ~$46 (new) vs
+  ~$97 (old).
+- Remaining 215 errors: 158 `truncated`, 50 `empty` (recitation), 7 `bad_json` —
+  content-hard, best retried on a non-Gemini model.
