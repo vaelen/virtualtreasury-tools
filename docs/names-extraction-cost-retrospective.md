@@ -218,11 +218,74 @@ filter were removed; `SCHEMA_VERSION` bumped to force a rebuild), and
 `vtnamebench`. A one-time `scripts/migrate_sidecars.py` converts existing v1
 sidecars in place (atomic, idempotent, lossy only in dropping confidence).
 
-The remaining lever, not yet taken, is **pre-screening oversized/dense pages**
-(route them to a smaller `chunk_size` or park them) so a single looping page
-can't cost 50–100× a normal one.
+The other lever — **pre-screening oversized/dense pages so a single looping page
+can't cost 50–100× a normal one** — is covered in §11.
 
-## 10. Lessons
+## 10. How effective was the temperature-0.5 retry?
+
+The truncation retry (§5.3) is a *recovery* mechanism: when a page truncates, it
+re-issues once at temperature 0.5 to break the greedy-decoding loop. We can
+measure how often that worked, because every page is a single chunk (max page
+45,065 chars, well under the 64,000-char `chunk_size`), so a *successful* page
+can only reach `out ≥ 12,000` if a first attempt truncated at the cap (~12,000
+billed) and the retry then succeeded; a page whose retry also truncated was
+parked as a `truncated` error.
+
+| Outcome | Pages |
+|---|--:|
+| Truncated, then rescued by the temp-0.5 retry | **2,605** |
+| Truncated, retry also failed → parked `truncated` | 1,505 |
+| Total truncated at least once | 4,110 |
+| **Retry rescue rate** | **63.4%** |
+
+The rescue signature is unmistakable: **1,387 of the 2,605 recoveries land in the
+12,000–13,999 output band** (the capped failed attempt + a small successful
+retry), tapering smoothly upward; the 19 outliers at 64k–69k are pre-guardrail
+rescues off the model's 65,536 ceiling.
+
+**But recovery is not free.** Each of the 2,605 rescues still paid for the wasted
+~12,000-token first attempt on top of the retry, and the 1,505 failures paid for
+*two* capped attempts and produced nothing. Total truncation overhead across all
+4,110 pages is roughly **65–70M output tokens (~$27)** — pure waste regardless of
+whether the retry eventually won. The retry treats the symptom at premium cost;
+prevention (§11) is where the remaining savings are.
+
+## 11. Can we predict a loop before sending? — adaptive chunking
+
+We mined the loop set (1,505 `truncated` failures + 2,636 success pages with
+≥11k output) against a normal-page sample to see whether a cheap input-text
+feature could flag loop-prone pages *before* the call. Findings:
+
+- **Loop-causers are bimodal.** Most wasted output comes from long, name-dense
+  **registry/index** pages (hundreds of "Surname, Place, Year" entries). But a
+  large minority are **short, garbled OCR** — e.g. 1,145 chars across 246 lines
+  (~4.6 chars/line) of fragments like `"ansito Pers,"`, `"which are an-"`. Both
+  share the property that the model can't cleanly enumerate people, so greedy
+  decoding runs away.
+- **No input feature cleanly separates them.** Page size and capitalized-word
+  count (name density) are the best single signals but overlap the normal
+  distribution; ~50% of loop pages (the garbled-OCR kind) are small-to-mid sized.
+
+| Rule (on input text) | catches loop pages | catches wasted output | flags *normal* pages |
+|---|--:|--:|--:|
+| `chars ≥ 5000` | 70% | 72% | 25% |
+| `chars ≥ 8000` | 52% | 56% | 5.5% |
+| `caps ≥ 150` | 78% | 81% | 24% |
+| `chars ≥ 5000 AND caps ≥ 200` | 57% | 60% | 5.3% |
+
+Since a precise classifier doesn't exist, we didn't chase one. The key
+realization: **a false positive is nearly free if the action is "chunk smaller"
+rather than "skip"** — splitting a normal large page into a few extra chunks
+costs a handful of calls and loses no quality. So we added **adaptive chunking**:
+a page over `dense_threshold` chars (default 5,000) is split into
+`dense_chunk_size`-char windows (default 3,000) instead of one big chunk. This
+makes each generation short, which both lowers the loop probability and bounds
+the wasted output when one still occurs — and combined with the existing
+`max_output_tokens` cap it means even an undetected small/garbled looper fails
+cheap. The gate (`select_chunk_size` in `names/chunking.py`) is configurable per
+archive and `dense_threshold = 0` disables it.
+
+## 12. Lessons
 
 - **Benchmark on a size- and shape-representative sample, not just a
   quality-diverse one.** The cost-driving failure modes (loops, truncation,
@@ -239,6 +302,14 @@ can't cost 50–100× a normal one.
 - **Cap the blast radius early.** The `max_output_tokens` guardrail should have
   been in place from the first run; it was the cheapest, highest-leverage
   control and we added it reactively.
+- **Prefer prevention to recovery when recovery is expensive.** The temp-0.5
+  retry rescued 63% of truncations but doubled their cost; smaller chunks attack
+  the loop at the source so fewer pages need rescuing at all. A recovery
+  mechanism that works is still worth replacing if it works expensively.
+- **When no clean classifier exists, make false positives cheap instead.** We
+  couldn't reliably flag loop-prone pages in advance, but by choosing an action
+  (chunk smaller) whose false-positive cost is negligible, an imperfect, blunt
+  gate becomes safe to apply aggressively.
 
 ## Appendix — key numbers
 
@@ -247,6 +318,9 @@ can't cost 50–100× a normal one.
 - Recorded usage (success pages): 286.5M input + 129.4M output tokens;
   `cached: 0`; avg 1,977 in / 893 out per page; max 68,886 output on one page.
 - Loop tail: 2,636 pages (1.82%) = 30.1% of all output tokens.
+- Truncations: 4,110 pages truncated at least once; 2,605 rescued by the
+  temp-0.5 retry (63.4%), 1,505 parked; ~65–70M output tokens (~$27) of
+  truncation overhead.
 - Benchmark corpus: 10 files, avg 2,448 / max 6,582 bytes. Production: avg 3,980
   / max 45,065 bytes.
 - Model: `gemini-2.5-flash-lite`, F1 0.84; published price $0.10/M in,
@@ -254,4 +328,7 @@ can't cost 50–100× a normal one.
 - Guardrail: `max_output_tokens = 12,000`; retry temperature 0.5; truncation
   finish reasons `("length", "max_tokens")`; rate-limit retries 6 (5–60 s
   backoff).
+- Adaptive chunking: `dense_threshold = 5,000` chars → `dense_chunk_size = 3,000`
+  (configurable; 0 disables). Best loop predictors: `chars` and capitalized-word
+  count, no clean separation from normal pages.
 - Estimated total spend at 83% processed: ~$90–100 (~15,000 JPY).
