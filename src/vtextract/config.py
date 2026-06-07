@@ -26,6 +26,12 @@ class NamesConfig:
     chunk_size: int = 64000
     overlap: int = 512
     workers: int = 1
+    # Adaptive chunking: pages longer than dense_threshold chars are split into
+    # dense_chunk_size-char windows instead of one big chunk_size window, to bound
+    # runaway-output loops on dense/garbled pages. Set dense_threshold=0 to
+    # disable.
+    dense_threshold: int = 5000
+    dense_chunk_size: int = 3000
     # Per-call output-token guardrail. A repetition loop on dense, repetitive text
     # otherwise runs to the model's full output ceiling (e.g. 65,536 for Gemini
     # flash-lite); capping it bounds the wasted spend and turns the loop into a
@@ -99,6 +105,8 @@ def load_config(path: Path | None = None) -> Config:
             chunk_size=int(names.get("chunk_size", 64000)),
             overlap=int(names.get("overlap", 512)),
             workers=int(names.get("workers", 1)),
+            dense_threshold=int(names.get("dense_threshold", 5000)),
+            dense_chunk_size=int(names.get("dense_chunk_size", 3000)),
             max_output_tokens=int(names.get("max_output_tokens", 12000)),
         ),
     )

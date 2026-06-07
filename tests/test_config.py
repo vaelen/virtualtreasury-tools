@@ -129,6 +129,8 @@ def test_names_defaults_when_absent(tmp_path):
     assert cfg.names.chunk_size == 64000
     assert cfg.names.workers == 1
     assert cfg.names.max_output_tokens == 12000
+    assert cfg.names.dense_threshold == 5000
+    assert cfg.names.dense_chunk_size == 3000
 
 
 def test_names_section_parsed(tmp_path):
@@ -141,6 +143,8 @@ def test_names_section_parsed(tmp_path):
         'chunk_size = 8000\n'
         'workers = 4\n'
         'max_output_tokens = 20000\n'
+        'dense_threshold = 4000\n'
+        'dense_chunk_size = 2500\n'
     )
     cfg = load_config(p)
     assert cfg.names.model == "anthropic/claude-haiku-4-5"
@@ -148,3 +152,5 @@ def test_names_section_parsed(tmp_path):
     assert cfg.names.chunk_size == 8000
     assert cfg.names.workers == 4
     assert cfg.names.max_output_tokens == 20000
+    assert cfg.names.dense_threshold == 4000
+    assert cfg.names.dense_chunk_size == 2500

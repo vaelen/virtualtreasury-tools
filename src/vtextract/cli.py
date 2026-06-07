@@ -627,6 +627,8 @@ def _run_names(argv: list[str]) -> int:
     stats = names_extractor.extract(
         archive, model=model, api_base=config.names.api_base,
         chunk_size=config.names.chunk_size, overlap=config.names.overlap,
+        dense_threshold=config.names.dense_threshold,
+        dense_chunk_size=config.names.dense_chunk_size,
         max_output_tokens=config.names.max_output_tokens,
         workers=workers, find=_make_find(), force=args.force,
         retry_failed=args.retry_failed,

@@ -44,6 +44,42 @@ def test_extract_forwards_max_output_tokens_to_production_find(tmp_path, monkeyp
     assert seen["max_output_tokens"] == 9000
 
 
+def test_large_page_is_split_into_dense_chunks(tmp_path):
+    # A page over dense_threshold must be chunked at dense_chunk_size, so a dense
+    # page reaches the model as several short generations instead of one long
+    # (loop-prone) one. A small page stays a single chunk.
+    pages = tmp_path / "pages" / "100"
+    pages.mkdir(parents=True)
+    (pages / "big.jpg.txt").write_text("x" * 7000)
+    (pages / "small.jpg.txt").write_text("x" * 3000)
+
+    windows: dict[str, list[int]] = {}
+
+    def find(chunk_text, model, api_base=None):
+        windows.setdefault(model, [])
+        windows[model].append(len(chunk_text))
+        return []
+
+    extract(tmp_path, model="m", find=find, show_progress=False,
+            dense_threshold=5000, dense_chunk_size=3000, overlap=0)
+    sizes = sorted(windows["m"])
+    # big (7000) -> 3 chunks of <=3000; small (3000) -> 1 chunk of 3000
+    assert sizes == [1000, 3000, 3000, 3000]
+    assert max(sizes) <= 3000
+
+
+def test_small_pages_stay_single_chunk_by_default(tmp_path):
+    archive = _make_archive(tmp_path)  # tiny pages, well under any threshold
+    calls = []
+
+    def find(chunk_text, model, api_base=None):
+        calls.append(chunk_text)
+        return []
+
+    extract(archive, model="m", find=find, show_progress=False)
+    assert len(calls) == 2  # one call per page, not split
+
+
 def test_page_transcriptions_lists_pages(tmp_path):
     archive = _make_archive(tmp_path)
     found = {(r, k) for r, k, _ in page_transcriptions(archive)}

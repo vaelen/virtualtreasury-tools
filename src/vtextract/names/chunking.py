@@ -4,6 +4,24 @@
 from __future__ import annotations
 
 
+def select_chunk_size(
+    text_len: int, *, chunk_size: int, dense_threshold: int, dense_chunk_size: int
+) -> int:
+    """Pick the chunk size for a page of ``text_len`` characters.
+
+    Long pages — dense name registries and garbled OCR — are what drive the
+    model into runaway-output loops. Splitting them into smaller windows keeps
+    each generation short, which both lowers the loop probability and bounds the
+    wasted output when one does occur. So a page longer than ``dense_threshold``
+    uses the smaller ``dense_chunk_size``; everything else keeps the normal
+    ``chunk_size`` (and stays a single chunk). ``dense_threshold <= 0`` disables
+    the gate.
+    """
+    if dense_threshold > 0 and dense_chunk_size > 0 and text_len > dense_threshold:
+        return dense_chunk_size
+    return chunk_size
+
+
 def chunk_text(text: str, chunk_size: int, overlap: int) -> list[tuple[str, int]]:
     """Split text into overlapping windows.
 

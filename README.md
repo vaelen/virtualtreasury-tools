@@ -295,8 +295,17 @@ api_base   = ""                  # override the model's API base URL (e.g. a loc
 chunk_size = 64000               # transcription chunk size (characters)
 overlap    = 512                 # overlap between chunks
 workers    = 1                   # parallel pages
+dense_threshold   = 5000         # pages longer than this use dense_chunk_size (0 disables)
+dense_chunk_size  = 3000         # smaller chunk size for dense/long pages (loop guardrail)
 max_output_tokens = 12000        # per-call output-token cap (repetition-loop guardrail)
 ```
+
+Long, dense pages (name registries, garbled OCR) are what drive the model into
+runaway-output loops. **Adaptive chunking** bounds that: a page over
+`dense_threshold` characters is split into `dense_chunk_size`-character windows
+instead of one large chunk, so each generation is short — lowering the loop
+probability and capping the wasted output when one still occurs. Normal-sized
+pages are unaffected (a single chunk). Set `dense_threshold = 0` to disable.
 
 `max_output_tokens` bounds the output of each LLM call. Dense, repetitive
 transcriptions (e.g. will indexes) can push a model into a repetition loop that
