@@ -98,11 +98,11 @@ def test_write_sidecar_shape(tmp_path):
     md = model_dir(tmp_path, "m")
     md.mkdir(parents=True)
     people = [Person(canonical="William Young",
-                     aliases=[{"text": "Wm Young", "confidence": "high"}])]
+                     aliases=["Wm Young"])]
     write_sidecar(sidecar_path(md, "1.txt"), "m", people)
     data = json.loads((md / "1.txt.names.json").read_text())
-    assert data["schema"] == 1 and data["model"] == "m"
-    assert data["people"][0]["canonical"] == "William Young"
+    assert data["schema"] == 2 and data["model"] == "m"
+    assert data["people"][0] == ["William Young", "Wm Young"]
     assert "usage" not in data   # no usage passed -> no block
 
 
@@ -131,7 +131,7 @@ def _fake_find_factory(mapping):
 def test_extract_people_merges_chunks():
     find = _fake_find_factory({
         "Wm Young": [Person(canonical="William Young",
-                            aliases=[{"text": "Wm Young", "confidence": "high"}])],
+                            aliases=["Wm Young"])],
     })
     people, usage = extract_people("Wm Young paid the toll.", "m", find=find)
     assert [p.canonical for p in people] == ["William Young"]
@@ -171,7 +171,7 @@ def test_run_model_writes_sidecars_and_times(tmp_path):
     inp = _seed_inputs(tmp_path)
     find = _fake_find_factory({
         "Wm Young": [Person(canonical="William Young",
-                            aliases=[{"text": "Wm Young", "confidence": "high"}])],
+                            aliases=["Wm Young"])],
     })
     run_model(inp, "anthropic/claude-haiku-4-5", find=find, show_progress=False)
     md = model_dir(inp, "anthropic/claude-haiku-4-5")
@@ -301,10 +301,10 @@ def test_normalize_name_strips_titles_and_punctuation():
 
 def test_count_names_counts_persons_and_aliases():
     people = [
-        Person(canonical="William Young", confidence="high",
-               aliases=[{"text": "Wm Young", "confidence": "high"},
-                        {"text": "Young", "confidence": "low"}]),
-        Person(canonical="J. Smith", confidence="medium", aliases=[]),
+        Person(canonical="William Young",
+               aliases=["Wm Young",
+                        "Young"]),
+        Person(canonical="J. Smith", aliases=[]),
     ]
     # 2 persons; 2 aliases (both on William Young, none on J. Smith)
     assert count_names(people) == (2, 2)
@@ -332,10 +332,10 @@ def test_build_report_aggregates_per_model(tmp_path):
     md = model_dir(inp, "m")
     md.mkdir(parents=True)
     write_sidecar(sidecar_path(md, "1.txt"), "m", [
-        Person(canonical="William Young", confidence="high",
-               aliases=[{"text": "Wm Young", "confidence": "high"},
-                        {"text": "Young", "confidence": "low"}]),
-        Person(canonical="J. Smith", confidence="medium", aliases=[])],
+        Person(canonical="William Young",
+               aliases=["Wm Young",
+                        "Young"]),
+        Person(canonical="J. Smith", aliases=[])],
         usage=Usage(input=100, output=20, cached=64))
     write_sidecar(sidecar_path(md, "2.txt"), "m", [],
                   usage=Usage(input=40, output=2, cached=0))   # an "empty" extraction
@@ -402,7 +402,7 @@ def test_build_report_precision_recall_against_consensus(tmp_path):
         md = model_dir(inp, model)
         md.mkdir(parents=True)
         write_sidecar(sidecar_path(md, "1.txt"), model,
-                      [Person(canonical=n, confidence="high", aliases=[])
+                      [Person(canonical=n, aliases=[])
                        for n in names])
 
     # 3 models, majority = 2. Consensus truth = {John Smith, Mary Jones}.
@@ -437,8 +437,8 @@ def test_main_processes_all_models_and_reports(tmp_path, capsys):
         'models = ["anthropic/claude-haiku-4-5", "openai/gpt-4.1"]\n'
     )
     find = _fake_find_factory({
-        "Wm Young": [Person(canonical="William Young", confidence="high",
-                            aliases=[{"text": "Wm Young", "confidence": "high"}])],
+        "Wm Young": [Person(canonical="William Young",
+                            aliases=["Wm Young"])],
     })
     rc = main([str(cfg)], find=find)
     assert rc == 0
@@ -458,7 +458,7 @@ def test_main_reports_unrun_model_with_existing_data(tmp_path, capsys):
     old = model_dir(inp, "openai/gpt-4.1-mini")
     old.mkdir(parents=True)
     write_sidecar(sidecar_path(old, "1.txt"), "openai/gpt-4.1-mini",
-                  [Person(canonical="A B", confidence="low", aliases=[])])
+                  [Person(canonical="A B", aliases=[])])
     write_times(old, {"1.txt": 5.0})
     cfg = tmp_path / "bench.toml"
     cfg.write_text(f'input = "{inp}"\nmodels = ["anthropic/claude-haiku-4-5"]\n')

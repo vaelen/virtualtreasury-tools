@@ -26,9 +26,11 @@ from vtextract.names.chunking import chunk_text
 from vtextract.names.merge import merge_people
 from vtextract.names.models import (
     SIDECAR_SCHEMA,
+    NameResponse,
     Person,
     Usage,
     people_and_usage,
+    person_to_entry,
     sum_usage,
 )
 
@@ -107,7 +109,7 @@ def write_sidecar(path: Path, model: str, people: list[Person],
     payload: dict = {
         "schema": SIDECAR_SCHEMA,
         "model": model,
-        "people": [p.model_dump() for p in people],
+        "people": [person_to_entry(p) for p in people],
     }
     if usage is not None:  # omit when untracked, so it's never read as 0 tokens
         payload["usage"] = usage.to_dict()
@@ -374,7 +376,7 @@ def _read_model_data(input_dir: Path, model: str) -> _ModelData:
         except (OSError, ValueError):
             continue
         data.files += 1
-        people = [Person.model_validate(p) for p in payload.get("people", [])]
+        people = NameResponse.model_validate(payload).people
         p_count, a_count = count_names(people)
         if p_count == 0:
             data.empty_files += 1
