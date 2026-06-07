@@ -4,45 +4,63 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Literal
+from typing import Iterable
 
-from pydantic import BaseModel
-
-Confidence = Literal["low", "medium", "high"]
-CONFIDENCE_LEVELS: tuple[str, ...] = ("low", "medium", "high")
+from pydantic import BaseModel, model_validator
 
 # On-disk sidecar format version. Bump if the sidecar JSON shape changes.
-SIDECAR_SCHEMA = 1
+# v2: people are compact ``[canonical, *surface_forms]`` arrays (no confidence).
+SIDECAR_SCHEMA = 2
 
 # On-disk error-sidecar format version. Bump if the error JSON shape changes.
 ERROR_SIDECAR_SCHEMA = 1
 
 
-def confidence_rank(level: str) -> int:
-    return CONFIDENCE_LEVELS.index(level)
-
-
-def meets_threshold(level: str, threshold: str | None) -> bool:
-    if threshold is None:
-        return True
-    return confidence_rank(level) >= confidence_rank(threshold)
-
-
-class Alias(BaseModel):
-    text: str
-    confidence: Confidence = "medium"
-
-
 class Person(BaseModel):
+    """One person: a canonical name plus the verbatim surface forms seen.
+
+    ``canonical`` is the normalized/expanded identity (may not appear verbatim,
+    e.g. "William Young" from "Wm Young"); ``aliases`` are the literal surface
+    strings that appeared in the text (e.g. "Wm Young", "Sgt. Young").
+    """
+
     canonical: str
-    confidence: Confidence = "medium"
-    aliases: list[Alias] = []
+    aliases: list[str] = []
+
+
+def _entry_to_person(entry: object) -> dict:
+    """Coerce a wire entry ``[canonical, *aliases]`` into Person kwargs.
+
+    Raises ValueError on anything else so the model's malformed output surfaces
+    as a ValidationError and hits the JSON-repair retry path.
+    """
+    if not isinstance(entry, list) or not entry:
+        raise ValueError("each person must be a non-empty [canonical, *aliases] list")
+    if not all(isinstance(x, str) for x in entry):
+        raise ValueError("person entries must contain only strings")
+    return {"canonical": entry[0], "aliases": list(entry[1:])}
 
 
 class NameResponse(BaseModel):
-    """The shape the LLM must return for one chunk of text."""
+    """The shape the LLM must return for one chunk of text.
+
+    Wire form is ``{"people": [[canonical, *surface_forms], ...]}``; each inner
+    array is coerced into a :class:`Person` before validation.
+    """
 
     people: list[Person] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_entries(cls, data: object) -> object:
+        if isinstance(data, dict) and isinstance(data.get("people"), list):
+            return {**data, "people": [_entry_to_person(e) for e in data["people"]]}
+        return data
+
+
+def person_to_entry(person: Person) -> list[str]:
+    """Serialize a Person to the compact wire form ``[canonical, *aliases]``."""
+    return [person.canonical, *person.aliases]
 
 
 @dataclass

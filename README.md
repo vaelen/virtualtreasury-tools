@@ -264,10 +264,11 @@ it only reads files whose size/mtime changed since the last build.
 
 `vtextract names` runs a local-or-remote LLM over the page transcriptions in an
 archive to pull out the people mentioned, writing a `<page_key>.names.json`
-sidecar next to each `<page_key>.jpg.txt`. Each person has a canonical name, an
-entry confidence, and the alias surface forms (with confidences) seen on that
-page. With no arguments it processes the whole archive; pass reference codes
-and/or isadgIDs to scope the run to just those resources' pages.
+sidecar next to each `<page_key>.jpg.txt`. Each person is stored as a compact
+`[canonical, *surface_forms]` array — the canonical (normalized/expanded) name
+first, then the verbatim surface forms seen on that page. With no arguments it
+processes the whole archive; pass reference codes and/or isadgIDs to scope the
+run to just those resources' pages.
 
 ```bash
 # extract people from every page transcription in the archive
@@ -294,7 +295,6 @@ api_base   = ""                  # override the model's API base URL (e.g. a loc
 chunk_size = 64000               # transcription chunk size (characters)
 overlap    = 512                 # overlap between chunks
 workers    = 1                   # parallel pages
-confidence = ""                  # default minimum confidence for `vtindex people` (low|medium|high)
 max_output_tokens = 12000        # per-call output-token cap (repetition-loop guardrail)
 ```
 
@@ -336,11 +336,9 @@ then search people by canonical name **or** any alias surface form:
 ```bash
 vtindex build --archive ./archive
 vtindex people "Houston" --archive ./archive
-vtindex people "Houston" --confidence high --json --archive ./archive
+vtindex people "Houston" --json --archive ./archive
 ```
 
-`--confidence low|medium|high` filters out matches below that minimum entry
-confidence; when omitted it falls back to `[names].confidence` from the config.
 Each result reports the volume/page where the person appears and the
 items that reference that page. `--json` emits structured output for scripting.
 
@@ -374,8 +372,8 @@ first file is not paying a local model's cold-start load cost, and auth/config
 errors surface immediately), and it evicts the previous local (Ollama) model
 before loading the next to ease GPU pressure.
 
-It then prints a table comparing the number of high/medium/low-confidence names
-(counting each person and each alias) and the per-file timing distribution —
+It then prints a table comparing the number of names found (counting each
+person and each alias) and the per-file timing distribution —
 **min, max, median, mean** seconds — plus **ms/byte**, which normalizes for
 document length so models are comparable regardless of how long each
 transcription happens to be. The report includes any model with prior on-disk

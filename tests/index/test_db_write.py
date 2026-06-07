@@ -266,8 +266,8 @@ def test_person_upsert_and_fts_search(tmp_path):
     from vtextract.index.db import IndexDB
     from vtextract.index.models import PersonRow
     db = IndexDB(tmp_path / "i.sqlite3", rebuild=True)
-    rows = [PersonRow(canonical="William Young", confidence="high",
-                      aliases=[("Wm Young", "high"), ("Young", "low")])]
+    rows = [PersonRow(canonical="William Young",
+                      aliases=["Wm Young", "Young"])]
     db.upsert_names("100", "a.jpg", rows, fingerprint=("pages/100/a.jpg.names.json", 1.0, 10))
     hits = db.person_fts_search("Wm Young")
     assert len(hits) == 1
@@ -284,8 +284,8 @@ def test_person_reupsert_replaces_page(tmp_path):
     from vtextract.index.models import PersonRow
     db = IndexDB(tmp_path / "i.sqlite3", rebuild=True)
     fp = ("pages/100/a.jpg.names.json", 1.0, 10)
-    db.upsert_names("100", "a.jpg", [PersonRow("John Young", "high")], fingerprint=fp)
-    db.upsert_names("100", "a.jpg", [PersonRow("Thomas Young", "high")], fingerprint=fp)
+    db.upsert_names("100", "a.jpg", [PersonRow("John Young")], fingerprint=fp)
+    db.upsert_names("100", "a.jpg", [PersonRow("Thomas Young")], fingerprint=fp)
     names = {h["canonical"] for h in db.person_fts_search("Young")}
     assert names == {"Thomas Young"}  # old row replaced
     db.close()
@@ -296,7 +296,7 @@ def test_delete_source_names(tmp_path):
     from vtextract.index.models import PersonRow
     db = IndexDB(tmp_path / "i.sqlite3", rebuild=True)
     rel = "pages/100/a.jpg.names.json"
-    db.upsert_names("100", "a.jpg", [PersonRow("John Young", "high")], fingerprint=(rel, 1.0, 10))
+    db.upsert_names("100", "a.jpg", [PersonRow("John Young")], fingerprint=(rel, 1.0, 10))
     db.delete_source(rel)
     assert db.person_fts_search("Young") == []
     assert db.counts()["people"] == 0

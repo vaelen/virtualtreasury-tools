@@ -100,19 +100,16 @@ def read_transcription(txt_path: Path) -> str:
 
 
 def read_names(sidecar_path: Path) -> list[PersonRow]:
-    """Parse a pages/<root_id>/<page_key>.names.json sidecar into PersonRows."""
+    """Parse a pages/<root_id>/<page_key>.names.json sidecar into PersonRows.
+
+    Each person is the compact ``[canonical, *surface_forms]`` array (schema 2).
+    """
     data = json.loads(Path(sidecar_path).read_text())
     rows: list[PersonRow] = []
-    for person in data.get("people") or []:
-        aliases = [
-            (a["text"], a.get("confidence", "medium"))
-            for a in person.get("aliases") or []
-        ]
-        rows.append(PersonRow(
-            canonical=person["canonical"],
-            confidence=person.get("confidence", "medium"),
-            aliases=aliases,
-        ))
+    for entry in data.get("people") or []:
+        if not entry:
+            continue
+        rows.append(PersonRow(canonical=entry[0], aliases=list(entry[1:])))
     return rows
 
 

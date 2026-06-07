@@ -166,8 +166,8 @@ def _people_db(tmp_path):
     db = IndexDB(tmp_path / "i.sqlite3", rebuild=True)
     # two people on one page; link the page to an item
     db.upsert_names("100", "a.jpg",
-                    [PersonRow("William Young", "high", [("Wm Young", "high")]),
-                     PersonRow("Thomas Young", "low")],
+                    [PersonRow("William Young", ["Wm Young"]),
+                     PersonRow("Thomas Young")],
                     fingerprint=("pages/100/a.jpg.names.json", 1.0, 10))
     db._conn.execute(
         "INSERT INTO item_page (isadg_id, root_id, page_key, role) VALUES (?, ?, ?, ?)",
@@ -179,7 +179,7 @@ def _people_db(tmp_path):
 def test_people_search_maps_to_items(tmp_path):
     from vtextract.index.people import people_search
     db = _people_db(tmp_path)
-    hits = people_search(db, "Young", confidence=None)
+    hits = people_search(db, "Young")
     canon = {h.canonical: h for h in hits}
     assert set(canon) == {"William Young", "Thomas Young"}
     assert canon["William Young"].items == [42]
@@ -187,16 +187,8 @@ def test_people_search_maps_to_items(tmp_path):
     db.close()
 
 
-def test_people_search_confidence_filter(tmp_path):
-    from vtextract.index.people import people_search
-    db = _people_db(tmp_path)
-    hits = people_search(db, "Young", confidence="medium")
-    assert {h.canonical for h in hits} == {"William Young"}  # low-confidence dropped
-    db.close()
-
-
 def test_people_search_empty_query(tmp_path):
     from vtextract.index.people import people_search
     db = _people_db(tmp_path)
-    assert people_search(db, "", confidence=None) == []
+    assert people_search(db, "") == []
     db.close()

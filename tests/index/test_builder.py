@@ -218,8 +218,7 @@ def test_build_ingests_names_sidecar(tmp_path):
     pages.mkdir(parents=True)
     (pages / "a.jpg.txt").write_text("Wm Young paid the toll.")
     (pages / "a.jpg.names.json").write_text(
-        '{"schema":1,"model":"m","people":[{"canonical":"William Young",'
-        '"confidence":"high","aliases":[{"text":"Wm Young","confidence":"high"}]}]}'
+        '{"schema":2,"model":"m","people":[["William Young","Wm Young"]]}'
     )
     stats = build(tmp_path)
     assert stats.added >= 1

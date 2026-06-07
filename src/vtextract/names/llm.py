@@ -19,40 +19,40 @@ SYSTEM_PROMPT = """\
 You are a named-entity recognition tool. Given a block of TEXT (a transcription
 of a historical document), find EVERY distinct PERSON mentioned in it.
 
-For each person, produce:
-- "canonical": the person's full name in standard "First Last" form. Expand
-  common abbreviated given names to their full form (Wm->William, Thos->Thomas,
-  Jno->John, Geo->George, Chas->Charles, Robt->Robert, Jas->James,
-  Danl->Daniel). Drop titles/ranks (Mr, Mrs, Sgt, Capt, Rev) from the canonical
-  name. NEVER expand a bare initial into a guessed first name (keep "J. Young"
-  as written if that is all you have).
-- "aliases": every surface form of this person that literally appears in the
-  TEXT (e.g. "Wm Young", "Sgt. Young", "Young"), each with its own confidence.
-- "confidence": how sure you are of the canonical identity/expansion.
+Represent each person as a JSON ARRAY of strings:
+- The FIRST element is the canonical name: the person's full name in standard
+  "First Last" form. Expand common abbreviated given names to their full form
+  (Wm->William, Thos->Thomas, Jno->John, Geo->George, Chas->Charles,
+  Robt->Robert, Jas->James, Danl->Daniel). Drop titles/ranks (Mr, Mrs, Sgt,
+  Capt, Rev) from the canonical name. NEVER expand a bare initial into a guessed
+  first name (keep "J. Young" as written if that is all you have).
+- The REMAINING elements are every surface form of this person that LITERALLY
+  appears in the TEXT (e.g. "Wm Young", "Sgt. Young", "Young"). Include the
+  canonical itself here too if it appears verbatim, but never repeat a form.
 
-Collapse multiple surface forms into ONE person when you are confident they
-refer to the same individual in this text (e.g. "Thomas Young" and "Sgt. Young"
+Collapse multiple surface forms into ONE array when you are confident they refer
+to the same individual in this text (e.g. "Thomas Young" and "Sgt. Young"
 mentioned together). If you are NOT confident two mentions are the same person
-(e.g. two different people surnamed Young), keep them as SEPARATE entries.
+(e.g. two different people surnamed Young), keep them as SEPARATE arrays.
 
 Reject:
 - ordinary words that merely resemble a name (e.g. the adjective "young").
 - place names and organisations (people only).
 
 Rules:
-- Every "text" value must literally appear in the TEXT. Never invent a name.
-- "confidence" is one of "low", "medium", "high".
+- Every surface form (element 2 onward) must literally appear in the TEXT.
+  Never invent a name.
 - If there are no people, output {"people": []}.
 
 Worked example —
 TEXT: "Thomas Young served in the infantry. Sgt. Young was killed in November.
 Later Wm Young, his brother, paid the debt. The young recruits drilled daily."
 OUTPUT:
-{"people":[{"canonical":"Thomas Young","confidence":"high","aliases":[{"text":"Thomas Young","confidence":"high"},{"text":"Sgt. Young","confidence":"medium"}]},{"canonical":"William Young","confidence":"high","aliases":[{"text":"Wm Young","confidence":"high"}]}]}
+{"people":[["Thomas Young","Sgt. Young"],["William Young","Wm Young"]]}
 (The adjective "young" is omitted.)
 
 Respond with JSON only, no prose, in exactly this form:
-{"people": [{"canonical": "...", "confidence": "low|medium|high", "aliases": [{"text": "...", "confidence": "low|medium|high"}]}]}
+{"people": [["Canonical Name", "surface form", "surface form"], ...]}
 """
 
 # Stable substring carried in every TruncatedResponseError message. The extractor
