@@ -23,14 +23,13 @@ def test_names_command_writes_sidecar(tmp_path, monkeypatch):
 
     def fake_find(chunk_text, model, api_base=None):
         assert model == "test/model"
-        return [Person(canonical="William Young",
-                       aliases=[{"text": "Wm Young", "confidence": "high"}])]
+        return [Person(canonical="William Young", aliases=["Wm Young"])]
 
     monkeypatch.setattr(cli, "_make_find", lambda: fake_find)
     rc = cli.run(["names", "--archive", str(archive), "--config", str(cfg)])
     assert rc == 0
     side = json.loads((archive / "pages" / "100" / "a.jpg.names.json").read_text())
-    assert side["people"][0]["canonical"] == "William Young"
+    assert side["people"][0] == ["William Young", "Wm Young"]
 
 
 def test_names_command_model_override(tmp_path, monkeypatch):

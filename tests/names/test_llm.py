@@ -35,12 +35,16 @@ def test_build_messages_contains_text_and_schema():
 
 
 def test_parse_people():
-    content = json.dumps({"people": [
-        {"canonical": "William Young", "confidence": "high",
-         "aliases": [{"text": "Wm Young", "confidence": "high"}]}]})
+    content = json.dumps({"people": [["William Young", "Wm Young"]]})
     people = llm._parse(content)
     assert people[0].canonical == "William Young"
-    assert people[0].aliases[0].text == "Wm Young"
+    assert people[0].aliases == ["Wm Young"]
+
+
+def test_system_prompt_uses_compact_list_form_without_confidence():
+    sp = llm.SYSTEM_PROMPT
+    assert "confidence" not in sp.lower()         # confidence is gone entirely
+    assert '["Thomas Young","Sgt. Young"]' in sp  # worked example is array form
 
 
 def test_parse_lenient_strips_prose():
@@ -53,8 +57,7 @@ def test_find_people_uses_completion(monkeypatch):
 
     def fake_complete(kwargs, *, max_retries=2):
         captured["model"] = kwargs["model"]
-        content = json.dumps({"people": [{"canonical": "John Young", "confidence": "medium",
-                                          "aliases": [{"text": "Young", "confidence": "low"}]}]})
+        content = json.dumps({"people": [["John Young", "Young"]]})
         return content, Usage(input=100, output=20, cached=0)
 
     monkeypatch.setattr(llm, "_complete", fake_complete)

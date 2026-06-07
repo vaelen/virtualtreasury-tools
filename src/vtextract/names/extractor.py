@@ -26,6 +26,7 @@ from vtextract.names.models import (
     Person,
     Usage,
     people_and_usage,
+    person_to_entry,
     sum_usage,
 )
 from vtextract.schema import normalize_reference_code
@@ -139,7 +140,7 @@ def _write_sidecar_atomic(path: Path, model: str, people: list[Person],
     data: dict = {
         "schema": SIDECAR_SCHEMA,
         "model": model,
-        "people": [p.model_dump() for p in people],
+        "people": [person_to_entry(p) for p in people],
     }
     if elapsed_ms is not None:  # wall-clock for the page; always set in practice
         data["elapsed_ms"] = elapsed_ms

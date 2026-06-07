@@ -2,55 +2,83 @@
 # All rights reserved
 
 import pytest
+from pydantic import ValidationError
 
 from vtextract.names.models import (
-    Alias,
     NameResponse,
     NamesStats,
     Person,
     Usage,
-    confidence_rank,
-    meets_threshold,
     people_and_usage,
+    person_to_entry,
     sum_usage,
 )
 
 
-def test_person_defaults_and_aliases():
-    p = Person(canonical="William Young", aliases=[{"text": "Wm Young", "confidence": "high"}])
-    assert p.confidence == "medium"  # default
-    assert p.aliases[0].text == "Wm Young"
-    assert isinstance(p.aliases[0], Alias)
+def test_person_has_canonical_and_string_aliases():
+    p = Person(canonical="William Young", aliases=["Wm Young", "Young"])
+    assert p.canonical == "William Young"
+    assert p.aliases == ["Wm Young", "Young"]
+
+
+def test_person_aliases_default_empty():
+    assert Person(canonical="B. McHugh").aliases == []
 
 
 def test_name_response_empty_default():
     assert NameResponse().people == []
 
 
-def test_name_response_parse_full():
+def test_name_response_parses_list_of_lists():
     r = NameResponse.model_validate(
-        {"people": [{"canonical": "John Young", "confidence": "high",
-                     "aliases": [{"text": "J. Young", "confidence": "low"}]}]}
+        {"people": [["John Young", "J. Young"], ["B. McHugh"]]}
     )
     assert r.people[0].canonical == "John Young"
-    assert r.people[0].aliases[0].confidence == "low"
+    assert r.people[0].aliases == ["J. Young"]
+    assert r.people[1].canonical == "B. McHugh"
+    assert r.people[1].aliases == []
 
 
-def test_bad_confidence_rejected():
-    with pytest.raises(ValueError):
-        Person(canonical="X", confidence="certain")
+def test_name_response_rejects_empty_entry():
+    with pytest.raises(ValidationError):
+        NameResponse.model_validate({"people": [[]]})
 
 
-def test_confidence_rank_and_threshold():
-    assert confidence_rank("low") < confidence_rank("high")
-    assert meets_threshold("high", "medium") is True
-    assert meets_threshold("low", "medium") is False
-    assert meets_threshold("low", None) is True
+def test_name_response_rejects_non_list_entry():
+    with pytest.raises(ValidationError):
+        NameResponse.model_validate({"people": [{"canonical": "X"}]})
+
+
+def test_name_response_rejects_non_string_element():
+    with pytest.raises(ValidationError):
+        NameResponse.model_validate({"people": [["X", 7]]})
+
+
+def test_person_to_entry_is_canonical_then_aliases():
+    p = Person(canonical="William Young", aliases=["Wm Young"])
+    assert person_to_entry(p) == ["William Young", "Wm Young"]
+    assert person_to_entry(Person(canonical="B. McHugh")) == ["B. McHugh"]
+
+
+def test_sidecar_schema_is_2():
+    from vtextract.names.models import SIDECAR_SCHEMA
+    assert SIDECAR_SCHEMA == 2
+
+
+def test_error_sidecar_schema_constant_present():
+    from vtextract.names.models import ERROR_SIDECAR_SCHEMA
+    assert ERROR_SIDECAR_SCHEMA == 1
 
 
 def test_names_stats_defaults():
     s = NamesStats()
     assert (s.extracted, s.skipped, s.failed, s.people) == (0, 0, 0, 0)
+
+
+def test_names_stats_has_failure_buckets():
+    s = NamesStats()
+    assert s.parked == 0
+    assert s.failed_persistent == 0
 
 
 def test_usage_total_is_in_plus_out():
@@ -73,7 +101,6 @@ def test_usage_to_dict_uses_in_out_total_cached_keys():
 def test_usage_from_dict_roundtrips():
     u = Usage(input=100, output=20, cached=64)
     assert Usage.from_dict(u.to_dict()) == u
-    # tolerates a missing cached key (older partial data)
     assert Usage.from_dict({"in": 5, "out": 1}) == Usage(input=5, output=1, cached=0)
 
 
@@ -86,20 +113,6 @@ def test_sum_usage_ignores_none_and_returns_none_when_all_unknown():
 
 def test_people_and_usage_normalizes_both_seam_shapes():
     people = [Person(canonical="A")]
-    # a fake find that returns a bare list -> usage unknown
     assert people_and_usage(people) == (people, None)
-    # the production shape (people, usage)
     u = Usage(input=1, output=1)
     assert people_and_usage((people, u)) == (people, u)
-
-
-def test_names_stats_has_failure_buckets():
-    from vtextract.names.models import NamesStats
-    s = NamesStats()
-    assert s.parked == 0
-    assert s.failed_persistent == 0
-
-
-def test_error_sidecar_schema_constant_present():
-    from vtextract.names.models import ERROR_SIDECAR_SCHEMA
-    assert ERROR_SIDECAR_SCHEMA == 1

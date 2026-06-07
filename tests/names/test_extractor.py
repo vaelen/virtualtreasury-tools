@@ -58,13 +58,13 @@ def test_sidecar_for_replaces_suffix(tmp_path):
 def test_extract_writes_sidecars(tmp_path):
     archive = _make_archive(tmp_path)
     find = _fake_find_factory({"Wm Young": [Person(canonical="William Young",
-                                                   aliases=[{"text": "Wm Young", "confidence": "high"}])]})
+                                                   aliases=["Wm Young"])]})
     stats = extract(archive, model="m", find=find, show_progress=False)
     assert stats.extracted == 2 and stats.skipped == 0 and stats.failed == 0
     assert stats.people == 1
     side = json.loads((archive / "pages" / "100" / "a.jpg.names.json").read_text())
-    assert side["schema"] == 1 and side["model"] == "m"
-    assert side["people"][0]["canonical"] == "William Young"
+    assert side["schema"] == 2 and side["model"] == "m"
+    assert side["people"][0] == ["William Young", "Wm Young"]
     empty = json.loads((archive / "pages" / "100" / "b.jpg.names.json").read_text())
     assert empty["people"] == []
     # a bare-list find reports no usage, so no usage block is written
