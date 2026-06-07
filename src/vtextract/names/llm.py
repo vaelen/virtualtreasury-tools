@@ -63,6 +63,11 @@ _TRUNCATION_MARKER = "response truncated at output-token limit"
 # Provider finish_reason values that mean "output cut off at the token cap".
 _TRUNCATION_FINISH_REASONS = ("length", "max_tokens")
 
+# Stable substring carried in every EmptyResponseError message, for the same
+# reason as _TRUNCATION_MARKER: the extractor wraps the cause in a RuntimeError,
+# so classification has to fall back to a message substring.
+_EMPTY_MARKER = "model returned an empty response (no content)"
+
 # Temperature for the JSON-repair / truncation retry. The first pass runs at 0
 # (deterministic), but greedy decoding is what loops on repetitive text (e.g. will
 # indexes) until the output cap. Measured on the real failing pages: temp 0.3 was
@@ -79,6 +84,24 @@ class TruncatedResponseError(Exception):
     The truncated text is incomplete JSON, so parsing it would fail with a
     misleading delimiter error. Carries the attempt's ``usage`` so the caller can
     still bill the wasted tokens when it retries.
+    """
+
+    def __init__(self, message: str, usage: "Usage | None" = None,
+                 finish_reason: str | None = None) -> None:
+        super().__init__(message)
+        self.usage = usage
+        self.finish_reason = finish_reason
+
+
+class EmptyResponseError(Exception):
+    """The provider returned a completion with no text content (content=None).
+
+    Seen on Gemini when it flags dense, list-like text (e.g. a name index) for
+    recitation/safety and suppresses the output: finish_reason is something like
+    ``content_filter`` (NOT a truncation reason) yet ``message.content`` is None.
+    Without this, ``_parse(None)`` crashed in ``_loads_lenient`` with the
+    cryptic ``'NoneType' object has no attribute 'strip'``. Page-deterministic,
+    so it is a persistent (parked) failure. Carries the attempt's ``usage``.
     """
 
     def __init__(self, message: str, usage: "Usage | None" = None,
@@ -175,6 +198,10 @@ def friendly_error(exc: Exception, model: str, api_base: str | None) -> str:
                 f"cut off mid-JSON (typically a repetition loop on dense, "
                 f"repetitive text such as a name index), even after retrying at a "
                 f"higher temperature. Try a smaller chunk_size or a different model.")
+    if isinstance(exc, EmptyResponseError) or _EMPTY_MARKER in text:
+        return (f"Model '{model}' returned an empty response with no content "
+                f"(often a recitation/safety block on dense, list-like text "
+                f"such as a name index). Try a different model.")
     if (isinstance(exc, (json.JSONDecodeError, ValidationError))
             or "expecting value" in text or "validation error" in text):
         return (f"Model '{model}' did not return valid JSON in the required "
@@ -221,19 +248,25 @@ def error_class(exc: Exception) -> str | None:
     """Persistent (page-deterministic) failure class, else None (transient).
 
     Walks the ``__cause__`` chain because the extractor re-raises the real cause
-    wrapped in a RuntimeError. Only truncation and malformed-JSON are persistent
-    -- they recur identically on the same input. Rate-limit, auth, not-found and
-    connection errors are environmental, so they return None and keep retrying.
+    wrapped in a RuntimeError. Truncation, malformed-JSON and empty-response are
+    persistent -- they recur identically on the same input. Rate-limit, auth,
+    not-found and connection errors are environmental, so they return None and
+    keep retrying.
     """
     cur: BaseException | None = exc
     while cur is not None:
         if isinstance(cur, TruncatedResponseError):
             return "truncated"
+        if isinstance(cur, EmptyResponseError):
+            return "empty"
         if isinstance(cur, (json.JSONDecodeError, ValidationError)):
             return "bad_json"
         cur = cur.__cause__
-    if _TRUNCATION_MARKER in str(exc):
+    text = str(exc)
+    if _TRUNCATION_MARKER in text:
         return "truncated"
+    if _EMPTY_MARKER in text:
+        return "empty"
     return None
 
 
@@ -404,6 +437,16 @@ def _complete(kwargs: dict, *, max_retries: int = 2,
             choice = response["choices"][0]
             content = choice["message"]["content"]
             usage = usage_from_response(response)
+            # A content-less completion (content=None) has no JSON to parse;
+            # feeding it to _parse would crash in str.strip(). Surface it as a
+            # typed error carrying usage. This is distinct from truncation (which
+            # returns a partial string) -- it is the provider suppressing output,
+            # e.g. a Gemini recitation/safety block on a dense name index.
+            if content is None:
+                reason = _finish_reason(choice)
+                raise EmptyResponseError(
+                    f"{_EMPTY_MARKER} (finish_reason={reason})",
+                    usage=usage, finish_reason=reason)
             # A length-capped response is incomplete JSON. Surface it as a typed
             # error so the caller can break the loop (retry hotter) rather than
             # feed truncated text to the parser. ``detect_truncation`` (not the
@@ -416,7 +459,7 @@ def _complete(kwargs: dict, *, max_retries: int = 2,
                     f"{_TRUNCATION_MARKER} (finish_reason={_finish_reason(choice)})",
                     usage=usage, finish_reason=_finish_reason(choice))
             return content, usage
-        except TruncatedResponseError:
+        except (TruncatedResponseError, EmptyResponseError):
             raise  # deterministic; retrying as a transport blip would just re-burn
         except Exception as exc:  # transport / API error
             param = _offending_param(exc)

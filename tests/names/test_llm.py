@@ -135,6 +135,33 @@ def test_complete_detects_truncation_even_with_max_tokens_guardrail(monkeypatch)
         llm._complete({"model": "m", "messages": [], "max_tokens": 12000})
 
 
+def test_complete_raises_empty_response_error_on_none_content(monkeypatch):
+    # Gemini flags dense, list-like text (e.g. a name index) for recitation /
+    # safety and returns a completion whose message.content is None with a
+    # finish_reason that is NOT a truncation reason. _complete must surface this
+    # as a typed EmptyResponseError carrying usage -- not return None and let
+    # _parse blow up downstream with 'NoneType' object has no attribute 'strip'.
+    monkeypatch.setattr(llm.litellm, "completion", lambda **kw: {
+        "choices": [{"finish_reason": "content_filter",
+                     "message": {"content": None}}],
+        "usage": {"prompt_tokens": 7, "completion_tokens": 0}})
+    with pytest.raises(llm.EmptyResponseError) as ei:
+        llm._complete({"model": "gemini/gemini-2.5-flash-lite", "messages": []})
+    assert ei.value.usage == Usage(input=7, output=0)
+
+
+def test_find_people_surfaces_empty_response_not_attribute_error(monkeypatch):
+    # The end-to-end symptom: a None-content completion used to crash in
+    # _loads_lenient with the cryptic AttributeError. find_people must instead
+    # raise the typed, classifiable EmptyResponseError.
+    monkeypatch.setattr(llm.time, "sleep", lambda s: None)
+    monkeypatch.setattr(llm.litellm, "completion", lambda **kw: {
+        "choices": [{"finish_reason": "content_filter",
+                     "message": {"content": None}}]})
+    with pytest.raises(llm.EmptyResponseError):
+        llm.find_people("a page of names", "gemini/gemini-2.5-flash-lite")
+
+
 def test_check_model_does_not_flag_truncation_as_failure(monkeypatch):
     # Preflight caps output at 1 token -> finish_reason "length" always. This must
     # not be reported as a model failure (it would reject every working model).
@@ -217,6 +244,33 @@ def test_friendly_error_truncation_is_clear_even_when_wrapped():
         "limit (finish_reason=length)")
     msg = llm.friendly_error(wrapped, "gemini/gemini-2.5-flash-lite", None)
     assert "truncat" in msg.lower() or "cut off" in msg.lower()
+
+
+def test_friendly_error_empty_response_is_clear_even_when_wrapped():
+    direct = llm.friendly_error(
+        llm.EmptyResponseError(
+            "model returned an empty response (no content) "
+            "(finish_reason=content_filter)", finish_reason="content_filter"),
+        "gemini/gemini-2.5-flash-lite", None)
+    assert "empty" in direct.lower() or "no content" in direct.lower()
+    assert "different model" in direct.lower()
+    # crucially, NOT the old cryptic crash text
+    assert "nonetype" not in direct.lower()
+    # the extractor wraps the cause in a RuntimeError; classify via stable marker.
+    wrapped = RuntimeError(
+        "chunk 1/1 failed for x.jpg.txt: model returned an empty response "
+        "(no content) (finish_reason=content_filter)")
+    msg = llm.friendly_error(wrapped, "gemini/gemini-2.5-flash-lite", None)
+    assert "empty" in msg.lower() or "no content" in msg.lower()
+
+
+def test_error_class_empty_response_direct_and_wrapped():
+    exc = llm.EmptyResponseError(
+        "model returned an empty response (no content) "
+        "(finish_reason=content_filter)", finish_reason="content_filter")
+    assert error_class(exc) == "empty"
+    assert error_class(_wrap(exc)) == "empty"
+    assert is_persistent_failure(_wrap(exc)) is True
 
 
 def test_friendly_error_wrapped_validation_error_is_bad_json_message():
