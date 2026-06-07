@@ -17,7 +17,7 @@ from rich.console import Console
 from rich.progress import Progress
 
 from vtextract.names import llm as llm_module
-from vtextract.names.chunking import chunk_text
+from vtextract.names.chunking import chunk_text, select_chunk_size
 from vtextract.names.merge import merge_people
 from vtextract.names.models import (
     ERROR_SIDECAR_SCHEMA,
@@ -212,6 +212,7 @@ def _log_failure(
 def _extract_one(
     txt_path: Path, *, model: str, api_base: str | None,
     chunk_size: int, overlap: int, find: FindFn,
+    dense_threshold: int = 0, dense_chunk_size: int = 0,
 ) -> tuple[list[Person], Usage | None]:
     """Extract (people, token usage) for one page.
 
@@ -219,11 +220,17 @@ def _extract_one(
     from a subset of chunks would silently drop the names in the failed
     chunk(s) and mark the page done, so it would never be reprocessed. Usage is
     summed across every chunk (None if the find seam reports none).
+
+    Pages over ``dense_threshold`` are chunked at the smaller ``dense_chunk_size``
+    to bound runaway-output loops (see ``select_chunk_size``).
     """
     text = txt_path.read_text()
     groups: list[list[Person]] = []
     usages: list[Usage | None] = []
-    chunks = chunk_text(text, chunk_size, overlap)
+    effective_chunk_size = select_chunk_size(
+        len(text), chunk_size=chunk_size,
+        dense_threshold=dense_threshold, dense_chunk_size=dense_chunk_size)
+    chunks = chunk_text(text, effective_chunk_size, overlap)
     for index, (window, _offset) in enumerate(chunks):
         try:
             people, usage = people_and_usage(find(window, model, api_base))
@@ -243,6 +250,8 @@ def extract(
     api_base: str | None = None,
     chunk_size: int = 64000,
     overlap: int = 512,
+    dense_threshold: int = 5000,
+    dense_chunk_size: int = 3000,
     workers: int = 1,
     max_output_tokens: int = 12000,
     find: FindFn | None = None,
@@ -291,7 +300,8 @@ def extract(
         try:
             people, usage = _extract_one(
                 txt, model=model, api_base=api_base,
-                chunk_size=chunk_size, overlap=overlap, find=find)
+                chunk_size=chunk_size, overlap=overlap, find=find,
+                dense_threshold=dense_threshold, dense_chunk_size=dense_chunk_size)
             elapsed_ms = round((time.monotonic() - start) * 1000)
             return txt, people, usage, elapsed_ms, None
         except Exception as exc:
