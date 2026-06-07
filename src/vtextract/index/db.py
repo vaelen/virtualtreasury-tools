@@ -8,7 +8,7 @@ from pathlib import Path
 
 from vtextract.index.models import VolumeInfo
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5  # v5: person/person_alias dropped the confidence columns
 
 
 class Fts5Unavailable(RuntimeError):
@@ -81,10 +81,10 @@ CREATE VIRTUAL TABLE item_fts USING fts5(title, description);
 CREATE VIRTUAL TABLE transcription_fts USING fts5(text);
 CREATE TABLE person (
     id INTEGER PRIMARY KEY,
-    canonical TEXT, root_id TEXT, page_key TEXT, confidence TEXT
+    canonical TEXT, root_id TEXT, page_key TEXT
 );
 CREATE TABLE person_alias (
-    person_id INTEGER, text TEXT, confidence TEXT
+    person_id INTEGER, text TEXT
 );
 CREATE INDEX ix_person_page ON person (root_id, page_key);
 CREATE INDEX ix_person_alias_pid ON person_alias (person_id);
@@ -302,19 +302,19 @@ class IndexDB:
         self._delete_person_rows(root_id, page_key)
         for person in people:
             cur = self._conn.execute(
-                "INSERT INTO person (canonical, root_id, page_key, confidence) "
-                "VALUES (?, ?, ?, ?)",
-                (person.canonical, root_id, page_key, person.confidence),
+                "INSERT INTO person (canonical, root_id, page_key) "
+                "VALUES (?, ?, ?)",
+                (person.canonical, root_id, page_key),
             )
             person_id = cur.lastrowid
-            for text, confidence in person.aliases:
+            for text in person.aliases:
                 self._conn.execute(
-                    "INSERT INTO person_alias (person_id, text, confidence) VALUES (?, ?, ?)",
-                    (person_id, text, confidence),
+                    "INSERT INTO person_alias (person_id, text) VALUES (?, ?)",
+                    (person_id, text),
                 )
             # One FTS row per person: canonical plus every alias surface form, so
             # any written form matches and results resolve back to the canonical.
-            fts_text = " ".join([person.canonical] + [t for t, _c in person.aliases])
+            fts_text = " ".join([person.canonical] + list(person.aliases))
             fcur = self._conn.execute("INSERT INTO person_fts (text) VALUES (?)", (fts_text,))
             self._conn.execute(
                 "INSERT INTO person_fts_map (rowid, person_id) VALUES (?, ?)",
@@ -428,14 +428,14 @@ class IndexDB:
         return [(r["root_id"], r["page_key"], r["score"]) for r in rows]
 
     def person_fts_search(self, text: str) -> list[dict]:
-        """Return [{person_id, root_id, page_key, canonical, confidence, score}]
+        """Return [{person_id, root_id, page_key, canonical, score}]
         for person FTS matches over canonical + alias text."""
         query = fts_query(text)
         if not query:
             return []
         rows = self._conn.execute(
             "SELECT p.id AS person_id, p.root_id AS root_id, p.page_key AS page_key, "
-            "p.canonical AS canonical, p.confidence AS confidence, "
+            "p.canonical AS canonical, "
             "bm25(person_fts) AS score FROM person_fts "
             "JOIN person_fts_map m ON m.rowid = person_fts.rowid "
             "JOIN person p ON p.id = m.person_id "

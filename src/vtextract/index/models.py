@@ -20,14 +20,12 @@ class PersonRow:
     """A person extracted from one page's names sidecar, flattened for indexing."""
 
     canonical: str
-    confidence: str
-    aliases: list[tuple[str, str]] = field(default_factory=list)  # (text, confidence)
+    aliases: list[str] = field(default_factory=list)  # verbatim surface forms
 
 
 @dataclass
 class PersonHit:
     canonical: str
-    confidence: str
     root_id: str
     page_key: str
     items: list[int]   # isadg_ids referencing this page

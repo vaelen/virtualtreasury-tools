@@ -118,10 +118,9 @@ def test_service_people(tmp_path):
     pages.mkdir(parents=True)
     (pages / "a.jpg.txt").write_text("Wm Young paid the toll.")
     (pages / "a.jpg.names.json").write_text(
-        '{"schema":1,"model":"m","people":[{"canonical":"William Young",'
-        '"confidence":"high","aliases":[{"text":"Wm Young","confidence":"high"}]}]}'
+        '{"schema":2,"model":"m","people":[["William Young","Wm Young"]]}'
     )
     build(tmp_path)
     with IndexService(tmp_path) as svc:
-        hits = svc.people("Young", confidence=None)
+        hits = svc.people("Young")
     assert hits[0].canonical == "William Young"

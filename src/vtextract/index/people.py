@@ -5,13 +5,11 @@ from __future__ import annotations
 
 from vtextract.index.db import IndexDB
 from vtextract.index.models import PersonHit
-from vtextract.names.models import meets_threshold
 
 
-def people_search(db: IndexDB, name: str, *, confidence: str | None) -> list[PersonHit]:
+def people_search(db: IndexDB, name: str) -> list[PersonHit]:
     """Search people by name (canonical + aliases), best match first.
 
-    ``confidence`` filters by the person's entry-level confidence at query time.
     Each hit carries the page it was found on and the items referencing that page.
     """
     if not name.strip():
@@ -25,11 +23,9 @@ def people_search(db: IndexDB, name: str, *, confidence: str | None) -> list[Per
 
     hits: list[PersonHit] = []
     for r in raw:
-        if not meets_threshold(r["confidence"], confidence):
-            continue
         page = (r["root_id"], r["page_key"])
         hits.append(PersonHit(
-            canonical=r["canonical"], confidence=r["confidence"],
+            canonical=r["canonical"],
             root_id=r["root_id"], page_key=r["page_key"],
             items=sorted(items_by_page.get(page, [])), score=r["score"],
         ))

@@ -327,15 +327,14 @@ def _cmd_item(args) -> int:
 def _cmd_people(args) -> int:
     config = load_config(Path(args.config) if args.config else None)
     archive = Path(args.archive) if args.archive else config.archive
-    confidence = args.confidence or config.names.confidence
     with IndexService(archive) as svc:
         if svc.is_stale():
             print("warning: index is stale; run `vtindex build` to refresh.",
                   file=sys.stderr)
-        hits = svc.people(args.query, confidence=confidence)
+        hits = svc.people(args.query)
     if args.json:
         data = [
-            {"canonical": h.canonical, "confidence": h.confidence,
+            {"canonical": h.canonical,
              "root_id": h.root_id, "page_key": h.page_key,
              "items": h.items, "score": h.score}
             for h in hits
@@ -357,13 +356,11 @@ def _print_people_table(hits, *, theme: Theme, query: str | None) -> None:
         row_styles=list(theme.row_styles),
     )
     table.add_column("Person")
-    table.add_column("Conf", no_wrap=True)
     table.add_column("Page", no_wrap=True)
     table.add_column("Items")
     for h in hits:
         table.add_row(
             _highlight_title(h.canonical, query, theme.match_style),
-            h.confidence,
             f"{h.root_id}/{h.page_key}",
             ", ".join(str(i) for i in h.items) or "-",
         )
@@ -503,8 +500,6 @@ def _build_parser() -> argparse.ArgumentParser:
     p_people = sub.add_parser("people", help="search extracted people by name")
     p_people.add_argument("query", help="person name (matches canonical + aliases)")
     _add_archive_args(p_people)
-    p_people.add_argument("--confidence", choices=("low", "medium", "high"),
-                          help="minimum entry confidence to include")
     p_people.add_argument("--json", action="store_true")
     _add_theme_args(p_people)
     p_people.set_defaults(func=_cmd_people)
