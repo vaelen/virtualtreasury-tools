@@ -104,6 +104,16 @@ under `uv run pytest`. `archive/`, `.venv/`, and `*.egg-info/` are gitignored;
   `--force` re-extracts). `chunking.py`/`merge.py`/`models.py` are pure helpers.
   The sidecars are the precious source data; `vtindex build` ingests them into
   the `person`/`person_alias` tables and `vtindex people "<name>"` searches them.
+  **Sidecar format is schema 2 (compact):** each person is a
+  `[canonical, *surface_forms]` array, no confidence (dropped — flash-lite's was
+  near-uniform noise). The legacy v1 verbose object form is gone; a one-time
+  `scripts/migrate_sidecars.py` converts old archives.
+  **Prompt caching is NOT a lever for the Gemini cost here**: the only static
+  prefix is the ~530-token `SYSTEM_PROMPT`, well under Gemini's ~1024-token
+  caching minimum, so `cache_control` is a silent no-op (sidecar `usage.cached`
+  is always 0). Cost is output-dominated; the v2 compact schema already cut the
+  per-name output overhead — the remaining lever is pre-screening dense pages
+  that hit repetition loops, not caching.
 - `tui/` (subpackage) — the `vtbrowse` TUI. **Architectural boundary:** `tui/`
   never imports `vtextract.index.{db,query,builder}` or
   `vtextract.{fetcher,client}` directly. Index access goes through the shared
