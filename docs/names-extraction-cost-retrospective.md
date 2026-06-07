@@ -16,9 +16,9 @@ time ~83% of the archive was processed we had spent roughly **$90–100 (~15,000
 JPY)** — several times the naive projection. This document records what went
 wrong, the safeguards we added along the way, the post-hoc root-cause analysis,
 and the fixes — a compact output schema and adaptive chunking — that addressed
-it. **Outcome (§12): per-page cost fell 53% and output tokens 63%, 92.6% of the
-parked errors recovered with zero regressions, and the archive is now 99.88%
-successfully extracted.**
+it. **Outcome (§12): per-page cost fell 53% and output tokens 63%; a final pass
+of the few hundred hard residue pages on `claude-sonnet-4-6` brought the archive
+to 99.999% successfully extracted (2 pages outstanding) with zero regressions.**
 
 ## 1. Goal
 
@@ -314,6 +314,21 @@ dense/garbled loopers that loop even at 3,000-char chunks), **50 `empty`**
 (Gemini recitation/safety blocks on dense name indexes — only *visible* now
 because of the `EmptyResponseError` fix), and **7 `bad_json`**.
 
+### Final pass — the hard residue on a stronger model
+
+The 215 content-hard pages were then re-run on `claude-sonnet-4-6` (the
+benchmark's quality leader, §2), via `vtextract names --retry-failed --model
+anthropic/claude-sonnet-4-6`. Sonnet cleared **213 of 215**, with **0
+regressions**, leaving just **2** — and those two were never actually reached:
+the run stalled and was killed before processing them (their sidecars still name
+flash-lite), so they remain queued for a separate retry. Final archive state:
+**174,492 / 174,494 successfully extracted (99.999%)**.
+
+This is the intended division of labour: the cheap model (`flash-lite`) does the
+overwhelming bulk at ~$0.0003/page, and the expensive model is reserved for the
+few hundred pathological pages it handles better — the best of both the cost and
+quality findings from the benchmark.
+
 ### Cost effect (new-code pages only)
 
 Because the old sidecars retain their original token counts, we can compare the
@@ -386,8 +401,11 @@ shrank too — a further saving not captured in the per-page figures above.
   (configurable; 0 disables). Best loop predictors: `chars` and capitalized-word
   count, no clean separation from normal pages.
 - Estimated total spend at 83% processed (old code): ~$90–100 (~15,000 JPY).
-- Outcome after the fixes: 174,279/174,494 successful (99.88%); errors
-  1,551 → 215 (−86%); 92.6% of old errors recovered; 0 regressions.
+- Outcome after the fixes (flash-lite pass): 174,279/174,494 successful (99.88%);
+  errors 1,551 → 215 (−86%); 92.6% of old errors recovered; 0 regressions.
+- After the Sonnet retry of the 215: 213 recovered, 0 regressions, 2 left
+  (un-retried — run was killed before reaching them). Final: 174,492/174,494
+  successfully extracted (99.999%).
 - New-code cost: 329 out / 1,319 in tokens per page; $0.000264/page (−53% vs the
   old $0.000555). New run = $7.74 for 29,359 pages. Full archive ~$46 (new) vs
   ~$97 (old).
