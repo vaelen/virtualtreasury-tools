@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from vtextract.index.db import IndexDB
 from vtextract.index.models import SearchQuery, SearchResult
+from vtextract.index.people import people_search
 
 
 def search(db: IndexDB, q: SearchQuery) -> list[SearchResult]:
@@ -35,6 +36,10 @@ def search(db: IndexDB, q: SearchQuery) -> list[SearchResult]:
                 matched_pages.setdefault(isadg_id, []).extend(pgs)
                 for rt, pk, _role in pgs:
                     _record_score(scores, isadg_id, best_page_score[(rt, pk)])
+
+    if q.person:
+        person_ids = {i for hit in people_search(db, q.person) for i in hit.items}
+        candidate_ids = person_ids if candidate_ids is None else candidate_ids & person_ids
 
     rows = db.filter_items(
         candidate_ids,

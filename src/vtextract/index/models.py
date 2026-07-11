@@ -91,6 +91,7 @@ class SearchQuery:
     date_to: str | None = None    # ISO YYYY-MM-DD (inclusive upper bound)
     date_type: str = "content"    # "content" | "created"
     volume: str | None = None
+    person: str | None = None     # narrow to items referencing a page mentioning this person
     limit: int = 50
     offset: int = 0
 
