@@ -100,12 +100,13 @@ class IndexClient:
                      fields: tuple[str, ...] | None = None,
                      date_from: str | None = None, date_to: str | None = None,
                      date_type: str = "content", volume: str | None = None,
+                     person: str | None = None,
                      limit: int = 50, offset: int = 0):
         q = SearchQuery(
             text=query or None,
             fields=fields or ("title", "description", "transcription"),
             date_from=date_from, date_to=date_to, date_type=date_type,
-            volume=volume, limit=limit, offset=offset,
+            volume=volume, person=person, limit=limit, offset=offset,
         )
         return await self._call(lambda s: s.search(q))
 
