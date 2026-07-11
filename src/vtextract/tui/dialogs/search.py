@@ -19,6 +19,7 @@ class SearchSpec:
     date_to: str | None
     date_type: str
     volume: str | None
+    person: str | None
 
 
 class SearchDialog(ModalScreen[SearchSpec | None]):
@@ -44,6 +45,7 @@ class SearchDialog(ModalScreen[SearchSpec | None]):
             )
             yield Input(placeholder="Volume (root id, optional)",
                         id="volume", value=self.default_volume or "")
+            yield Input(placeholder="People (name, optional)", id="person")
             yield Horizontal(
                 Button("Search", id="submit", variant="primary"),
                 Button("Cancel", id="cancel"),
@@ -75,4 +77,5 @@ class SearchDialog(ModalScreen[SearchSpec | None]):
             # estimated-date fallback); the created date is not exposed here.
             date_type="content",
             volume=self.query_one("#volume", Input).value.strip() or None,
+            person=self.query_one("#person", Input).value.strip() or None,
         )
