@@ -101,3 +101,24 @@ async def test_build_stream_emits_events_then_index_is_usable(unbuilt):
         assert stats.items == 3
     finally:
         client.close()
+
+
+@pytest.mark.asyncio
+async def test_search_person_narrows_results(built):
+    from vtextract.index.db import IndexDB
+    from vtextract.index.models import PersonRow
+    # add a person onto a page the fixture items reference, in the built index
+    db = IndexDB(built / "index" / "vtindex.sqlite3")
+    db.upsert_names("volA", "volA_p1.jpg", [PersonRow("Sarah Doheny")],
+                    fingerprint=("pages/volA/volA_p1.jpg.names.json", 1.0, 10))
+    db.commit()
+    db.close()
+
+    client = IndexClient(built)
+    try:
+        person_only = await client.search(person="Doheny", limit=0)
+        combined = await client.search(query="Cork", person="Doheny", limit=0)
+    finally:
+        client.close()
+    assert sorted(h.isadg_id for h in person_only) == [100, 200]
+    assert [h.isadg_id for h in combined] == [200]  # {100,200} ∩ {200}
