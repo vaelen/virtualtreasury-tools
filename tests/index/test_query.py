@@ -206,6 +206,22 @@ def test_person_only_narrows_to_items_on_that_page(tmp_path):
     assert ids == [100, 200]  # both items reference volA_p1.jpg, where Doheny appears
 
 
+def test_person_only_result_carries_matched_pages(tmp_path):
+    """A person-only result must carry the page(s) the person was found on, or
+    the TUI can neither open the page (enter) nor add it to the bundle (space)."""
+    from vtextract.index.models import PersonRow
+    with _built(tmp_path) as db:
+        db.upsert_names("volA", "volA_p1.jpg",
+                        [PersonRow("Sarah Doheny")],
+                        fingerprint=("pages/volA/volA_p1.jpg.names.json", 1.0, 10))
+        db.commit()
+        results = search(db, SearchQuery(person="Doheny"))
+    assert results
+    for r in results:
+        pages = {(rt, pk) for rt, pk, _role in r.matched_pages}
+        assert ("volA", "volA_p1.jpg") in pages
+
+
 def test_person_plus_text_is_intersection(tmp_path):
     from vtextract.index.models import PersonRow
     with _built(tmp_path) as db:

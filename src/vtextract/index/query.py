@@ -38,8 +38,15 @@ def search(db: IndexDB, q: SearchQuery) -> list[SearchResult]:
                     _record_score(scores, isadg_id, best_page_score[(rt, pk)])
 
     if q.person:
-        person_ids = {i for hit in people_search(db, q.person) for i in hit.items}
+        person_pages = sorted({(h.root_id, h.page_key) for h in people_search(db, q.person)})
+        # Attach the pages the person was found on so results are actionable
+        # (view/select) even without a text hit; dedup against text pages.
+        item_pages = db.items_for_pages(person_pages)
+        person_ids = set(item_pages)
         candidate_ids = person_ids if candidate_ids is None else candidate_ids & person_ids
+        for isadg_id, links in item_pages.items():
+            existing = matched_pages.setdefault(isadg_id, [])
+            existing.extend(link for link in links if link not in existing)
 
     rows = db.filter_items(
         candidate_ids,
