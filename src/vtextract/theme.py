@@ -55,6 +55,33 @@ def highlight_terms(text: str, query: str | None, style: str) -> Text:
     return out
 
 
+def highlight_phrases(out: Text, phrases: list[str], style: str) -> Text:
+    """Stylize each whole occurrence of every phrase in ``phrases`` onto the
+    already-built ``out`` ``Text`` and return it (mutated in place).
+
+    Unlike :func:`highlight_terms`, a phrase is matched as a contiguous
+    sequence of words — "Jno. Smith" highlights only where both words appear
+    together, never "Jno." or "Smith" alone. Inter-word whitespace matches
+    flexibly (``\\s+``), so a name split across a line break still matches and
+    is highlighted as one span. Case-insensitive; each word's outer edge is
+    anchored to a word boundary so "Ryan" does not match inside "Ryanair".
+
+    ponytail: whitespace-boundary splits only — a word hyphenated across a
+    line ("Smi-\\nth") won't match. Add soft-hyphen handling if archives need it.
+    """
+    if not style:
+        return out
+    text = out.plain
+    for phrase in phrases:
+        tokens = phrase.split()
+        if not tokens:
+            continue
+        pattern = r"(?<!\w)" + r"\s+".join(re.escape(t) for t in tokens) + r"(?!\w)"
+        for m in re.finditer(pattern, text, re.IGNORECASE):
+            out.stylize(style, m.start(), m.end())
+    return out
+
+
 def add_theme_args(parser: argparse.ArgumentParser) -> None:
     """Add the shared `--dark` / `--light` / `--bw` / `--plain` flags."""
     group = parser.add_mutually_exclusive_group()

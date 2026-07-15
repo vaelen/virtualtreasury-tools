@@ -15,7 +15,7 @@ from textual.widgets import Static
 # before the Textual app starts. This module is imported via app.py at startup.
 from textual_image.widget import Image
 
-from vtextract.theme import THEMES, highlight_terms
+from vtextract.theme import THEMES, highlight_phrases, highlight_terms
 from vtextract.tui.archive_reader import ArchiveReader
 from vtextract.tui.bundle import Bundle, PageRef
 from vtextract.tui.index_client import IndexClient
@@ -28,14 +28,15 @@ _NO_IMAGE_MESSAGE = (
 _WORD_RE = re.compile(r"\w+", re.UNICODE)
 
 
-def person_surface_forms(query: str | None, people: list[list[str]]) -> str:
-    """Surface-form strings to highlight for a person search on one page.
+def person_surface_forms(query: str | None, people: list[list[str]]) -> list[str]:
+    """Surface-form phrases to highlight for a person search on one page.
 
     ``people`` is the page's names-sidecar persons, each a
-    ``[canonical, *surface_forms]`` list. Returns the space-joined forms of
-    every person who shares a name word with ``query`` — so searching
-    "John Smith" picks up that person's on-page "Jno. Smith" variant. Empty
-    when the searched person isn't on this page, so nothing extra lights up.
+    ``[canonical, *surface_forms]`` list. Returns the distinct forms of every
+    person who shares a name word with ``query`` — so searching "John Smith"
+    picks up that person's on-page "Jno. Smith" variant. Each form is returned
+    whole (not split into words) so callers can highlight it as an exact
+    multi-word phrase. Empty when the searched person isn't on this page.
 
     ponytail: match is any-word overlap, so a same-first-name neighbour
     ("John Doe" under "John Smith") also highlights. Fine for a visual aid;
@@ -43,13 +44,13 @@ def person_surface_forms(query: str | None, people: list[list[str]]) -> str:
     """
     qwords = {m.group(0).lower() for m in _WORD_RE.finditer(query or "")}
     if not qwords:
-        return ""
+        return []
     out: list[str] = []
     for forms in people:
         words = {w.lower() for f in forms for w in _WORD_RE.findall(f)}
         if qwords & words:
-            out.extend(forms)
-    return " ".join(out)
+            out.extend(f for f in forms if f not in out)
+    return out
 
 
 class TranscriptionScreen(ScrollableContainer):
@@ -112,12 +113,14 @@ class TranscriptionScreen(ScrollableContainer):
             return Static(_NO_IMAGE_MESSAGE, id="page-image-missing")
         text = self.reader.read_transcription(self.root_id, self.page_key) or \
             "(no transcription available for this page)"
-        terms = self.query or ""
+        match_style = THEMES["dark"].match_style
+        # Free-text query highlights word-by-word; a searched person's surface
+        # forms highlight as exact multi-word phrases (line-break tolerant).
+        styled = highlight_terms(text, self.query, match_style)
         if self.person:
             forms = person_surface_forms(
                 self.person, self.reader.read_names(self.root_id, self.page_key))
-            terms = f"{terms} {forms}".strip()
-        styled = highlight_terms(text, terms, THEMES["dark"].match_style)
+            highlight_phrases(styled, forms, match_style)
         return Static(styled, id="transcription-body")
 
     def _current_ref(self) -> PageRef:
