@@ -83,11 +83,13 @@ class ResultsScreen(CountFooterMixin, DataTable):
         Binding("escape", "back", "back"),
     ]
 
-    def __init__(self, *, bundle: Bundle, results: list, query: str) -> None:
+    def __init__(self, *, bundle: Bundle, results: list, query: str,
+                 person: str | None = None) -> None:
         super().__init__(cursor_type="row")
         self.bundle = bundle
         self.results = results
         self.query = query
+        self.person = person
         self.sort_mode = SortMode.RELEVANCE
 
     def on_mount(self) -> None:
@@ -129,7 +131,7 @@ class ResultsScreen(CountFooterMixin, DataTable):
         target = next((p for p in pages if p.role == "primary"), pages[0])
         self.app.open_transcription(  # type: ignore[attr-defined]
             target.root_id, target.page_key, query=self.query,
-            origin="results")
+            person=self.person, origin="results")
 
     def action_toggle_item(self) -> None:
         if not self.results:

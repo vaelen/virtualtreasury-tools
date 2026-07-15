@@ -47,3 +47,16 @@ def test_image_exists(archive):
     assert r.image_exists("0007", "cb_001.jpg") is False
     (archive / "pages" / "0007" / "cb_001.jpg").write_bytes(b"\xff\xd8\xff\xd9")
     assert r.image_exists("0007", "cb_001.jpg") is True
+
+
+def test_read_names(archive):
+    (archive / "pages" / "0007" / "cb_001.jpg.names.json").write_text(json.dumps(
+        {"people": [["John Smith", "Jno. Smith"], ["Mary Doe"], []]}))
+    r = ArchiveReader(archive)
+    assert r.read_names("0007", "cb_001.jpg") == [
+        ["John Smith", "Jno. Smith"], ["Mary Doe"]]
+
+
+def test_read_names_missing_returns_empty(archive):
+    r = ArchiveReader(archive)
+    assert r.read_names("0007", "cb_001.jpg") == []

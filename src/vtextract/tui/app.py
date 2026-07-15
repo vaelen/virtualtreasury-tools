@@ -121,6 +121,7 @@ class VtBrowseApp(App):
         self.bundle = Bundle()
         self.last_results: list = []
         self.last_query: str | None = None
+        self.last_person: str | None = None
         self.current_root_id: str | None = None
         self.current_volume_title: str | None = None
         self._stale_chip_visible: bool = False
@@ -310,6 +311,7 @@ class VtBrowseApp(App):
 
     def open_transcription(self, root_id: str, page_key: str,
                            *, query: str | None = None,
+                           person: str | None = None,
                            origin: str = "pages",
                            view: Literal["text", "image"] = "text") -> None:
         vol = (self.current_volume_title
@@ -318,7 +320,8 @@ class VtBrowseApp(App):
         screen = TranscriptionScreen(
             index=self.index, reader=ArchiveReader(self.archive),
             bundle=self.bundle, root_id=root_id, page_key=page_key,
-            query=query, origin=origin, view=view, base_title=base_title,
+            query=query, person=person, origin=origin, view=view,
+            base_title=base_title,
         )
         title = base_title + (" [image]" if view == "image" else "")
         # Transcription is a single document, not a list — no count footer.
@@ -379,6 +382,7 @@ class VtBrowseApp(App):
         )
         self.last_results = rows
         self.last_query = spec.query
+        self.last_person = spec.person
         self.action_open_results()
 
     def action_open_results(self) -> None:
@@ -388,6 +392,7 @@ class VtBrowseApp(App):
             bundle=self.bundle,
             results=self.last_results,
             query=self.last_query or "",
+            person=self.last_person,
         )
         # ResultsScreen.on_mount re-publishes this title with the sort-mode suffix
         self._mount_screen(screen, title="Search Results")

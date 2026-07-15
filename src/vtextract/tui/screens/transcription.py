@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from textual.binding import Binding
@@ -23,6 +24,32 @@ _NO_IMAGE_MESSAGE = (
     "No image on disk for this page — re-run vtextract with --images to "
     "download it."
 )
+
+_WORD_RE = re.compile(r"\w+", re.UNICODE)
+
+
+def person_surface_forms(query: str | None, people: list[list[str]]) -> str:
+    """Surface-form strings to highlight for a person search on one page.
+
+    ``people`` is the page's names-sidecar persons, each a
+    ``[canonical, *surface_forms]`` list. Returns the space-joined forms of
+    every person who shares a name word with ``query`` — so searching
+    "John Smith" picks up that person's on-page "Jno. Smith" variant. Empty
+    when the searched person isn't on this page, so nothing extra lights up.
+
+    ponytail: match is any-word overlap, so a same-first-name neighbour
+    ("John Doe" under "John Smith") also highlights. Fine for a visual aid;
+    tighten to require all query words only if it proves noisy in practice.
+    """
+    qwords = {m.group(0).lower() for m in _WORD_RE.finditer(query or "")}
+    if not qwords:
+        return ""
+    out: list[str] = []
+    for forms in people:
+        words = {w.lower() for f in forms for w in _WORD_RE.findall(f)}
+        if qwords & words:
+            out.extend(forms)
+    return " ".join(out)
 
 
 class TranscriptionScreen(ScrollableContainer):
@@ -48,7 +75,8 @@ class TranscriptionScreen(ScrollableContainer):
 
     def __init__(self, *, index: IndexClient, reader: ArchiveReader,
                  bundle: Bundle, root_id: str, page_key: str,
-                 query: str | None = None, origin: str = "pages",
+                 query: str | None = None, person: str | None = None,
+                 origin: str = "pages",
                  view: Literal["text", "image"] = "text", base_title: str | None = None) -> None:
         super().__init__()
         self.index = index
@@ -57,6 +85,9 @@ class TranscriptionScreen(ScrollableContainer):
         self.root_id = root_id
         self.page_key = page_key
         self.query = query
+        # The searched-for person (from a person-filter search), if any. Its
+        # on-page surface forms get highlighted alongside the free-text query.
+        self.person = person
         # Where this view was opened from, so ``esc`` (action_back) returns
         # there: "results" → the search results screen, "pages" → the volume's
         # page list. Preserved across prev/next page navigation.
@@ -81,7 +112,12 @@ class TranscriptionScreen(ScrollableContainer):
             return Static(_NO_IMAGE_MESSAGE, id="page-image-missing")
         text = self.reader.read_transcription(self.root_id, self.page_key) or \
             "(no transcription available for this page)"
-        styled = highlight_terms(text, self.query, THEMES["dark"].match_style)
+        terms = self.query or ""
+        if self.person:
+            forms = person_surface_forms(
+                self.person, self.reader.read_names(self.root_id, self.page_key))
+            terms = f"{terms} {forms}".strip()
+        styled = highlight_terms(text, terms, THEMES["dark"].match_style)
         return Static(styled, id="transcription-body")
 
     def _current_ref(self) -> PageRef:
@@ -99,14 +135,16 @@ class TranscriptionScreen(ScrollableContainer):
         if nav and nav.previous:
             self.app.open_transcription(  # type: ignore[attr-defined]
                 self.root_id, nav.previous.page_key,
-                query=self.query, origin=self.origin, view=self.view)
+                query=self.query, person=self.person,
+                origin=self.origin, view=self.view)
 
     async def action_next_page(self) -> None:
         nav = await self.index.page(self.root_id, self.page_key)
         if nav and nav.next:
             self.app.open_transcription(  # type: ignore[attr-defined]
                 self.root_id, nav.next.page_key,
-                query=self.query, origin=self.origin, view=self.view)
+                query=self.query, person=self.person,
+                origin=self.origin, view=self.view)
 
     def action_toggle_select(self) -> None:
         self.bundle.toggle_page(self._current_ref())
