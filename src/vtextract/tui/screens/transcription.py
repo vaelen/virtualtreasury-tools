@@ -33,14 +33,13 @@ def person_surface_forms(query: str | None, people: list[list[str]]) -> list[str
 
     ``people`` is the page's names-sidecar persons, each a
     ``[canonical, *surface_forms]`` list. Returns the distinct forms of every
-    person who shares a name word with ``query`` — so searching "John Smith"
-    picks up that person's on-page "Jno. Smith" variant. Each form is returned
-    whole (not split into words) so callers can highlight it as an exact
-    multi-word phrase. Empty when the searched person isn't on this page.
-
-    ponytail: match is any-word overlap, so a same-first-name neighbour
-    ("John Doe" under "John Smith") also highlights. Fine for a visual aid;
-    tighten to require all query words only if it proves noisy in practice.
+    person whose combined forms contain ALL of ``query``'s words — mirroring
+    the index's person FTS match (implicit AND over canonical + aliases) — so
+    searching "John Smith" picks up that person's on-page "Jno. Smith" variant
+    without also lighting up a same-first-name neighbour like "John Doe". Each
+    form is returned whole (not split into words) so callers can highlight it
+    as an exact multi-word phrase. Empty when the searched person isn't on
+    this page.
     """
     qwords = {m.group(0).lower() for m in _WORD_RE.finditer(query or "")}
     if not qwords:
@@ -48,7 +47,7 @@ def person_surface_forms(query: str | None, people: list[list[str]]) -> list[str
     out: list[str] = []
     for forms in people:
         words = {w.lower() for f in forms for w in _WORD_RE.findall(f)}
-        if qwords & words:
+        if qwords <= words:
             out.extend(f for f in forms if f not in out)
     return out
 
