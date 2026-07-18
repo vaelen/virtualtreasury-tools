@@ -25,10 +25,13 @@ class ArchiveReader:
         f = self._page_dir(root_id) / f"{page_key}.txt"
         return f.read_text() if f.exists() else None
 
+    def names_path(self, root_id: str, page_key: str) -> Path:
+        return self._page_dir(root_id) / f"{page_key}.names.json"
+
     def read_names(self, root_id: str, page_key: str) -> list[list[str]]:
         """The page's names-sidecar persons, each a ``[canonical, *surface_forms]``
         list (schema 2). Empty list when no sidecar exists (names never run)."""
-        f = self._page_dir(root_id) / f"{page_key}.names.json"
+        f = self.names_path(root_id, page_key)
         if not f.exists():
             return []
         people = json.loads(f.read_text()).get("people") or []
