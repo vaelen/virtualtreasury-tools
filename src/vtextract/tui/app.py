@@ -370,16 +370,33 @@ class VtBrowseApp(App):
         self.push_screen(SearchDialog(default_volume=self.current_root_id),
                          self._on_search_submitted)
 
-    async def _on_search_submitted(self, spec: SearchSpec | None) -> None:
+    def _on_search_submitted(self, spec: SearchSpec | None) -> None:
         if spec is None:
             return
-        rows = await self.index.search(
-            query=spec.query, fields=spec.fields,
-            date_from=spec.date_from, date_to=spec.date_to,
-            date_type=spec.date_type, volume=spec.volume,
-            person=spec.person,
-            limit=0,  # the TUI renders the full result set, not a 50-row page
-        )
+        # Run the search as a worker: a dismiss callback executes inside the
+        # message pump, and awaiting a slow search there deadlocks the app
+        # (no key events — including the pilot's — are processed until the
+        # search returns). The worker keeps the pump free to paint the splash
+        # and handle input; exclusive so a re-submitted search cancels the
+        # in-flight one.
+        self.run_worker(self._run_search(spec), exclusive=True, group="search")
+
+    async def _run_search(self, spec: SearchSpec) -> None:
+        # finally guards against the modal being stranded if the search
+        # raises or the worker is cancelled.
+        splash = SplashScreen(subtitle="Searching the archive…",
+                              status="Please wait…")
+        self.push_screen(splash)
+        try:
+            rows = await self.index.search(
+                query=spec.query, fields=spec.fields,
+                date_from=spec.date_from, date_to=spec.date_to,
+                date_type=spec.date_type, volume=spec.volume,
+                person=spec.person,
+                limit=0,  # the TUI renders the full result set, not a 50-row page
+            )
+        finally:
+            splash.dismiss()
         self.last_results = rows
         self.last_query = spec.query
         self.last_person = spec.person
