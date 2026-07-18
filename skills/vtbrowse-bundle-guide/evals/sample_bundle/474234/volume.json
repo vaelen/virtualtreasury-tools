@@ -1,0 +1,12 @@
+{
+  "label": "Court of Chancery, Petition Book",
+  "reference_code": "TNA SO 1/14",
+  "title": "Court of Chancery (Ireland): petitions, 1714",
+  "pages": [
+    {"page_key": "474234_Page_001.jpg", "label": "1", "canvas_id": "https://iiif.virtualtreasury.ie/iiif/v1/474234/canvas/1"},
+    {"page_key": "474234_Page_002.jpg", "label": "2", "canvas_id": "https://iiif.virtualtreasury.ie/iiif/v1/474234/canvas/2"},
+    {"page_key": "474234_Page_003.jpg", "label": "3", "canvas_id": "https://iiif.virtualtreasury.ie/iiif/v1/474234/canvas/3"},
+    {"page_key": "474234_Page_004.jpg", "label": "4", "canvas_id": "https://iiif.virtualtreasury.ie/iiif/v1/474234/canvas/4"},
+    {"page_key": "474234_Page_005.jpg", "label": "5", "canvas_id": "https://iiif.virtualtreasury.ie/iiif/v1/474234/canvas/5"}
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "created_at": "2026-05-30T14:22:05.123456+00:00",
+  "selected_items": [
+    {
+      "isadg_id": 474234,
+      "matched_pages": [
+        {"root_id": "474234", "page_key": "474234_Page_002.jpg"},
+        {"root_id": "474234", "page_key": "474234_Page_003.jpg"},
+        {"root_id": "474234", "page_key": "474234_Page_004.jpg"}
+      ]
+    }
+  ],
+  "page_state": [
+    {"root_id": "474234", "page_key": "474234_Page_005.jpg", "state": "include"},
+    {"root_id": "474234", "page_key": "474234_Page_004.jpg", "state": "exclude"}
+  ]
+}

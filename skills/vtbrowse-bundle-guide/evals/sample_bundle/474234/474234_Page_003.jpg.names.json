@@ -1,0 +1,21 @@
+{
+  "schema": 2,
+  "model": "gemini/gemini-2.5-flash-lite",
+  "people": [
+    [
+      "Constantine Phipps",
+      "Sir Constantine Phipps Knight"
+    ],
+    [
+      "David Power",
+      "David Power Gent"
+    ]
+  ],
+  "elapsed_ms": 1843,
+  "usage": {
+    "in": 412,
+    "out": 96,
+    "total": 508,
+    "cached": 0
+  }
+}

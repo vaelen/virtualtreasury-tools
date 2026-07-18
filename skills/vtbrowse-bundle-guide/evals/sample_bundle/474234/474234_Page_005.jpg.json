@@ -1,0 +1,17 @@
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json",
+  "@id": "https://iiif.virtualtreasury.ie/iiif/v1/474234/list/5",
+  "@type": "sc:AnnotationList",
+  "resources": [
+    {
+      "@type": "oa:Annotation",
+      "motivation": "oa:commenting",
+      "resource": {
+        "@type": "cnt:ContentAsText",
+        "format": "text/html",
+        "chars": "<p>Whereupon it is ordered that the said David Power do attend the court on the first day of next term.</p>"
+      },
+      "on": "https://iiif.virtualtreasury.ie/iiif/v1/474234/canvas/5"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json",
+  "@id": "https://iiif.virtualtreasury.ie/iiif/v1/474234/list/2",
+  "@type": "sc:AnnotationList",
+  "resources": [
+    {
+      "@type": "oa:Annotation",
+      "motivation": "oa:commenting",
+      "resource": {
+        "@type": "cnt:ContentAsText",
+        "format": "text/html",
+        "chars": "<p>Petitions received in the Michaelmas term, with marginal notes of the orders made thereon.</p>"
+      },
+      "on": "https://iiif.virtualtreasury.ie/iiif/v1/474234/canvas/2"
+    }
+  ]
+}

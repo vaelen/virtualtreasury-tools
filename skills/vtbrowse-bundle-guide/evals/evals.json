@@ -1,0 +1,37 @@
+{
+  "skill_name": "vtbrowse-bundle-guide",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "A colleague sent me this folder called sample_bundle/ and said it came out of some genealogy tool. There's a bundle.json, a 474234 subfolder with a volume.json and a bunch of .jpg.txt and .jpg.json files. I have no idea what I'm looking at. Walk me through what each file is and how the pieces fit together, and tell me which pages are actually part of this bundle.",
+      "expected_output": "Identifies it as a vtbrowse export; correctly describes bundle.json (selection manifest), volume.json (per-volume metadata + ordered pages), <page_key>.txt (page-level transcription, may be HTML), <page_key>.json (raw IIIF annotation list). Crucially computes effective membership: pages 002, 003, 005 are in; 004 is excluded despite being in matched_pages; 005 is included via page_state. Notes no images present.",
+      "files": [
+        "sample_bundle"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I want to turn sample_bundle/ into a single readable markdown document of the petition, with pages in the right order and the text cleaned up. Before you write any code, explain how I should read the transcriptions, what order the pages go in, and any gotchas about the text content.",
+      "expected_output": "Says to order pages by volume.json pages[] sequence; reads <page_key>.txt for text; warns the .txt may contain HTML (text/html chars) so tags must be stripped; notes transcription is page-level not per-resource; uses the effective page set (002,003,005) not the raw matched_pages.",
+      "files": [
+        "sample_bundle"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "In this vtbrowse bundle, what exactly is a 'context page' versus the page that actually matched my search, and how do I tell them apart from the files? Also why are there no image files in here?",
+      "expected_output": "Explains context pages are neighbour leaves captured via --context-pages N for surrounding context; honestly states the export does NOT carry a primary/context role marker (that lives in the source archive's items/<id>/metadata.json), and suggests using volume.json ordering or going back to the source archive; does not conflate page_state include/exclude with primary/context. Explains images are opt-in (--images) and absent here because the bundle was exported without them.",
+      "files": [
+        "sample_bundle"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "In sample_bundle/474234/ there's a file called 474234_Page_003.jpg.names.json. What is it, where did it come from, and how do I read the people list? Also, why do some pages not have one, and can I trust these names for a genealogy index?",
+      "expected_output": "Identifies it as the vtextract names LLM extraction sidecar copied into the export; explains schema 2 compact form: each people[] entry is [canonical, *surface_forms] where the canonical may not appear verbatim on the page and the rest are as-written variants; notes it is page-level (all people on the leaf, not per resource); explains absence is normal (names pass not run or failed for that page; error sidecars are not exported); cautions it is LLM output over difficult manuscripts, so not authoritative ground truth; mentions model/elapsed_ms/usage as provenance with usage optional.",
+      "files": [
+        "sample_bundle"
+      ]
+    }
+  ]
+}
