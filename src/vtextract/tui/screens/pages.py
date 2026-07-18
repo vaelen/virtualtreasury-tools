@@ -19,11 +19,13 @@ class PagesScreen(CountFooterMixin, DataTable):
         Binding("escape", "back", "back"),
     ]
 
-    def __init__(self, *, index: IndexClient, bundle: Bundle, root_id: str) -> None:
+    def __init__(self, *, index: IndexClient, bundle: Bundle, root_id: str,
+                 initial_row: int = 0) -> None:
         super().__init__(cursor_type="row")
         self.index = index
         self.bundle = bundle
         self.root_id = root_id
+        self.initial_row = initial_row
         self._pages: list = []
 
     async def on_mount(self) -> None:
@@ -32,8 +34,13 @@ class PagesScreen(CountFooterMixin, DataTable):
         for p in self._pages:
             self._add(p)
         if self._pages:
-            self.move_cursor(row=0)
+            self.move_cursor(row=min(self.initial_row, len(self._pages) - 1))
         self._wire_count_footer()
+
+    def on_data_table_row_highlighted(self, _ev) -> None:
+        # Remember the user's place so reopening this volume's list restores it.
+        self.app.last_pages_root = self.root_id
+        self.app.last_pages_row = self.cursor_row
 
     def _add(self, p) -> None:
         ref = PageRef(self.root_id, p.page_key)

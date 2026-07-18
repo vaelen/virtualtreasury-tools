@@ -127,6 +127,10 @@ class VtBrowseApp(App):
         # results (esc from a document, the global `r`) restores their place.
         self.last_results_sort: SortMode = SortMode.RELEVANCE
         self.last_results_row: int = 0
+        # Likewise for the volume page list, keyed to its volume so another
+        # volume's list still opens at the top.
+        self.last_pages_root: str | None = None
+        self.last_pages_row: int = 0
         self.current_root_id: str | None = None
         self.current_volume_title: str | None = None
         self._stale_chip_visible: bool = False
@@ -309,8 +313,10 @@ class VtBrowseApp(App):
             title = self.current_volume_title
         self.current_root_id = root_id
         self.current_volume_title = title
+        initial_row = self.last_pages_row if root_id == self.last_pages_root else 0
         self._mount_screen(
-            PagesScreen(index=self.index, bundle=self.bundle, root_id=root_id),
+            PagesScreen(index=self.index, bundle=self.bundle, root_id=root_id,
+                        initial_row=initial_row),
             title=title or root_id,
         )
 
