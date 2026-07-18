@@ -36,7 +36,7 @@ from vtextract.tui.panes.bundle_pane import BundlePane
 from vtextract.tui.panes.document_pane import DocumentPane
 from vtextract.tui.screens.no_index import NoIndexScreen
 from vtextract.tui.screens.pages import PagesScreen
-from vtextract.tui.screens.results import ResultsScreen
+from vtextract.tui.screens.results import ResultsScreen, SortMode
 from vtextract.tui.screens.transcription import TranscriptionScreen
 from vtextract.tui.screens.volumes import VolumesScreen
 
@@ -122,6 +122,11 @@ class VtBrowseApp(App):
         self.last_results: list = []
         self.last_query: str | None = None
         self.last_person: str | None = None
+        # Where the user last was in the results list (sort order + cursor
+        # row), written back by ResultsScreen as they move, so reopening the
+        # results (esc from a document, the global `r`) restores their place.
+        self.last_results_sort: SortMode = SortMode.RELEVANCE
+        self.last_results_row: int = 0
         self.current_root_id: str | None = None
         self.current_volume_title: str | None = None
         self._stale_chip_visible: bool = False
@@ -398,6 +403,9 @@ class VtBrowseApp(App):
         self.last_results = rows
         self.last_query = spec.query
         self.last_person = spec.person
+        # A fresh search starts back at the top in relevance order.
+        self.last_results_sort = SortMode.RELEVANCE
+        self.last_results_row = 0
         self.action_open_results()
 
     def action_open_results(self) -> None:
@@ -408,6 +416,8 @@ class VtBrowseApp(App):
             results=self.last_results,
             query=self.last_query or "",
             person=self.last_person,
+            sort_mode=self.last_results_sort,
+            initial_row=self.last_results_row,
         )
         # ResultsScreen.on_mount re-publishes this title with the sort-mode suffix
         self._mount_screen(screen, title="Search Results")

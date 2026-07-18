@@ -84,20 +84,29 @@ class ResultsScreen(CountFooterMixin, DataTable):
     ]
 
     def __init__(self, *, bundle: Bundle, results: list, query: str,
-                 person: str | None = None) -> None:
+                 person: str | None = None,
+                 sort_mode: SortMode = SortMode.RELEVANCE,
+                 initial_row: int = 0) -> None:
         super().__init__(cursor_type="row")
         self.bundle = bundle
         self.results = results
         self.query = query
         self.person = person
-        self.sort_mode = SortMode.RELEVANCE
+        self.sort_mode = sort_mode
+        self.initial_row = initial_row
 
     def on_mount(self) -> None:
         self.add_columns("Sel", "ID", "Date", "Reference", "Title")
         self.results = sort_results(self.results, self.sort_mode)
         self._populate()
+        if self.results:
+            self.move_cursor(row=min(self.initial_row, len(self.results) - 1))
         self._update_title()
         self._wire_count_footer()
+
+    def on_data_table_row_highlighted(self, _ev) -> None:
+        # Remember the user's place so reopening the results restores it.
+        self.app.last_results_row = self.cursor_row
 
     def _populate(self) -> None:
         """(Re)build every table row from ``self.results`` in its current order,
@@ -162,6 +171,7 @@ class ResultsScreen(CountFooterMixin, DataTable):
             return
         current_id = self.results[self.cursor_row].isadg_id
         self.sort_mode = self.sort_mode.next()
+        self.app.last_results_sort = self.sort_mode
         self.results = sort_results(self.results, self.sort_mode)
         self._populate()
         for i, r in enumerate(self.results):
