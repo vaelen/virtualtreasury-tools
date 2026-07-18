@@ -332,13 +332,11 @@ class VtBrowseApp(App):
         self.query_one(BundlePane).refresh_content()
 
     def action_request_quit(self) -> None:
-        if not self._bundle_dirty:
-            self.exit()
-            return
         pages = len(self.bundle.effective_pages())
         items = len(self.bundle.selected_items)
         self.push_screen(
-            ExitDialog(page_count=pages, item_count=items),
+            ExitDialog(page_count=pages, item_count=items,
+                       dirty=self._bundle_dirty),
             self._on_exit_choice,
         )
 
