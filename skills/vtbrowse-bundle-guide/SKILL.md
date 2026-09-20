@@ -37,6 +37,7 @@ An export is a folder (or the same tree inside a `.zip` / `.tar.gz`):
 │   ├── <page_key>.txt          # page transcription, plain text  (only if it exists)
 │   ├── <page_key>.json         # raw IIIF annotation list        (only if it exists)
 │   ├── <page_key>.names.json   # people extracted from the page   (only if it exists)
+│   ├── <page_key>.notes.md     # hand-written notes for the LLM   (only if it exists)
 │   └── <page_key>              # page image, no extra suffix      (only with images)
 └── bundle.json                 # the selection manifest (always written)
 ```
@@ -220,6 +221,13 @@ the exact canvas region each fragment annotates. Shape:
   appended, pinning it to a rectangle of the page image).
 
 If a page had no annotation list, there is no `.json` for it.
+
+## `<page_key>.notes.md` — hand-written notes for the page
+
+Free-form Markdown a human wrote to steer `vtextract names` on this page
+(e.g. `"J. Smith" here is James Smith`). Copied verbatim; rare, and absence
+is normal. Treat it as authoritative context about the page's people when
+present — it overrides what the LLM guessed in `.names.json`.
 
 ## `<page_key>.names.json` — people extracted from the page
 

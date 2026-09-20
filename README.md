@@ -300,8 +300,9 @@ document. Every chunk of a long page carries the same notes.
 "Ormond" here is the estate, not a person.
 ```
 
-Notes are read only when a page is extracted, so after adding or editing one
-re-run with `--force` scoped to that resource:
+Notes travel with the page in a `vtbrowse` bundle export. They are read only
+when a page is extracted, so after adding or editing one re-run with `--force`
+scoped to that resource:
 
 ```bash
 vtextract names "TNA SO 1/14" --force --archive ./archive

@@ -28,6 +28,9 @@ class ArchiveReader:
     def names_path(self, root_id: str, page_key: str) -> Path:
         return self._page_dir(root_id) / f"{page_key}.names.json"
 
+    def notes_path(self, root_id: str, page_key: str) -> Path:
+        return self._page_dir(root_id) / f"{page_key}.notes.md"
+
     def read_names(self, root_id: str, page_key: str) -> list[list[str]]:
         """The page's names-sidecar persons, each a ``[canonical, *surface_forms]``
         list (schema 2). Empty list when no sidecar exists (names never run)."""

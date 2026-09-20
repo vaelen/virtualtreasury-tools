@@ -6,7 +6,7 @@
 Pure file I/O — no subprocess. Image backfill via `vtextract get` is
 deferred to Task 21. Layout::
 
-    bundle_*/<root_id>/{volume.json, <page_key>.{txt,json,[names.json],[image]}}
+    bundle_*/<root_id>/{volume.json, <page_key>.{txt,json,[names.json],[notes.md],[image]}}
     bundle_*/bundle.json
 """
 
@@ -52,9 +52,10 @@ def export_bundle(*, bundle: Bundle, archive: Path, destination: Path,
             if meta is not None:
                 (vol_out / f"{ref.page_key}.json").write_text(
                     json.dumps(meta, indent=2))
-            names = reader.names_path(ref.root_id, ref.page_key)
-            if names.exists():
-                shutil.copy2(names, vol_out / names.name)
+            for side in (reader.names_path(ref.root_id, ref.page_key),
+                         reader.notes_path(ref.root_id, ref.page_key)):
+                if side.exists():
+                    shutil.copy2(side, vol_out / side.name)
             if include_images and reader.image_exists(ref.root_id, ref.page_key):
                 shutil.copy2(reader.image_path(ref.root_id, ref.page_key),
                              vol_out / ref.page_key)

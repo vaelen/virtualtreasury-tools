@@ -108,3 +108,16 @@ def test_export_unknown_format_raises(tmp_archive, tmp_path):
         assert "bogus" in str(exc)
     else:
         raise AssertionError("expected ValueError for unknown fmt")
+
+
+def test_export_includes_notes_sidecar(tmp_archive, tmp_path):
+    # The hand-written notes.md travels with the page; absence is fine.
+    (tmp_archive / "pages" / "volA" / "volA_p1.jpg.notes.md").write_text("J. Smith is James.")
+    bundle = Bundle()
+    bundle.toggle_item(100, [PageRef("volA", "volA_p1.jpg"),
+                             PageRef("volA", "volA_p0.jpg")])
+    out = tmp_path / "bundle_test"
+    export_bundle(bundle=bundle, archive=tmp_archive,
+                  destination=out, include_images=False)
+    assert (out / "volA" / "volA_p1.jpg.notes.md").read_text() == "J. Smith is James."
+    assert not (out / "volA" / "volA_p0.jpg.notes.md").exists()
