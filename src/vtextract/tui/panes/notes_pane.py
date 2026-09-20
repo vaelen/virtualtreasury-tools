@@ -7,6 +7,7 @@ from textual.binding import Binding
 from textual.widgets import TextArea
 
 from vtextract.tui.archive_reader import ArchiveReader
+from vtextract.tui.panes.sidebar import Sidebar
 
 
 class NotesEditor(TextArea):
@@ -18,7 +19,7 @@ class NotesEditor(TextArea):
     """
 
     DEFAULT_CSS = """
-    NotesEditor { width: 1fr; border: solid $accent; }
+    NotesEditor { border: solid $accent; }
     """
 
     BINDINGS = [Binding("escape", "close", "close notes")]
@@ -36,7 +37,7 @@ class NotesEditor(TextArea):
     def action_close(self) -> None:
         # Hand focus back to the transcription before we go, so its bindings
         # (n, arrows, esc) keep working.
-        prev = self.parent.children[0] if self.parent else None
-        self.remove()
-        if prev is not None:
-            prev.focus()
+        pane = self.parent.parent if self.parent else None
+        Sidebar.close(self)
+        if pane is not None and pane.children:
+            pane.children[0].focus()

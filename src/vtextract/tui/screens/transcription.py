@@ -20,6 +20,8 @@ from vtextract.tui.archive_reader import ArchiveReader
 from vtextract.tui.bundle import Bundle, PageRef
 from vtextract.tui.index_client import IndexClient
 from vtextract.tui.panes.notes_pane import NotesEditor
+from vtextract.tui.panes.people_pane import PeopleTable
+from vtextract.tui.panes.sidebar import Sidebar
 
 _NO_IMAGE_MESSAGE = (
     "No image on disk for this page — re-run vtextract with --images to "
@@ -70,6 +72,7 @@ class TranscriptionScreen(ScrollableContainer):
         Binding("right", "next_page", "next"),
         Binding("enter", "toggle_view", "image"),
         Binding("n", "toggle_notes", "notes"),
+        Binding("p", "toggle_people", "people"),
         Binding("space", "toggle_select", "select"),
         Binding("escape", "back", "back"),
     ]
@@ -137,14 +140,28 @@ class TranscriptionScreen(ScrollableContainer):
 
     async def action_toggle_notes(self) -> None:
         """Open the page's notes.md beside this view, or close (and save) it."""
-        open_editors = self.parent.query(NotesEditor) if self.parent else []
+        open_editors = self.parent.query(NotesEditor)
         if open_editors:
             open_editors.first().action_close()
             return
         editor = NotesEditor(reader=self.reader, root_id=self.root_id,
                              page_key=self.page_key)
-        await self.parent.mount(editor)
+        await Sidebar.open(self.parent, editor, on_top=True)
         editor.focus()
+
+    async def action_toggle_people(self) -> None:
+        """Show the page's names.json people below the notes, or close them."""
+        open_tables = self.parent.query(PeopleTable)
+        if open_tables:
+            open_tables.first().action_close()
+            return
+        if not self.reader.names_path(self.root_id, self.page_key).exists():
+            self.app.notify("Names have not been extracted from this document yet "
+                            "(run vtextract names).", severity="warning")
+            return
+        table = PeopleTable(self.reader.read_names(self.root_id, self.page_key))
+        await Sidebar.open(self.parent, table)
+        table.focus()
 
     async def action_prev_page(self) -> None:
         nav = await self.index.page(self.root_id, self.page_key)
