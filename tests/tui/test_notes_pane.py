@@ -107,3 +107,33 @@ async def test_quitting_saves_open_notes(tmp_archive):
         app.query_one(NotesEditor).text = "saved on quit"
         app.exit()
     assert _notes(tmp_archive).read_text() == "saved on quit"
+
+
+@pytest.mark.asyncio
+async def test_closing_editor_survives_style_lookup_in_prune_window(tmp_archive, monkeypatch):
+    # Textual #6208: after a TextArea is pruned its component styles are cleared
+    # while the compositor map still lists it, so a mouse move over its old
+    # area (a style lookup) paints it and crashes the app. Simulate that lookup
+    # from inside the window.
+    app = VtBrowseApp(archive=tmp_archive)
+    async with app.run_test(size=(160, 45)) as pilot:
+        await _open_page(app, pilot)
+        await pilot.press("n")
+        await pilot.pause()
+        editor = app.query_one(NotesEditor)
+        x, y = editor.region.x + 2, editor.region.y + 2
+        outcome = {}
+        orig = NotesEditor._message_loop_exit
+
+        async def hooked(self):
+            await orig(self)
+            try:
+                app.screen.get_style_at(x, y)
+                outcome["error"] = None
+            except Exception as exc:  # pragma: no cover - the failure we guard
+                outcome["error"] = exc
+
+        monkeypatch.setattr(NotesEditor, "_message_loop_exit", hooked)
+        await pilot.press("escape")
+        await pilot.pause()
+    assert outcome["error"] is None, outcome["error"]

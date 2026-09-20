@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 from textual.binding import Binding
+from textual.geometry import Region
+from textual.strip import Strip
 from textual.widgets import TextArea
 
 from vtextract.tui.archive_reader import ArchiveReader
@@ -30,6 +32,15 @@ class NotesEditor(TextArea):
         self.root_id = root_id
         self.page_key = page_key
         self.border_title = "Notes"
+
+    def render_lines(self, crop: Region) -> list[Strip]:
+        # Textual #6208: a pruned TextArea has its component styles cleared but
+        # can still be painted from the compositor's stale map (a mouse move
+        # over its old area right after esc), and TextArea.render_lines applies
+        # CSS first, so it raises KeyError. Paint nothing instead.
+        if not self.is_attached:
+            return [Strip.blank(crop.width)] * crop.height
+        return super().render_lines(crop)
 
     def on_unmount(self) -> None:
         self.reader.write_notes(self.root_id, self.page_key, self.text)
