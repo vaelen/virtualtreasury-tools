@@ -5,9 +5,9 @@ description: >-
   `vtbrowse` TUI (part of vtextract / Virtual Record Treasury of Ireland).
   Use this whenever someone has an exported bundle folder, .zip, or .tar.gz
   and asks what its files mean, how to read `bundle.json` / `volume.json` /
-  the per-page `.txt` / `.json` / `.names.json` files, where the
-  transcriptions, extracted people, or images
-  are, what "context pages" are, how `page_key` maps to files, or how to
+  the per-page `.txt` / `.json` / `.names.json` / `.notes.md` files, where
+  the transcriptions, extracted people, human notes, or images are, what
+  "context pages" are, how `page_key` maps to files, or how to
   turn the bundle into something else (a document, a dataset, a script that
   walks it). Trigger even when they don't say "vtbrowse" by name but clearly
   describe a folder of per-volume subfolders containing `bundle.json`,
@@ -51,6 +51,7 @@ my_bundle/
 │   ├── 474234_Page_003.jpg.txt        # transcription text
 │   ├── 474234_Page_003.jpg.json       # source annotation list
 │   ├── 474234_Page_003.jpg.names.json # people extracted from the page
+│   ├── 474234_Page_003.jpg.notes.md   # a human's notes about the page (rare)
 │   ├── 474234_Page_003.jpg            # the image itself (only if exported --images)
 │   ├── 474234_Page_004.jpg.txt
 │   └── 474234_Page_004.jpg.json
@@ -63,6 +64,7 @@ my_bundle/
 - transcription → `<page_key>.txt`  → `474234_Page_003.jpg.txt`
 - annotation list → `<page_key>.json` → `474234_Page_003.jpg.json`
 - extracted people → `<page_key>.names.json` → `474234_Page_003.jpg.names.json`
+- human notes → `<page_key>.notes.md` → `474234_Page_003.jpg.notes.md`
 - image → `<page_key>` (no added suffix) → `474234_Page_003.jpg`
 
 The image file and the `.txt`/`.json` share the same stem; only the image lacks
@@ -222,12 +224,48 @@ the exact canvas region each fragment annotates. Shape:
 
 If a page had no annotation list, there is no `.json` for it.
 
-## `<page_key>.notes.md` — hand-written notes for the page
+## `<page_key>.notes.md` — a human's notes about the page
 
-Free-form Markdown a human wrote to steer `vtextract names` on this page
-(e.g. `"J. Smith" here is James Smith`). Copied verbatim; rare, and absence
-is normal. Treat it as authoritative context about the page's people when
-present — it overrides what the LLM guessed in `.names.json`.
+Free-form Markdown a person wrote about this physical page, copied verbatim
+from the source archive. It is the one file in an export that is **human
+authored**, not scraped or LLM-generated. Rare; absence is normal.
+
+**Where it comes from.** The user writes it in `vtbrowse` (press `n` on a
+page to open a notes editor beside the transcription; closing saves it) or by
+hand at `archive/pages/<root_id>/<page_key>.notes.md`. Its purpose is to
+steer LLM passes over the page — chiefly `vtextract names`, which sends the
+notes to the model as a `NOTES` block that overrides its normal rules — but
+it may hold any context the user knows: corrected readings, who an initial
+or "Mrs X" refers to, that a capitalised word is a place or estate rather
+than a person, cross-references to other pages.
+
+**Precedence.** Notes are the user's own judgement and win over everything
+else in the bundle:
+
+- Over `.names.json`: the notes may have been written *after* the names pass
+  ran — `.names.json` is only regenerated when the user re-runs
+  `vtextract names --force` — so the two can disagree. When they do, the
+  notes are right and `.names.json` is stale. Apply the notes yourself; do not
+  assume the LLM output already reflects them.
+- Over the `.txt` transcription where the note says a reading is wrong (a
+  note like `"David Power" is a transcription error for Daniel Power`
+  corrects the transcriber, not just the LLM).
+
+**How to apply them when listing or indexing people** (do this before
+presenting any people list for a page that has notes):
+
+1. Start from `.names.json` `people[]` if present, else from the `.txt`.
+2. For each correction in the notes, replace the canonical name but keep the
+   on-page surface form(s) as aliases (`["Daniel Power", "David Power Gent"]`).
+3. For each "not a person" note, drop that entry.
+4. For each role or identity note (addressee, witness, "same man as page 41"),
+   keep the person and carry the note as an annotation.
+5. Say in your answer which entries the notes changed.
+
+**Editing.** The copy in an export is inert: changing it does not update the
+archive or re-run anything. To change what the LLM sees, edit the file in the
+source archive (or in `vtbrowse`) and re-run `vtextract names <refcode>
+--force`, then re-export.
 
 ## `<page_key>.names.json` — people extracted from the page
 
@@ -316,8 +354,9 @@ A reliable traversal that doesn't depend on guessing filenames:
    ordered `pages[]`.
 4. For each bundled `page_key`, open `<page_key>.txt` for text (it may be HTML),
    `<page_key>.json` for the source annotations, `<page_key>.names.json` for
-   the extracted people, and `<page_key>` for the image if it exists. Any of
-   the four may be absent — check before opening.
+   the extracted people, `<page_key>.notes.md` for the user's corrections
+   (apply them over the names — see above), and `<page_key>` for the image if
+   it exists. Any of the five may be absent — check before opening.
 5. Order pages within a volume by their index in `volume.json` `pages[]`.
 
 ## Quick reference
@@ -329,4 +368,5 @@ A reliable traversal that doesn't depend on guessing filenames:
 | `<root_id>/<page_key>.txt` | Only if page has a transcription | Flattened page transcription; **may contain HTML**; page-level, not per-resource. |
 | `<root_id>/<page_key>.json` | Only if page has annotations | Raw IIIF `sc:AnnotationList` the `.txt` came from. |
 | `<root_id>/<page_key>.names.json` | Only if `vtextract names` ran on the page | Extracted people; `people[]` of `[canonical, *surface_forms]` arrays (schema 2). |
+| `<root_id>/<page_key>.notes.md` | Only if the user wrote notes for the page | Human-authored Markdown; **overrides** `.names.json` and corrects the `.txt`; may postdate the names pass. |
 | `<root_id>/<page_key>` | Only if exported with images | The page image (JPEG); filename **is** the `page_key`. |

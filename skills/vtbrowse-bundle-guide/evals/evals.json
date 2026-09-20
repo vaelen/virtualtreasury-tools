@@ -32,6 +32,14 @@
       "files": [
         "sample_bundle"
       ]
+    },
+    {
+      "id": 5,
+      "prompt": "In sample_bundle/474234/ there's a 474234_Page_003.jpg.notes.md next to the .names.json. What is that file, where did it come from, and what should I do with it? I'm building a people index from this bundle -- give me the definitive list of people for page 3.",
+      "expected_output": "Identifies notes.md as a hand-written, free-form Markdown file a human wrote about the page (in vtbrowse with the n key, or by hand in the source archive) to correct or steer the vtextract names LLM pass; copied verbatim into the export; absence is normal. States that notes are authoritative over .names.json and that .names.json may predate the notes (it is only regenerated with --force), so the reader must apply the notes themselves rather than trust .names.json. Definitive list for page 3 applies the notes: Daniel Power (not David Power, which is the transcription error the note corrects) and Constantine Phipps flagged as the addressee/Lord Chancellor, not a petitioner.",
+      "files": [
+        "sample_bundle"
+      ]
     }
   ]
 }
