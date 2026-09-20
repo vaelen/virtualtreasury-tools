@@ -436,6 +436,10 @@ visible row range, e.g. `12-37 of 100`, updating as you scroll.
   toggle the page into / out of your Bundle. Press `Enter` in the transcription
   pane to swap between the transcription text and the scanned page image; if no
   image is on disk, a hint is shown to re-run `vtextract` with `--images`.
+  Press `n` to open the page's notes (`<page_key>.notes.md`, see
+  [page notes](#correcting-the-llm-with-page-notes)) in a Markdown editor
+  beside the page; `n` from the page or `Esc` in the editor closes it and
+  saves. Whitespace-only notes delete the file.
 - **`s`** — save the Bundle to `~/.vt/bundle.json` (or the path in config).
 - **`x`** — export the Bundle to a folder (transcriptions + metadata
   JSON; optional images).

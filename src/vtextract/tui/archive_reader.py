@@ -31,6 +31,18 @@ class ArchiveReader:
     def notes_path(self, root_id: str, page_key: str) -> Path:
         return self._page_dir(root_id) / f"{page_key}.notes.md"
 
+    def read_notes(self, root_id: str, page_key: str) -> str:
+        f = self.notes_path(root_id, page_key)
+        return f.read_text() if f.exists() else ""
+
+    def write_notes(self, root_id: str, page_key: str, text: str) -> None:
+        """Write the page's notes.md; whitespace-only text removes it instead."""
+        f = self.notes_path(root_id, page_key)
+        if text.strip():
+            f.write_text(text)
+        else:
+            f.unlink(missing_ok=True)
+
     def read_names(self, root_id: str, page_key: str) -> list[list[str]]:
         """The page's names-sidecar persons, each a ``[canonical, *surface_forms]``
         list (schema 2). Empty list when no sidecar exists (names never run)."""

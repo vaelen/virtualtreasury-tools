@@ -10,7 +10,8 @@ from textual.widgets import Static
 class DocumentPane(Container):
     """Holds the currently-active screen widget (volumes / pages / etc.)."""
 
-    DEFAULT_CSS = "DocumentPane { border: solid $accent; }"
+    # horizontal so a NotesEditor can sit beside the active screen widget
+    DEFAULT_CSS = "DocumentPane { border: solid $accent; layout: horizontal; }"
 
     def __init__(self) -> None:
         super().__init__()

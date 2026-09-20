@@ -19,6 +19,7 @@ from vtextract.theme import THEMES, highlight_phrases, highlight_terms
 from vtextract.tui.archive_reader import ArchiveReader
 from vtextract.tui.bundle import Bundle, PageRef
 from vtextract.tui.index_client import IndexClient
+from vtextract.tui.panes.notes_pane import NotesEditor
 
 _NO_IMAGE_MESSAGE = (
     "No image on disk for this page — re-run vtextract with --images to "
@@ -56,6 +57,7 @@ class TranscriptionScreen(ScrollableContainer):
     DEFAULT_CSS = """
     TranscriptionScreen {
         align-horizontal: center;
+        width: 1fr;
     }
     TranscriptionScreen #page-image {
         width: auto;
@@ -67,6 +69,7 @@ class TranscriptionScreen(ScrollableContainer):
         Binding("left", "prev_page", "prev"),
         Binding("right", "next_page", "next"),
         Binding("enter", "toggle_view", "image"),
+        Binding("n", "toggle_notes", "notes"),
         Binding("space", "toggle_select", "select"),
         Binding("escape", "back", "back"),
     ]
@@ -131,6 +134,17 @@ class TranscriptionScreen(ScrollableContainer):
         await self.mount(self._build_body())
         suffix = " [image]" if self.view == "image" else ""
         self.app.set_pane_title(self.base_title + suffix)  # type: ignore[attr-defined]
+
+    async def action_toggle_notes(self) -> None:
+        """Open the page's notes.md beside this view, or close (and save) it."""
+        open_editors = self.parent.query(NotesEditor) if self.parent else []
+        if open_editors:
+            open_editors.first().action_close()
+            return
+        editor = NotesEditor(reader=self.reader, root_id=self.root_id,
+                             page_key=self.page_key)
+        await self.parent.mount(editor)
+        editor.focus()
 
     async def action_prev_page(self) -> None:
         nav = await self.index.page(self.root_id, self.page_key)

@@ -60,3 +60,16 @@ def test_read_names(archive):
 def test_read_names_missing_returns_empty(archive):
     r = ArchiveReader(archive)
     assert r.read_names("0007", "cb_001.jpg") == []
+
+
+def test_read_and_write_notes(tmp_path):
+    from vtextract.tui.archive_reader import ArchiveReader
+    (tmp_path / "pages" / "v").mkdir(parents=True)
+    r = ArchiveReader(tmp_path)
+    assert r.read_notes("v", "p.jpg") == ""
+    r.write_notes("v", "p.jpg", "hello")
+    assert r.read_notes("v", "p.jpg") == "hello"
+    r.write_notes("v", "p.jpg", " \n")   # whitespace-only removes the file
+    assert not r.notes_path("v", "p.jpg").exists()
+    r.write_notes("v", "p.jpg", "")      # nothing to create
+    assert not r.notes_path("v", "p.jpg").exists()
