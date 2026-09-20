@@ -15,9 +15,12 @@ from vtextract.tui.panes.sidebar import Sidebar
 class NotesEditor(TextArea):
     """Markdown editor for a page's ``<page_key>.notes.md``.
 
-    Saves on unmount, so every way the pane can go away (n, esc, paging,
-    navigating elsewhere, quitting) persists the text. Whitespace-only text
-    removes the file instead (see ``ArchiveReader.write_notes``).
+    Saves whenever focus leaves it and on unmount, so every way the pane can
+    go away (n, esc, paging, navigating elsewhere, quitting) persists the
+    text, and actions that read the notes from disk while the editor is still
+    open (P re-extract, a ask -- both pressed from the page view) see the
+    latest text. Whitespace-only text removes the file instead (see
+    ``ArchiveReader.write_notes``).
     """
 
     DEFAULT_CSS = """
@@ -42,8 +45,14 @@ class NotesEditor(TextArea):
             return [Strip.blank(crop.width)] * crop.height
         return super().render_lines(crop)
 
-    def on_unmount(self) -> None:
+    def _save(self) -> None:
         self.reader.write_notes(self.root_id, self.page_key, self.text)
+
+    def on_blur(self) -> None:
+        self._save()
+
+    def on_unmount(self) -> None:
+        self._save()
 
     def action_close(self) -> None:
         # Hand focus back to the transcription before we go, so its bindings

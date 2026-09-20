@@ -137,3 +137,19 @@ async def test_closing_editor_survives_style_lookup_in_prune_window(tmp_archive,
         await pilot.press("escape")
         await pilot.pause()
     assert outcome["error"] is None, outcome["error"]
+
+
+@pytest.mark.asyncio
+async def test_notes_are_saved_when_editor_loses_focus(tmp_archive):
+    # P (re-extract) and a (ask) read notes from disk, and both are pressed
+    # from the page view, so leaving the editor must already have saved.
+    app = VtBrowseApp(archive=tmp_archive)
+    async with app.run_test() as pilot:
+        await _open_page(app, pilot)
+        await pilot.press("n")
+        await pilot.pause()
+        app.query_one(NotesEditor).text = "typed but not closed"
+        app.query_one("#transcription-body").parent.focus()
+        await pilot.pause()
+        assert len(app.query(NotesEditor)) == 1          # still open
+        assert _notes(tmp_archive).read_text() == "typed but not closed"

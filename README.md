@@ -442,8 +442,9 @@ visible row range, e.g. `12-37 of 100`, updating as you scroll.
   image is on disk, a hint is shown to re-run `vtextract` with `--images`.
   Press `n` to open the page's notes (`<page_key>.notes.md`, see
   [page notes](#correcting-the-llm-with-page-notes)) in a Markdown editor
-  beside the page; `n` from the page or `Esc` in the editor closes it and
-  saves. Whitespace-only notes delete the file.
+  beside the page; `n` from the page or `Esc` in the editor closes it. The
+  notes are saved whenever the editor loses focus or closes, so `P` and `a`
+  always see what you typed. Whitespace-only notes delete the file.
   Press `p` to show the people extracted by `vtextract names` in a read-only
   table on the right (below the notes editor if it is open); `p` again or
   `Esc` closes it, and `n` from it toggles the notes editor. If the page has
