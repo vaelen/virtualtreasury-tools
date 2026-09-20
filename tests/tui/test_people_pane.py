@@ -140,3 +140,27 @@ async def test_n_in_people_table_toggles_notes(tmp_archive):
         await pilot.pause()
         assert len(app.query(NotesEditor)) == 0
         assert len(app.query(PeopleTable)) == 1
+
+
+@pytest.mark.asyncio
+async def test_people_table_reloads_when_sidecar_changes_on_disk(tmp_archive, monkeypatch):
+    # e.g. `vtextract names` run in another terminal, or P's in-process pass:
+    # the open table notices the rewritten sidecar by itself.
+    import asyncio
+    monkeypatch.setattr(PeopleTable, "POLL_SECONDS", 0.05)
+    _write_names(tmp_archive)
+    app = VtBrowseApp(archive=tmp_archive)
+    async with app.run_test() as pilot:
+        await _open_page(app, pilot)
+        await pilot.press("p")
+        await pilot.pause()
+        assert str(app.query_one(PeopleTable).get_row_at(0)[0]) == "William Young"
+        await asyncio.sleep(0.1)  # let one poll see the unchanged file
+        sidecar = tmp_archive / "pages" / "volA" / "volA_p0.jpg.names.json"
+        sidecar.write_text(json.dumps({"schema": 2, "model": "m",
+                                       "people": [["New Person", "N. P."]]}))
+        await asyncio.sleep(0.3)
+        await pilot.pause()
+        table = app.query_one(PeopleTable)
+        assert table.row_count == 1
+        assert [str(c) for c in table.get_row_at(0)] == ["New Person", "N. P."]

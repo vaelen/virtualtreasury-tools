@@ -256,17 +256,7 @@ class TranscriptionScreen(ScrollableContainer):
         async for _ev in self.index.build_stream():
             pass
         app.notify(f"Extracted {stats.people} people for {page}")
-        if self.is_attached:
-            await self._refresh_people_table()
-
-    async def _refresh_people_table(self) -> None:
-        tables = self.parent.query(PeopleTable) if self.parent else []
-        if not tables:
-            return
-        old = tables.first()
-        fresh = PeopleTable(self.reader.read_names(self.root_id, self.page_key))
-        await old.parent.mount(fresh, after=old)
-        old.remove()
+        # An open people table reloads itself (it polls the sidecar's mtime).
 
     def action_write_answers(self) -> None:
         if not self._history():
@@ -305,7 +295,8 @@ class TranscriptionScreen(ScrollableContainer):
             self.app.notify("Names have not been extracted from this document yet "
                             "(run vtextract names).", severity="warning")
             return
-        table = PeopleTable(self.reader.read_names(self.root_id, self.page_key))
+        table = PeopleTable(reader=self.reader, root_id=self.root_id,
+                            page_key=self.page_key)
         await Sidebar.open(self.parent, table)
         table.focus()
 

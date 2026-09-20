@@ -62,6 +62,8 @@ async def test_shift_p_reextracts_current_page_with_force(tmp_archive, monkeypat
 
 @pytest.mark.asyncio
 async def test_shift_p_refreshes_open_people_table(tmp_archive, monkeypatch):
+    import asyncio
+    monkeypatch.setattr(PeopleTable, "POLL_SECONDS", 0.05)
     (tmp_archive / "pages/volA/volA_p0.jpg.names.json").write_text(
         json.dumps({"schema": 2, "model": "m", "people": [["Old Name"]]}))
     subprocess.run(["uv", "run", "vtindex", "build", "--archive", str(tmp_archive)],
@@ -77,6 +79,8 @@ async def test_shift_p_refreshes_open_people_table(tmp_archive, monkeypatch):
         app.query_one("#transcription-body").parent.focus()
         await pilot.press("P")
         await _settle(pilot)
+        await asyncio.sleep(0.2)  # the table's sidecar poll picks up the rewrite
+        await pilot.pause()
         table = app.query_one(PeopleTable)
         assert [str(c) for c in table.get_row_at(0)] == ["New Name", "N. Name"]
 
