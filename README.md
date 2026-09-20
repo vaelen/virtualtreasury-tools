@@ -312,6 +312,10 @@ Configure it with a `[names]` table in `~/.vt/vt.toml` (all optional, shown with
 their defaults):
 
 ```toml
+[ask]                            # vtbrowse's `a` (Ask); both default to [names]
+model      = "gemini/gemini-2.5-flash"  # a vision-capable model gets the page image
+api_base   = ""
+
 [names]
 model      = "ollama/llama3.1"   # any LiteLLM model name
 api_base   = ""                  # override the model's API base URL (e.g. a local Ollama)
@@ -444,6 +448,15 @@ visible row range, e.g. `12-37 of 100`, updating as you scroll.
   table on the right (below the notes editor if it is open); `p` again or
   `Esc` closes it, and `n` from it toggles the notes editor. If the page has
   no `.names.json` yet, a message says so.
+  Press `a` to **ask** the LLM a question about the page: the question is sent
+  with everything known about the page (volume data, transcription, your
+  notes, the extracted people, and the page image when on disk) and the
+  answer appears in a third view that `Enter` cycles to after text and image.
+  Follow-up questions see the earlier ones. `w` writes the page's questions
+  and answers to a Markdown file. Answers are kept while you page through the
+  volume and dropped when you leave the document.
+  Press `P` (shift+p) to **re-extract names** for the page with the current
+  notes; the index is rebuilt afterwards and an open people table refreshes.
 - **`s`** — save the Bundle to `~/.vt/bundle.json` (or the path in config).
 - **`x`** — export the Bundle to a folder (transcriptions + metadata
   JSON; optional images).

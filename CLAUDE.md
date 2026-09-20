@@ -104,7 +104,10 @@ under `uv run pytest`. `archive/`, `.venv/`, and `*.egg-info/` are gitignored;
   `--force` re-extracts). An optional hand-written `{page_key}.notes.md`
   beside the transcription is passed to the LLM as a `NOTES` block that
   overrides the prompt rules for that page (read only at extraction time, so
-  edits need `--force`). `chunking.py`/`merge.py`/`models.py` are pure helpers.
+  edits need `--force`). `llm.ask()` is the free-form chat entry point used by
+  the TUI's Ask feature; prompt assembly for it lives in the pure top-level
+  `ask.py` (`PageContext` → messages, image as a base64 data URL), and the
+  model comes from `[ask]` in `vt.toml` (defaults to `[names]`). `chunking.py`/`merge.py`/`models.py` are pure helpers.
   The sidecars are the precious source data; `vtindex build` ingests them into
   the `person`/`person_alias` tables and `vtindex people "<name>"` searches them.
   **Sidecar format is schema 2 (compact):** each person is a
@@ -130,7 +133,12 @@ under `uv run pytest`. `archive/`, `.venv/`, and `*.egg-info/` are gitignored;
     progress events. No longer a subprocess wrapper.
   - `extract_client.py` — subprocess wrapper for `vtextract` (`search` with a
     single clause; triggers index rebuild on completion).
-  - `archive_reader.py` — direct file reads (metadata, page JSON, image paths).
+  - `archive_reader.py` — direct file reads (metadata, page JSON, image paths,
+    notes read/write).
+  - `screens/transcription.py` — the page view: text / image / ask views
+    cycled with Enter; `n` notes editor, `p` people table (both in a right-hand
+    `Sidebar`), `a` Ask (LLM Q&A via `app.ask_fn`, a test seam), `w` write
+    answers, `P` re-run names extraction for the page in-process.
   - `progress_events.py` — typed JSONL event parser for progress streams.
   - `export.py` — bundle folder / zip writer.
   - `app.py` + `screens/` + `dialogs/` + `panes/` — the Textual application.

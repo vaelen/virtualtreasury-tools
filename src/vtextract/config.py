@@ -40,6 +40,13 @@ class NamesConfig:
     max_output_tokens: int = 12000
 
 
+@dataclass
+class AskConfig:
+    """``[ask]`` — the vtbrowse Ask feature. Model/api_base fall back to [names]."""
+    model: str = DEFAULT_NAMES_MODEL
+    api_base: str | None = None
+
+
 def default_config_path() -> Path:
     """The config file location, ``~/.vt/vt.toml`` with ``~`` expanded."""
     return Path("~/.vt/vt.toml").expanduser()
@@ -56,6 +63,7 @@ class Config:
     max_retries: int = 3
     browse_theme: str = DEFAULT_BROWSE_THEME
     names: NamesConfig = field(default_factory=NamesConfig)
+    ask: AskConfig = field(default_factory=AskConfig)
 
 
 def make_token(username: str, password: str) -> str:
@@ -89,6 +97,7 @@ def load_config(path: Path | None = None) -> Config:
     archive = data.get("archive", DEFAULT_ARCHIVE)
     browse = data.get("browse", {})
     names = data.get("names", {})
+    ask = data.get("ask", {})
 
     return Config(
         auth_header=f"Basic {token}" if token else None,
@@ -108,6 +117,10 @@ def load_config(path: Path | None = None) -> Config:
             dense_threshold=int(names.get("dense_threshold", 5000)),
             dense_chunk_size=int(names.get("dense_chunk_size", 3000)),
             max_output_tokens=int(names.get("max_output_tokens", 12000)),
+        ),
+        ask=AskConfig(
+            model=ask.get("model", names.get("model", DEFAULT_NAMES_MODEL)),
+            api_base=ask.get("api_base", names.get("api_base")),
         ),
     )
 

@@ -37,5 +37,5 @@ def test_help_lists_select_all_binding():
 
     keys = {key for key, _ctx, _action in _BINDINGS}
     assert "a" in keys
-    row = next(r for r in _BINDINGS if r[0] == "a")
+    row = next(r for r in _BINDINGS if r[0] == "a" and "page list" in r[1])
     assert "select" in row[2].lower()

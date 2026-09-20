@@ -13,6 +13,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.widgets import Footer, Header
 
+from vtextract.config import Config
 from vtextract.tui.archive_reader import ArchiveReader
 from vtextract.tui.bundle import Bundle
 from vtextract.tui.dialogs.build import ProgressModal
@@ -39,6 +40,11 @@ from vtextract.tui.screens.pages import PagesScreen
 from vtextract.tui.screens.results import ResultsScreen, SortMode
 from vtextract.tui.screens.transcription import TranscriptionScreen
 from vtextract.tui.screens.volumes import VolumesScreen
+
+
+def _default_ask(messages: list[dict], model: str, api_base: str | None = None) -> str:
+    from vtextract.names.llm import ask  # lazy: litellm is slow to import
+    return ask(messages, model, api_base)
 
 
 class VtBrowseApp(App):
@@ -113,10 +119,21 @@ class VtBrowseApp(App):
         Binding("tab", "focus_next", "switch pane"),
     ]
 
-    def __init__(self, *, archive: Path, initial_theme: str | None = None) -> None:
+    def __init__(self, *, archive: Path, initial_theme: str | None = None,
+                 config: Config | None = None) -> None:
         super().__init__()
         self.archive = archive
         self._initial_theme = initial_theme
+        cfg = config or Config()
+        # Ask (a): the LLM seam. Tests swap ask_fn for a fake; the real one
+        # imports litellm lazily so TUI startup doesn't pay for it.
+        self.ask_fn = _default_ask
+        self.ask_model = cfg.ask.model
+        self.ask_api_base = cfg.ask.api_base
+        self.names_config = cfg.names  # for P (re-extract names on a page)
+        # Per-page Q&A transcripts, kept while paging within a document and
+        # dropped when the document is closed (esc back to the list).
+        self.ask_history: dict[tuple[str, str], list[tuple[str, str]]] = {}
         self.index = IndexClient(archive)
         self.bundle = Bundle()
         self.last_results: list = []
@@ -324,7 +341,7 @@ class VtBrowseApp(App):
                            *, query: str | None = None,
                            person: str | None = None,
                            origin: str = "pages",
-                           view: Literal["text", "image"] = "text") -> None:
+                           view: Literal["text", "image", "ask"] = "text") -> None:
         vol = (self.current_volume_title
                if self.current_root_id == root_id else None)
         base_title = f"{vol} — {page_key}" if vol else page_key
@@ -334,9 +351,8 @@ class VtBrowseApp(App):
             query=query, person=person, origin=origin, view=view,
             base_title=base_title,
         )
-        title = base_title + (" [image]" if view == "image" else "")
         # Transcription is a single document, not a list — no count footer.
-        self._mount_screen(screen, title=title)
+        self._mount_screen(screen, title=screen.title_for_view())
 
     def bundle_changed(self) -> None:
         self._bundle_dirty = True

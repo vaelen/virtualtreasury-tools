@@ -491,6 +491,20 @@ def _complete(kwargs: dict, *, max_retries: int = 2,
                 attempt += 1
 
 
+def ask(messages: list[dict], model: str, api_base: str | None = None) -> str:
+    """Free-form chat completion for the vtbrowse Ask feature.
+
+    Same transport retries and rate-limit handling as extraction, but no
+    truncation detection: a long answer cut at the model's ceiling is still an
+    answer, not an error.
+    """
+    kwargs: dict = {"model": model, "messages": messages}
+    if api_base:
+        kwargs["api_base"] = api_base
+    content, _usage = _complete(kwargs, detect_truncation=False)
+    return content
+
+
 def find_people(chunk_text: str, model: str, api_base: str | None = None,
                 *, max_output_tokens: int | None = None, notes: str | None = None,
                 ) -> tuple[list[Person], Usage | None]:

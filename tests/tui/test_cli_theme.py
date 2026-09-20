@@ -19,7 +19,7 @@ class FakeApp:
     instances: list["FakeApp"] = []
     final_theme: str | None = None  # what .run() leaves on app.theme
 
-    def __init__(self, *, archive, initial_theme=None):
+    def __init__(self, *, archive, initial_theme=None, config=None):
         self.archive = archive
         self.initial_theme = initial_theme
         self.theme = initial_theme

@@ -581,3 +581,17 @@ def test_build_messages_appends_user_notes():
 def test_build_messages_without_notes_has_no_notes_block():
     msgs = llm.build_messages("J. Smith paid.")
     assert "NOTES:" not in msgs[1]["content"]
+
+
+def test_ask_returns_content_via_complete(monkeypatch):
+    seen = {}
+
+    def fake_complete(kwargs, **opts):
+        seen.update(kwargs); seen["opts"] = opts
+        return "An answer.", None
+
+    monkeypatch.setattr(llm, "_complete", fake_complete)
+    msgs = [{"role": "system", "content": "s"}, {"role": "user", "content": "q"}]
+    assert llm.ask(msgs, "m", "http://h") == "An answer."
+    assert seen["messages"] is msgs and seen["model"] == "m" and seen["api_base"] == "http://h"
+    assert seen["opts"].get("detect_truncation") is False  # a long answer is not an error

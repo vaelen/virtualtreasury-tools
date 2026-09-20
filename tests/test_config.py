@@ -154,3 +154,22 @@ def test_names_section_parsed(tmp_path):
     assert cfg.names.max_output_tokens == 20000
     assert cfg.names.dense_threshold == 4000
     assert cfg.names.dense_chunk_size == 2500
+
+
+def test_ask_defaults_to_names_model(tmp_path):
+    from vtextract.config import load_config
+    p = tmp_path / "vt.toml"
+    p.write_text('[names]\nmodel = "gemini/x"\napi_base = "http://h"\n')
+    cfg = load_config(p)
+    assert cfg.ask.model == "gemini/x"
+    assert cfg.ask.api_base == "http://h"
+
+
+def test_ask_section_overrides(tmp_path):
+    from vtextract.config import load_config
+    p = tmp_path / "vt.toml"
+    p.write_text('[names]\nmodel = "gemini/x"\n[ask]\nmodel = "gemini/vision"\napi_base = "http://a"\n')
+    cfg = load_config(p)
+    assert cfg.ask.model == "gemini/vision"
+    assert cfg.ask.api_base == "http://a"
+    assert cfg.names.model == "gemini/x"

@@ -33,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
     # The Textual import is deferred so --help / scaffolding tests don't
     # require a working tty.
     from vtextract.tui.app import VtBrowseApp
-    app = VtBrowseApp(archive=archive, initial_theme=cfg.browse_theme)
+    app = VtBrowseApp(archive=archive, initial_theme=cfg.browse_theme, config=cfg)
     rc = app.run() or 0
     # Persist the theme on exit, but only if the user actually changed it —
     # an untouched run leaves the (credential-bearing) config file alone.

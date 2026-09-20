@@ -37,11 +37,15 @@ class FileDialog(ModalScreen[FileResult | None]):
     BINDINGS = [Binding("escape", "dismiss(None)", "cancel")]
 
     def __init__(self, *, mode: Mode, start_dir: Path,
-                 default_name: str | None = None) -> None:
+                 default_name: str | None = None,
+                 title: str | None = None, suffix: str = ".json") -> None:
         super().__init__()
         self.mode = mode
         self.start_dir = start_dir
         self.default_name = default_name or self._suggested_name()
+        self.title_text = title or {"save": "Save bundle", "open": "Open bundle",
+                                    "export": "Export bundle"}[mode]
+        self.suffix = suffix  # appended on save when the name lacks it
 
     def _suggested_name(self) -> str:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -49,8 +53,7 @@ class FileDialog(ModalScreen[FileResult | None]):
 
     def compose(self):
         with Vertical(id="file-dialog"):
-            yield Label({"save": "Save bundle", "open": "Open bundle",
-                         "export": "Export bundle"}[self.mode])
+            yield Label(self.title_text)
             yield DirectoryTree(str(self.start_dir), id="tree")
             yield Static("", id="hover-summary")  # filled on Open hover
             yield Input(value=self.default_name, placeholder="Name", id="name")
@@ -103,8 +106,8 @@ class FileDialog(ModalScreen[FileResult | None]):
         # against the directory currently shown in the tree.
         typed = Path(name).expanduser()
         path = typed if typed.is_absolute() else self._current_dir() / typed
-        if self.mode == "save" and not str(path).endswith(".json"):
-            path = path.with_suffix(".json")
+        if self.mode == "save" and not path.name.endswith(self.suffix):
+            path = path.with_name(path.name + self.suffix)
         fmt = "folder"
         include_images = False
         if self.mode == "export":
