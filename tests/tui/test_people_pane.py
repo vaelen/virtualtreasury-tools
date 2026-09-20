@@ -120,3 +120,23 @@ async def test_paging_away_drops_people_and_saves_notes(tmp_archive):
         assert len(app.query(PeopleTable)) == 0
         assert len(app.query(NotesEditor)) == 0
         assert (tmp_archive / "pages" / "volA" / "volA_p0.jpg.notes.md").read_text() == "kept"
+
+
+@pytest.mark.asyncio
+async def test_n_in_people_table_toggles_notes(tmp_archive):
+    _write_names(tmp_archive)
+    app = VtBrowseApp(archive=tmp_archive)
+    async with app.run_test() as pilot:
+        await _open_page(app, pilot)
+        await pilot.press("p")
+        await pilot.pause()
+        await pilot.press("n")          # from the people table: open notes above
+        await pilot.pause()
+        sidebar = app.query_one(PeopleTable).parent
+        assert [type(c) for c in sidebar.children] == [NotesEditor, PeopleTable]
+        assert app.focused is app.query_one(NotesEditor)
+        app.query_one(PeopleTable).focus()
+        await pilot.press("n")          # from the people table again: close notes
+        await pilot.pause()
+        assert len(app.query(NotesEditor)) == 0
+        assert len(app.query(PeopleTable)) == 1

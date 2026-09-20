@@ -19,6 +19,7 @@ class PeopleTable(DataTable):
     BINDINGS = [
         Binding("escape", "close", "close people"),
         Binding("p", "close", "close people"),
+        Binding("n", "toggle_notes", "notes"),
     ]
 
     def __init__(self, people: list[list[str]]) -> None:
@@ -30,6 +31,13 @@ class PeopleTable(DataTable):
         self.add_columns("Name", "As written")
         for forms in self.people:
             self.add_row(forms[0], ", ".join(forms[1:]))
+
+    async def action_toggle_notes(self) -> None:
+        # Delegate to the page view (sidebar's sibling) so 'n' means the same
+        # thing here as it does there.
+        pane = self.parent.parent if self.parent else None
+        if pane is not None and pane.children:
+            await pane.children[0].action_toggle_notes()
 
     def action_close(self) -> None:
         pane = self.parent.parent if self.parent else None

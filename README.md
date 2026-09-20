@@ -442,7 +442,8 @@ visible row range, e.g. `12-37 of 100`, updating as you scroll.
   saves. Whitespace-only notes delete the file.
   Press `p` to show the people extracted by `vtextract names` in a read-only
   table on the right (below the notes editor if it is open); `p` again or
-  `Esc` closes it. If the page has no `.names.json` yet, a message says so.
+  `Esc` closes it, and `n` from it toggles the notes editor. If the page has
+  no `.names.json` yet, a message says so.
 - **`s`** — save the Bundle to `~/.vt/bundle.json` (or the path in config).
 - **`x`** — export the Bundle to a folder (transcriptions + metadata
   JSON; optional images).

@@ -20,6 +20,7 @@ _BINDINGS = (
     ("esc",      "notes editor",              "close and save notes"),
     ("p",        "transcription view",        "open / close extracted people table"),
     ("esc / p",  "people table",              "close people table"),
+    ("n",        "people table",              "open / close notes editor"),
     ("space",    "page row, transcription",   "toggle page user state"),
     ("space",    "search result row",         "toggle item in selection"),
     ("a",        "page list, search results", "select or deselect all"),
