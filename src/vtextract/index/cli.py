@@ -58,6 +58,8 @@ def _page_files_dict(e: PageEntry) -> dict:
         "image": e.image,
         "metadata": e.metadata,
         "transcription": e.transcription,
+        "names": e.names,
+        "notes": e.notes,
     }
 
 
@@ -286,6 +288,8 @@ def _print_page_list(rows, *, theme: Theme) -> None:
     table.add_column("Label", no_wrap=True)
     table.add_column("Txt", no_wrap=True)
     table.add_column("Img", no_wrap=True)
+    table.add_column("Names", no_wrap=True)
+    table.add_column("Notes", no_wrap=True)
     for r in rows:
         table.add_row(
             str(r["ordinal"]) if r["ordinal"] is not None else "-",
@@ -293,6 +297,8 @@ def _print_page_list(rows, *, theme: Theme) -> None:
             r["label"] or "-",
             "•" if r["transcription"] else "",
             "•" if r["image"] else "",
+            "•" if r["names"] else "",
+            "•" if r["notes"] else "",
         )
     Console(no_color=theme.no_color).print(table)
 

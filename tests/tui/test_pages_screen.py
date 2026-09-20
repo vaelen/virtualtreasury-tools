@@ -37,9 +37,22 @@ class _PagesHarness(App):
 
 
 _PAGES = [
-    PageEntry(root_id="V", page_key="p1", ordinal=1, transcription="text", image="img"),
+    PageEntry(root_id="V", page_key="p1", ordinal=1, transcription="text", image="img",
+              names="names", notes="notes"),
     PageEntry(root_id="V", page_key="p2", ordinal=2, transcription=None, image="img"),
 ]
+SEL = 6  # column index of the bundle-selection marker
+
+
+@pytest.mark.asyncio
+async def test_pages_show_names_and_notes_columns():
+    harness = _PagesHarness(_PAGES, Bundle())
+    async with harness.run_test() as pilot:
+        table = pilot.app.query_one(PagesScreen)
+        assert [str(c.label) for c in table.columns.values()] == \
+            ["#", "Page key", "Txt", "Img", "Names", "Notes", "Sel"]
+        assert list(table.get_row_at(0)) == ["1", "p1", "•", "•", "•", "•", ""]
+        assert list(table.get_row_at(1)) == ["2", "p2", "", "•", "", "", ""]
 
 
 @pytest.mark.asyncio
@@ -51,14 +64,14 @@ async def test_pages_a_selects_all_then_deselects_all():
         assert bundle.is_in_bundle(PageRef("V", "p1"))
         assert bundle.is_in_bundle(PageRef("V", "p2"))
         table = pilot.app.query_one(PagesScreen)
-        assert table.get_row_at(0)[4] == "*"
-        assert table.get_row_at(1)[4] == "*"
+        assert table.get_row_at(0)[SEL] == "*"
+        assert table.get_row_at(1)[SEL] == "*"
 
         await pilot.press("a")  # all -> deselect all
         assert not bundle.is_in_bundle(PageRef("V", "p1"))
         assert not bundle.is_in_bundle(PageRef("V", "p2"))
-        assert table.get_row_at(0)[4] == ""
-        assert table.get_row_at(1)[4] == ""
+        assert table.get_row_at(0)[SEL] == ""
+        assert table.get_row_at(1)[SEL] == ""
         assert harness.bundle_changed_calls == 2
 
 

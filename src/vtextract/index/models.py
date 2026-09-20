@@ -81,6 +81,8 @@ class PageFiles:
     image: str | None = None
     metadata: str | None = None
     transcription: str | None = None
+    names: str | None = None   # <page_key>.names.json (vtextract names output)
+    notes: str | None = None   # <page_key>.notes.md (hand-written)
 
 
 @dataclass
@@ -148,6 +150,8 @@ class PageEntry:
     image: str | None = None
     metadata: str | None = None
     transcription: str | None = None
+    names: str | None = None
+    notes: str | None = None
     role: str | None = None
 
 

@@ -130,4 +130,6 @@ def page_files(archive: Path, root_id: str, page_key: str) -> PageFiles:
         image=_resolve(page_dir, page_key),
         metadata=_resolve(page_dir, f"{page_key}.json"),
         transcription=_resolve(page_dir, f"{page_key}.txt"),
+        names=_resolve(page_dir, f"{page_key}.names.json"),
+        notes=_resolve(page_dir, f"{page_key}.notes.md"),
     )

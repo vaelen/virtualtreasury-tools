@@ -62,6 +62,7 @@ def _page_entry(archive: Path, row: dict) -> PageEntry:
         root_id=row["root_id"], page_key=row["page_key"],
         ordinal=row["ordinal"], label=row["label"],
         image=pf.image, metadata=pf.metadata, transcription=pf.transcription,
+        names=pf.names, notes=pf.notes,
     )
 
 

@@ -148,3 +148,15 @@ def test_read_names_empty(tmp_path):
     side = tmp_path / "b.jpg.names.json"
     side.write_text('{"schema": 2, "model": "m", "people": []}')
     assert read_names(side) == []
+
+
+def test_page_files_resolves_names_and_notes_sidecars(tmp_path):
+    page_dir = tmp_path / "pages" / "volA"
+    page_dir.mkdir(parents=True)
+    (page_dir / "volA_p1.jpg.names.json").write_text("{}")
+    (page_dir / "volA_p1.jpg.notes.md").write_text("note")
+    pf = page_files(tmp_path, "volA", "volA_p1.jpg")
+    assert pf.names == str((page_dir / "volA_p1.jpg.names.json").resolve())
+    assert pf.notes == str((page_dir / "volA_p1.jpg.notes.md").resolve())
+    assert page_files(tmp_path, "volA", "volA_p2.jpg").names is None
+    assert page_files(tmp_path, "volA", "volA_p2.jpg").notes is None

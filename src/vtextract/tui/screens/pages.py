@@ -11,6 +11,9 @@ from vtextract.tui.count_footer import CountFooterMixin
 from vtextract.tui.index_client import IndexClient
 
 
+_SEL_COL = 6  # index of the bundle-selection column
+
+
 class PagesScreen(CountFooterMixin, DataTable):
     BINDINGS = [
         Binding("enter", "view_page", "view"),
@@ -29,7 +32,7 @@ class PagesScreen(CountFooterMixin, DataTable):
         self._pages: list = []
 
     async def on_mount(self) -> None:
-        self.add_columns("#", "Page key", "Txt", "Img", "Sel")
+        self.add_columns("#", "Page key", "Txt", "Img", "Names", "Notes", "Sel")
         self._pages = await self.index.pages(self.root_id)
         for p in self._pages:
             self._add(p)
@@ -49,6 +52,8 @@ class PagesScreen(CountFooterMixin, DataTable):
             p.page_key,
             "•" if p.transcription else "",
             "•" if p.image else "",
+            "•" if p.names else "",
+            "•" if p.notes else "",
             "*" if self.bundle.is_in_bundle(ref) else "",
         )
 
@@ -66,7 +71,7 @@ class PagesScreen(CountFooterMixin, DataTable):
         self.bundle.toggle_page(ref)
         self.app.bundle_changed()  # type: ignore[attr-defined]
         self.update_cell_at(
-            (self.cursor_row, 4),
+            (self.cursor_row, _SEL_COL),
             "*" if self.bundle.is_in_bundle(ref) else "",
         )
 
@@ -80,7 +85,7 @@ class PagesScreen(CountFooterMixin, DataTable):
             if all_selected == in_bundle:
                 self.bundle.toggle_page(ref)
             self.update_cell_at(
-                (row, 4),
+                (row, _SEL_COL),
                 "" if all_selected else "*",
             )
         self.app.bundle_changed()  # type: ignore[attr-defined]
