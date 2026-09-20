@@ -31,11 +31,12 @@ from vtextract.names.models import (
 )
 from vtextract.schema import normalize_reference_code
 
-# (chunk_text, model, api_base) -> people for that chunk.
-FindFn = Callable[[str, str, "str | None"], "list[Person]"]
+# (chunk_text, model, api_base, notes=...) -> people for that chunk.
+FindFn = Callable[..., "list[Person]"]
 
 _TXT_SUFFIX = ".txt"
 _SIDECAR_SUFFIX = ".names.json"
+_NOTES_SUFFIX = ".notes.md"
 _ERROR_SUFFIX = ".names.error.json"
 
 
@@ -134,6 +135,16 @@ def sidecar_for(txt_path: Path) -> Path:
     return txt_path.with_name(txt_path.name[: -len(_TXT_SUFFIX)] + _SIDECAR_SUFFIX)
 
 
+def notes_for(txt_path: Path) -> Path:
+    """Map <page_key>.txt -> <page_key>.notes.md (same directory).
+
+    Free-form Markdown written by hand: corrections and context handed to the
+    LLM alongside the page text (e.g. "J. Smith here is James Smith").
+    """
+    txt_path = Path(txt_path)
+    return txt_path.with_name(txt_path.name[: -len(_TXT_SUFFIX)] + _NOTES_SUFFIX)
+
+
 def _write_sidecar_atomic(path: Path, model: str, people: list[Person],
                           usage: Usage | None = None,
                           elapsed_ms: int | None = None) -> None:
@@ -225,6 +236,8 @@ def _extract_one(
     to bound runaway-output loops (see ``select_chunk_size``).
     """
     text = txt_path.read_text()
+    notes_path = notes_for(txt_path)
+    notes = notes_path.read_text() if notes_path.exists() else None
     groups: list[list[Person]] = []
     usages: list[Usage | None] = []
     effective_chunk_size = select_chunk_size(
@@ -233,7 +246,7 @@ def _extract_one(
     chunks = chunk_text(text, effective_chunk_size, overlap)
     for index, (window, _offset) in enumerate(chunks):
         try:
-            people, usage = people_and_usage(find(window, model, api_base))
+            people, usage = people_and_usage(find(window, model, api_base, notes=notes))
         except Exception as exc:
             raise RuntimeError(
                 f"chunk {index + 1}/{len(chunks)} failed for {txt_path}: {exc}"
@@ -269,11 +282,13 @@ def extract(
     without a sidecar so a later run retries it; a persistent failure is parked.
     """
     # Bind the output-token guardrail into the real find_people. Injected test
-    # seams keep the plain 3-arg FindFn shape and ignore the cap (no LLM call).
+    # seams take (text, model, api_base, notes=) and ignore the cap (no LLM call).
     if find is None:
-        def find(text: str, model: str, api_base: str | None = None):
+        def find(text: str, model: str, api_base: str | None = None,
+                 notes: str | None = None):
             return llm_module.find_people(
-                text, model, api_base, max_output_tokens=max_output_tokens)
+                text, model, api_base, max_output_tokens=max_output_tokens,
+                notes=notes)
     archive = Path(archive)
     stats = NamesStats()
 

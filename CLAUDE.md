@@ -101,7 +101,10 @@ under `uv run pytest`. `archive/`, `.venv/`, and `*.egg-info/` are gitignored;
   HTTP). `extractor.py` walks `archive/pages/**/*.jpg.txt`, extracts people once
   per page (canonical name + aliases, within-page coreference + abbreviation
   expansion), and writes durable `{page_key}.names.json` sidecars (resumable;
-  `--force` re-extracts). `chunking.py`/`merge.py`/`models.py` are pure helpers.
+  `--force` re-extracts). An optional hand-written `{page_key}.notes.md`
+  beside the transcription is passed to the LLM as a `NOTES` block that
+  overrides the prompt rules for that page (read only at extraction time, so
+  edits need `--force`). `chunking.py`/`merge.py`/`models.py` are pure helpers.
   The sidecars are the precious source data; `vtindex build` ingests them into
   the `person`/`person_alias` tables and `vtindex people "<name>"` searches them.
   **Sidecar format is schema 2 (compact):** each person is a

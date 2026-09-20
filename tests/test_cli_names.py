@@ -21,7 +21,7 @@ def _archive_with_page(tmp_path):
 def test_names_command_writes_sidecar(tmp_path, monkeypatch):
     archive, cfg = _archive_with_page(tmp_path)
 
-    def fake_find(chunk_text, model, api_base=None):
+    def fake_find(chunk_text, model, api_base=None, notes=None):
         assert model == "test/model"
         return [Person(canonical="William Young", aliases=["Wm Young"])]
 
@@ -36,7 +36,7 @@ def test_names_command_model_override(tmp_path, monkeypatch):
     archive, cfg = _archive_with_page(tmp_path)
     seen = {}
 
-    def fake_find(chunk_text, model, api_base=None):
+    def fake_find(chunk_text, model, api_base=None, notes=None):
         seen["model"] = model
         return []
 

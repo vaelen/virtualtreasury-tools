@@ -568,3 +568,16 @@ def test_truncation_finish_reason_walks_chain():
     assert truncation_finish_reason(exc) == "max_tokens"
     assert truncation_finish_reason(_wrap(exc)) == "max_tokens"
     assert truncation_finish_reason(ConnectionError("x")) is None
+
+
+def test_build_messages_appends_user_notes():
+    msgs = llm.build_messages("J. Smith paid.", notes="J. Smith is James Smith.")
+    assert "NOTES" in msgs[0]["content"]  # system prompt explains notes override
+    assert "J. Smith paid." in msgs[1]["content"]
+    assert "NOTES:" in msgs[1]["content"]
+    assert "J. Smith is James Smith." in msgs[1]["content"]
+
+
+def test_build_messages_without_notes_has_no_notes_block():
+    msgs = llm.build_messages("J. Smith paid.")
+    assert "NOTES:" not in msgs[1]["content"]

@@ -120,7 +120,7 @@ from vtextract.namebench import extract_people
 
 def _fake_find_factory(mapping):
     # mapping: chunk substring -> people list. Mirrors tests/names/test_extractor.py.
-    def find(chunk_text, model, api_base=None):
+    def find(chunk_text, model, api_base=None, notes=None):
         for needle, people in mapping.items():
             if needle in chunk_text:
                 return people
@@ -139,7 +139,7 @@ def test_extract_people_merges_chunks():
 
 
 def test_extract_people_sums_usage_across_chunks():
-    def find(chunk_text, model, api_base=None):
+    def find(chunk_text, model, api_base=None, notes=None):
         return [Person(canonical="A")], Usage(input=50, output=10, cached=8)
 
     # chunk_size/overlap chosen so the text splits into two windows
@@ -149,7 +149,7 @@ def test_extract_people_sums_usage_across_chunks():
 
 
 def test_extract_people_propagates_chunk_failure():
-    def boom(chunk_text, model, api_base=None):
+    def boom(chunk_text, model, api_base=None, notes=None):
         raise RuntimeError("bad json")
     try:
         extract_people("anything", "m", find=boom)
@@ -185,7 +185,7 @@ def test_run_model_writes_sidecars_and_times(tmp_path):
 def test_run_model_warms_up_before_timed_files(tmp_path):
     inp = _seed_inputs(tmp_path)   # 1.txt, 2.txt
     seen = []
-    def find(chunk_text, model, api_base=None):
+    def find(chunk_text, model, api_base=None, notes=None):
         seen.append(chunk_text)
         return []
     run_model(inp, "m", find=find, show_progress=False)
@@ -205,7 +205,7 @@ def test_run_model_no_warmup_when_nothing_to_do(tmp_path):
     write_sidecar(sidecar_path(md, "1.txt"), "m", [])
     write_sidecar(sidecar_path(md, "2.txt"), "m", [])   # everything already done
     seen = []
-    def find(chunk_text, model, api_base=None):
+    def find(chunk_text, model, api_base=None, notes=None):
         seen.append(chunk_text)
         return []
     run_model(inp, "m", find=find, show_progress=False)
@@ -215,7 +215,7 @@ def test_run_model_no_warmup_when_nothing_to_do(tmp_path):
 def test_run_model_warmup_failure_does_not_abort(tmp_path):
     inp = _seed_inputs(tmp_path)
     calls = []
-    def find(chunk_text, model, api_base=None):
+    def find(chunk_text, model, api_base=None, notes=None):
         calls.append(chunk_text)
         if chunk_text == WARMUP_TEXT:
             raise RuntimeError("cold start blew up")
@@ -237,7 +237,7 @@ def test_run_model_skips_existing_and_preserves_time(tmp_path):
     write_times(md, {"1.txt": 99.0})
 
     calls = []
-    def find(chunk_text, model, api_base=None):
+    def find(chunk_text, model, api_base=None, notes=None):
         calls.append(chunk_text)
         return []
     run_model(inp, "m", find=find, show_progress=False)
@@ -255,7 +255,7 @@ def test_run_model_force_reprocesses(tmp_path):
     write_sidecar(sidecar_path(md, "1.txt"), "m", [])
 
     seen = []
-    def find(chunk_text, model, api_base=None):
+    def find(chunk_text, model, api_base=None, notes=None):
         seen.append(chunk_text)
         return []
     run_model(inp, "m", find=find, force=True, show_progress=False)
@@ -264,7 +264,7 @@ def test_run_model_force_reprocesses(tmp_path):
 
 def test_run_model_logs_failure_and_continues(tmp_path, capsys):
     inp = _seed_inputs(tmp_path)
-    def find(chunk_text, model, api_base=None):
+    def find(chunk_text, model, api_base=None, notes=None):
         if "Wm Young" in chunk_text:
             raise RuntimeError("boom")
         return []
@@ -492,7 +492,7 @@ def test_main_passes_per_model_api_base_to_find(tmp_path):
     )
     seen: dict[str, str | None] = {}
 
-    def find(chunk_text, model, api_base=None):
+    def find(chunk_text, model, api_base=None, notes=None):
         seen[model] = api_base
         return []
     rc = main([str(cfg)], find=find)
@@ -541,7 +541,7 @@ def test_main_announces_skip_when_all_done(tmp_path, capsys):
     cfg.write_text(f'input = "{inp}"\nmodels = ["m"]\n')
 
     calls = []
-    def find(chunk_text, model, api_base=None):
+    def find(chunk_text, model, api_base=None, notes=None):
         calls.append(chunk_text)
         return []
     main([str(cfg)], find=find)

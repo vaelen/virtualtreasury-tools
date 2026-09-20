@@ -19,7 +19,7 @@ def _make_archive(tmp_path):
 
 def _fake_find_factory(mapping):
     # mapping: chunk substring -> people list
-    def find(chunk_text, model, api_base=None):
+    def find(chunk_text, model, api_base=None, notes=None):
         for needle, people in mapping.items():
             if needle in chunk_text:
                 return people
@@ -34,7 +34,8 @@ def test_extract_forwards_max_output_tokens_to_production_find(tmp_path, monkeyp
     from vtextract.names import llm as llm_module
     seen = {}
 
-    def fake_find_people(chunk_text, model, api_base=None, *, max_output_tokens=None):
+    def fake_find_people(chunk_text, model, api_base=None, *, max_output_tokens=None,
+                         notes=None):
         seen["max_output_tokens"] = max_output_tokens
         return [], Usage(input=1, output=1)
 
@@ -55,7 +56,7 @@ def test_large_page_is_split_into_dense_chunks(tmp_path):
 
     windows: dict[str, list[int]] = {}
 
-    def find(chunk_text, model, api_base=None):
+    def find(chunk_text, model, api_base=None, notes=None):
         windows.setdefault(model, [])
         windows[model].append(len(chunk_text))
         return []
@@ -72,7 +73,7 @@ def test_small_pages_stay_single_chunk_by_default(tmp_path):
     archive = _make_archive(tmp_path)  # tiny pages, well under any threshold
     calls = []
 
-    def find(chunk_text, model, api_base=None):
+    def find(chunk_text, model, api_base=None, notes=None):
         calls.append(chunk_text)
         return []
 
@@ -110,7 +111,7 @@ def test_extract_writes_sidecars(tmp_path):
 def test_extract_writes_usage_block_when_find_reports_it(tmp_path):
     archive = _make_archive(tmp_path)
 
-    def find(chunk_text, model, api_base=None):
+    def find(chunk_text, model, api_base=None, notes=None):
         people = [Person(canonical="William Young")] if "Wm Young" in chunk_text else []
         return people, Usage(input=100, output=20, cached=64)
 
@@ -134,7 +135,7 @@ def test_extract_elapsed_ms_reflects_extraction_time(tmp_path):
 
     archive = _make_archive(tmp_path)
 
-    def slow_find(chunk_text, model, api_base=None):
+    def slow_find(chunk_text, model, api_base=None, notes=None):
         _time.sleep(0.02)
         return []
 
@@ -162,7 +163,7 @@ def test_extract_force_overwrites(tmp_path):
 def test_extract_failure_leaves_no_sidecar(tmp_path):
     archive = _make_archive(tmp_path)
 
-    def boom(chunk_text, model, api_base=None):
+    def boom(chunk_text, model, api_base=None, notes=None):
         raise RuntimeError("model down")
 
     stats = extract(archive, model="m", find=boom, show_progress=False)
@@ -173,7 +174,7 @@ def test_extract_failure_leaves_no_sidecar(tmp_path):
 def test_extract_failure_logs_reason_to_stderr(tmp_path, capsys):
     archive = _make_archive(tmp_path)
 
-    def boom(chunk_text, model, api_base=None):
+    def boom(chunk_text, model, api_base=None, notes=None):
         raise RuntimeError("model down")
 
     stats = extract(archive, model="m", find=boom, show_progress=False)
@@ -192,7 +193,7 @@ def test_extract_partial_chunk_failure_fails_whole_page(tmp_path):
     pages.mkdir(parents=True)
     (pages / "long.jpg.txt").write_text("AAAA BBBB")  # two chunks at chunk_size=5
 
-    def find(chunk_text, model, api_base=None):
+    def find(chunk_text, model, api_base=None, notes=None):
         if "BBBB" in chunk_text:
             raise RuntimeError("chunk down")
         return [Person(canonical="A A")]
@@ -244,7 +245,7 @@ def test_persistent_failure_writes_error_sidecar(tmp_path):
     from vtextract.names.llm import TruncatedResponseError
     archive = _make_archive(tmp_path)
 
-    def boom(chunk_text, model, api_base=None):
+    def boom(chunk_text, model, api_base=None, notes=None):
         raise TruncatedResponseError(
             "response truncated at output-token limit (finish_reason=length)",
             finish_reason="length")
@@ -263,7 +264,7 @@ def test_transient_failure_writes_no_error_sidecar(tmp_path):
     from vtextract.names.extractor import extract, error_sidecar_for
     archive = _make_archive(tmp_path)
 
-    def boom(chunk_text, model, api_base=None):
+    def boom(chunk_text, model, api_base=None, notes=None):
         raise ConnectionError("connection refused")
 
     stats = extract(archive, model="m", find=boom, show_progress=False)
@@ -279,7 +280,7 @@ def test_parked_page_skipped_on_normal_run(tmp_path):
     _write_error_sidecar(txt, model="m", error_class="truncated",
                          finish_reason="length", message="old")
 
-    def fail_if_called(chunk_text, model, api_base=None):
+    def fail_if_called(chunk_text, model, api_base=None, notes=None):
         raise AssertionError("parked page must not be re-attempted")
 
     stats = extract(archive, model="m", find=fail_if_called, show_progress=False)
@@ -356,3 +357,36 @@ def test_iter_error_sidecars_honours_scope(tmp_path):
                              error_class="bad_json", finish_reason=None, message="x")
     scoped = iter_error_sidecars(archive, scope_pages={("100", "a.jpg")})
     assert {r.page_key for r in scoped} == {"a.jpg"}
+
+
+def test_extract_passes_page_notes_to_find(tmp_path):
+    # A <page_key>.notes.md beside the transcription reaches the find seam as
+    # ``notes``; pages without one get None.
+    archive = _make_archive(tmp_path)
+    (archive / "pages" / "100" / "a.jpg.notes.md").write_text("J. Smith is James Smith.\n")
+    seen = {}
+
+    def find(chunk_text, model, api_base=None, notes=None):
+        seen[chunk_text] = notes
+        return []
+
+    extract(archive, model="m", find=find, show_progress=False)
+    assert seen["Wm Young paid the toll."] == "J. Smith is James Smith.\n"
+    assert seen["nothing here"] is None
+
+
+def test_extract_forwards_notes_to_production_find(tmp_path, monkeypatch):
+    from vtextract.names import llm as llm_module
+    seen = {}
+
+    def fake_find_people(chunk_text, model, api_base=None, *, max_output_tokens=None,
+                         notes=None):
+        seen[chunk_text] = notes
+        return [], Usage(input=1, output=1)
+
+    monkeypatch.setattr(llm_module, "find_people", fake_find_people)
+    archive = _make_archive(tmp_path)
+    (archive / "pages" / "100" / "a.jpg.notes.md").write_text("notes here")
+    extract(archive, model="m", show_progress=False)
+    assert seen["Wm Young paid the toll."] == "notes here"
+    assert seen["nothing here"] is None

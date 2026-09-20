@@ -43,6 +43,10 @@ Rules:
 - Every surface form (element 2 onward) must literally appear in the TEXT.
   Never invent a name.
 - If there are no people, output {"people": []}.
+- A NOTES block, when present, holds corrections written by a human editor who
+  has studied this document. NOTES override every rule above for this TEXT:
+  if NOTES say who a name refers to, use that canonical name (even for a bare
+  initial); if NOTES say a word is not a person, omit it.
 
 Worked example —
 TEXT: "Thomas Young served in the infantry. Sgt. Young was killed in November.
@@ -332,8 +336,10 @@ def unload(model: str, api_base: str | None = None) -> None:
         pass
 
 
-def build_messages(chunk_text: str) -> list[dict]:
+def build_messages(chunk_text: str, notes: str | None = None) -> list[dict]:
     user = f'TEXT:\n"""\n{chunk_text}\n"""'
+    if notes:
+        user += f'\n\nNOTES:\n"""\n{notes.strip()}\n"""'
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": user},
@@ -486,7 +492,7 @@ def _complete(kwargs: dict, *, max_retries: int = 2,
 
 
 def find_people(chunk_text: str, model: str, api_base: str | None = None,
-                *, max_output_tokens: int | None = None,
+                *, max_output_tokens: int | None = None, notes: str | None = None,
                 ) -> tuple[list[Person], Usage | None]:
     """Call the LLM and return (validated people, token usage) for one chunk.
 
@@ -499,7 +505,7 @@ def find_people(chunk_text: str, model: str, api_base: str | None = None,
     - malformed-but-complete JSON: reprompt with a correction, also hotter.
     Transport errors get backoff inside ``_complete``.
     """
-    messages = build_messages(chunk_text)
+    messages = build_messages(chunk_text, notes)
     kwargs: dict = {"model": model, "messages": messages, "temperature": 0}
     if api_base:
         kwargs["api_base"] = api_base

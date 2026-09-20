@@ -285,6 +285,28 @@ auth) leaves no sidecar so a later run retries it; a page that fails
 `--force` to re-extract and overwrite existing sidecars. `--model M` overrides
 the configured model and `-w/--workers N` the parallelism.
 
+### Correcting the LLM with page notes
+
+To steer extraction on a particular page, write a `<page_key>.notes.md` next to
+its `<page_key>.jpg.txt` (e.g. `archive/pages/1234/0007.jpg.notes.md`). It is
+free-form Markdown, sent to the LLM alongside the page text as a `NOTES` block
+that overrides the default rules for that page: tell it who an ambiguous name
+refers to, that a word is not a person, or anything else you know about the
+document. Every chunk of a long page carries the same notes.
+
+```markdown
+"J. Smith" on this page is James Smith, not John Smith.
+"Mrs Kelly" is Bridget Kelly (see page 41).
+"Ormond" here is the estate, not a person.
+```
+
+Notes are read only when a page is extracted, so after adding or editing one
+re-run with `--force` scoped to that resource:
+
+```bash
+vtextract names "TNA SO 1/14" --force --archive ./archive
+```
+
 Configure it with a `[names]` table in `~/.vt/vt.toml` (all optional, shown with
 their defaults):
 
