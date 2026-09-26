@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 
 def test_empty_app_layout(snap_compare, tmp_archive):

@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 
 def test_exit_dialog_when_dirty(snap_compare, tmp_archive):

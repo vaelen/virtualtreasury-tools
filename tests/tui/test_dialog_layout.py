@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """Modal dialogs render as smaller, centred boxes over the main screen (not
 full-screen), and both date inputs fit on screen side by side."""

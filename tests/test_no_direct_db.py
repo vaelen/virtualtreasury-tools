@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """Enforces the architectural boundary from
 docs/superpowers/specs/2026-06-01-index-service-library-design.md: vtbrowse

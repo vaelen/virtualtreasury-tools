@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 import json
 
 from vtextract.names.extractor import _write_error_sidecar

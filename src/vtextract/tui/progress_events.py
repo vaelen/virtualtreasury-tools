@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """Typed events parsed from the --json-progress streams emitted by
 vtindex build, vtextract search, and vtextract get."""

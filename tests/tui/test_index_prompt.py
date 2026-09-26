@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """Snapshot tests for Task 23: startup index prompt, no-index landing screen,
 and in-session stale chip."""

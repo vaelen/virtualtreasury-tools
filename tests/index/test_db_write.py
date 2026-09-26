@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 from vtextract.index.db import IndexDB
 from vtextract.index.models import ItemRow, PageLink, VolumePage, VolumeRow

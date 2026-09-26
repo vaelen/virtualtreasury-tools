@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """Global bindings are plain single-key presses — no control modifiers — and
 map each action to its agreed mnemonic."""

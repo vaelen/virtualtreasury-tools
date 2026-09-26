@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """Prompt assembly for the vtbrowse Ask feature. Pure: no I/O, no LLM calls.
 

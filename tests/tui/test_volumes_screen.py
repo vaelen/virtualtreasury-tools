@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 
 def test_volumes_screen_lists_indexed_volumes(snap_compare, tmp_archive):

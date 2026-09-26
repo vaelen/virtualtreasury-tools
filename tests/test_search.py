@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 from vtextract.models import Filter, SearchCriteria
 from vtextract.search import build_body, criteria_to_params, iter_results

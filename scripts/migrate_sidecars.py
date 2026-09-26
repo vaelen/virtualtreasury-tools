@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 """One-time migration: convert v1 names sidecars to the compact v2 format.
 
 v1 stored each person as a verbose object:

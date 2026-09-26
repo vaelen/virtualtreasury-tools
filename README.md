@@ -1,8 +1,7 @@
 # vtextract
 
-> **Proprietary and confidential.** Copyright 2026, Andrew C. Young
-> <andrew@vaelen.org>. All rights reserved. This is not open-source software;
-> see [LICENSE](LICENSE).
+> MIT licensed. Copyright (c) 2026 Andrew C. Young <andrew@vaelen.org>.
+> See [LICENSE](LICENSE).
 
 Download resources from [virtualtreasury.ie](https://virtualtreasury.ie) —
 metadata and transcriptions by default, optionally with full-resolution images
@@ -499,6 +498,5 @@ never contact the live site or use the real credential.
 
 ## License
 
-Proprietary. Copyright 2026, Andrew C. Young <andrew@vaelen.org>. All rights
-reserved. No use, copying, modification, or distribution is permitted without
-the prior written permission of the copyright holder. See [LICENSE](LICENSE).
+MIT. Copyright (c) 2026 Andrew C. Young <andrew@vaelen.org>. See
+[LICENSE](LICENSE).

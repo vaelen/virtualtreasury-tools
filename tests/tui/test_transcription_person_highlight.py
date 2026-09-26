@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """_build_body highlights the searched person's on-page surface form, even
 when it differs from the typed name (the whole point of this feature)."""

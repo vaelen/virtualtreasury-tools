@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """Color schemes and match-highlighting helpers shared by every CLI in the
 project. Kept here (not under any subpackage) so `vtextract`, `vtindex`, and

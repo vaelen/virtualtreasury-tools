@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """The Ask viewer: question a page with the LLM, see Q&A, save, cycle views."""
 

@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """Reopening the search results (esc from a document, or the global ``r``)
 restores the list position and sort order the user left, instead of jumping

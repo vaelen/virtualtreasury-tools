@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """The search-in-progress loading splash: a slow search shows a centered modal
 (same design as the startup splash) instead of appearing hung."""

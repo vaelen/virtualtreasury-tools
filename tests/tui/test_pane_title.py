@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """The document pane's border title reflects what it's showing, and its
 bottom border carries a viewport count for list screens."""

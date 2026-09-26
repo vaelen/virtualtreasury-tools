@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """Entry point for the `vtbrowse` TUI. Resolves the archive (same rules
 as vtindex/vtextract), then launches the Textual app."""

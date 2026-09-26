@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """Reopening a volume's page list (esc from a document) restores the row the
 user was on. Opening a different volume still starts at the top."""

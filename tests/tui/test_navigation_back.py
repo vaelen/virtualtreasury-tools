@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """Escape from the transcription view returns to wherever it was opened from:
 the search results when reached via a result row, the page list when reached

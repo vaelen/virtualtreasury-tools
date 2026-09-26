@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 """Snapshot the archive's name-extraction status and diff it against a baseline.
 
 Each `.jpg.txt` page is classified by which sidecar exists:

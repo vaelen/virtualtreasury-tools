@@ -1,5 +1,5 @@
 # Copyright 2026, Andrew C. Young <andrew@vaelen.org>
-# All rights reserved
+# SPDX-License-Identifier: MIT
 
 """vtbrowse's entry point loads the saved theme, hands it to the app, and
 writes the live theme back to the config on exit — only when it changed."""
